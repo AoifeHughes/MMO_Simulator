@@ -7,7 +7,7 @@ DEFAULT_SERVER_HOST = "127.0.0.1"
 DEFAULT_SERVER_PORT = 5555
 MAX_CLIENTS = 100
 CLIENT_TIMEOUT = 30.0  # Seconds before client is considered disconnected
-PLAYER_TIMEOUT = 10.0  # Seconds of no updates before player goes inactive
+PLAYER_TIMEOUT = 30.0  # Seconds of no updates before player goes inactive
 HEARTBEAT_INTERVAL = 5.0  # How often clients should send heartbeats
 
 # Game settings

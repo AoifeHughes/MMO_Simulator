@@ -215,24 +215,19 @@ import asyncio
 import sys
 import json
 from client.core.agent_client import AgentClient, AgentConfig
-from examples.simple_agent import SimpleExplorerAgent, CombatAgent
+from examples.character_agents import WarriorAgent, MageAgent
 
 async def run_agent():
     config_data = {json.dumps(agent_config)}
-    config = AgentConfig(
-        name=config_data['name'],
-        agent_class=config_data['class'],
-        personality=config_data['personality'],
-        behavior_params=config_data['behavior_params']
-    )
 
-    # Choose agent class based on template
-    if config_data['class'].lower() in ['warrior', 'fighter']:
-        agent = CombatAgent(config_data['name'])
+    # Choose agent class based on character class
+    if config_data['class'].lower() == 'warrior':
+        agent = WarriorAgent(config_data['name'])
+    elif config_data['class'].lower() == 'mage':
+        agent = MageAgent(config_data['name'])
     else:
-        agent = SimpleExplorerAgent(config_data['name'])
-
-    agent.config = config
+        # Default to mage for unknown classes
+        agent = MageAgent(config_data['name'])
 
     try:
         if await agent.connect():

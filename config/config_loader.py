@@ -258,26 +258,39 @@ class ConfigLoader:
             data = json.load(f)
         return ServerConfig.from_dict(data)
 
-    def get_spawn_position(self, template_name: Optional[str] = None) -> Vector2:
-        """Get a spawn position for an agent"""
-        if not self.agent_config:
-            return Vector2(500, 500)  # Default spawn
+    def get_spawn_position(self, template_name: Optional[str] = None, spawn_region: str = "center") -> Vector2:
+        """Get a spawn position for an agent based on region"""
+        from shared.constants import WORLD_WIDTH, WORLD_HEIGHT
 
-        spawn_config = self.agent_config.default_spawn_config
-        center = Vector2.from_tuple(spawn_config.get('spawn_area', {}).get('center', [500, 500]))
-        radius = spawn_config.get('spawn_area', {}).get('radius', 100)
+        # Define spawn regions across the full map
+        regions = {
+            "center": (WORLD_WIDTH // 2, WORLD_HEIGHT // 2, 200),
+            "northeast": (WORLD_WIDTH * 0.8, WORLD_HEIGHT * 0.2, 150),  # Top-right
+            "northwest": (WORLD_WIDTH * 0.2, WORLD_HEIGHT * 0.2, 150),  # Top-left
+            "southeast": (WORLD_WIDTH * 0.8, WORLD_HEIGHT * 0.8, 150),  # Bottom-right
+            "southwest": (WORLD_WIDTH * 0.2, WORLD_HEIGHT * 0.8, 150),  # Bottom-left
+        }
 
-        if spawn_config.get('spawn_spread', True):
-            import random
-            import math
-            angle = random.uniform(0, 6.28)  # 2π
-            distance = random.uniform(0, radius)
-            return Vector2(
-                center.x + distance * math.cos(angle),
-                center.y + distance * math.sin(angle)
-            )
+        # Get region parameters
+        if spawn_region in regions:
+            center_x, center_y, radius = regions[spawn_region]
+        else:
+            center_x, center_y, radius = regions["center"]
 
-        return center
+        # Add randomness within the region
+        import random
+        import math
+        angle = random.uniform(0, 6.28)  # 2π
+        distance = random.uniform(0, radius)
+
+        spawn_x = center_x + distance * math.cos(angle)
+        spawn_y = center_y + distance * math.sin(angle)
+
+        # Ensure spawn is within world bounds
+        spawn_x = max(50, min(WORLD_WIDTH - 50, spawn_x))
+        spawn_y = max(50, min(WORLD_HEIGHT - 50, spawn_y))
+
+        return Vector2(spawn_x, spawn_y)
 
     def get_test_scenario(self, scenario_name: str) -> Optional[Dict[str, Any]]:
         """Get a test scenario configuration"""

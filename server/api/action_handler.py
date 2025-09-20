@@ -84,6 +84,19 @@ class ActionHandler:
                 error_message="Invalid target format"
             )
 
+        # Validate target position bounds
+        from shared.constants import WORLD_WIDTH, WORLD_HEIGHT
+        if (target_pos.x < 0 or target_pos.x > WORLD_WIDTH or
+            target_pos.y < 0 or target_pos.y > WORLD_HEIGHT):
+            return ActionResultMessage(
+                action=ActionType.MOVE,
+                success=False,
+                error_message=f"Target position out of bounds ({target_pos.x:.1f}, {target_pos.y:.1f}). World bounds: 0-{WORLD_WIDTH}, 0-{WORLD_HEIGHT}"
+            )
+
+        # Check if movement path would go through invalid terrain
+        # TODO: Add terrain validation here if needed
+
         # Calculate direction and speed
         direction = (target_pos - entity.position).normalize()
         speed = data.get('speed', 'walk')
@@ -103,7 +116,7 @@ class ActionHandler:
                 error_message="Invalid movement speed"
             )
 
-        # Update entity velocity
+        # All validations passed - update entity velocity
         entity.velocity = direction * move_speed
         entity.state = 'moving'
 

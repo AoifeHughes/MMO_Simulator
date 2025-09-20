@@ -1,4 +1,8 @@
-numpy>=1.24.0
+# Core dependencies for MMO simulation
 pygame>=2.5.0
-dataclasses
-typing-extensions>=4.0.0
+aiohttp>=3.8.0
+
+# Python standard library extensions (included in Python 3.7+)
+# dataclasses - part of standard library in Python 3.7+
+# typing - part of standard library
+# asyncio - part of standard library

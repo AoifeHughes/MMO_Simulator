@@ -2,6 +2,13 @@
 
 A comprehensive, configuration-driven MMO simulation system with intelligent AI agents, server-side validation, and real-time visualization.
 
+## 📋 Requirements
+
+- Python 3.7+
+- Dependencies: `pip install -r requirements.txt`
+  - pygame>=2.5.0 (for visualization)
+  - aiohttp>=3.8.0 (for web API and client communication)
+
 ## 🚀 Quick Start
 
 ### One-Command Launch

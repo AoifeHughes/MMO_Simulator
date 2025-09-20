@@ -236,6 +236,7 @@ class Protocol:
                 MessageType.QUERY_RESULT: QueryResultMessage,
                 MessageType.WORLD_UPDATE: WorldUpdateMessage,
                 MessageType.EVENT: EventMessage,
+                MessageType.HEARTBEAT: HeartbeatMessage,
             }
 
             msg_class = message_classes.get(msg_type, Message)
@@ -254,6 +255,13 @@ class Protocol:
         except Exception as e:
             print(f"Error decoding message: {e}")
             return None
+
+
+@dataclass
+class HeartbeatMessage(Message):
+    """Client heartbeat message"""
+    type: MessageType = MessageType.HEARTBEAT
+    agent_id: Optional[str] = None
 
 
 @dataclass

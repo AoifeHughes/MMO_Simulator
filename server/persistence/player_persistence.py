@@ -28,6 +28,24 @@ class PlayerPersistence:
 
         logger.info(f"PlayerPersistence initialized with directory: {save_directory}")
 
+    def clean_start(self) -> bool:
+        """Clear all existing character data for a fresh start"""
+        try:
+            if os.path.exists(self.player_data_file):
+                os.remove(self.player_data_file)
+                logger.info("Removed existing player data file")
+
+            if os.path.exists(self.world_state_file):
+                os.remove(self.world_state_file)
+                logger.info("Removed existing world state file")
+
+            logger.info("Clean start completed - all character data cleared")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to clean start: {e}")
+            return False
+
     def save_player_data(self, game_state: GameState) -> bool:
         """Save all player data to file"""
         try:

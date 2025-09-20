@@ -290,6 +290,8 @@ class MMOLauncher:
         except KeyboardInterrupt:
             logger.info("Shutdown requested by user")
 
+        logger.info("📤 Exiting main loop, starting cleanup...")
+
     async def _print_status(self, uptime: float):
         """Print simulation status"""
         # Check server status
@@ -433,16 +435,18 @@ async def main():
     config = parse_arguments()
     setup_logging(config.log_level)
 
+    # Create launcher first so we can reference it in signal handler
+    launcher = MMOLauncher(config)
+
     # Setup signal handlers for graceful shutdown
     def signal_handler(signum, frame):
-        logger.info(f"Received signal {signum}")
-        # This will be caught by the main loop
+        logger.info(f"Received signal {signum}, initiating shutdown...")
+        launcher.running = False
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    # Create and start launcher
-    launcher = MMOLauncher(config)
+    # Start launcher
     await launcher.start()
 
 

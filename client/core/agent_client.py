@@ -143,7 +143,13 @@ class AgentClient:
         """Send periodic heartbeats"""
         while self.connected:
             await asyncio.sleep(5.0)
-            # Heartbeat is handled by last_heartbeat in connection
+            try:
+                from shared.messages import HeartbeatMessage
+                heartbeat = HeartbeatMessage(agent_id=self.agent_id)
+                await self.connection.send(heartbeat)
+            except Exception as e:
+                logger.error(f"Failed to send heartbeat: {e}")
+                break
 
     async def _decision_loop(self):
         """Main decision-making loop"""
@@ -250,11 +256,13 @@ class AgentClient:
         if message.success:
             logger.debug(f"Action {message.action.value} succeeded")
         else:
-            logger.warning(f"Action {message.action.value} failed: {message.error_message}")
+            logger.info(f"Agent {self.config.name}: Action {message.action.value} failed: {message.error_message}")
 
         # Update state based on result
         if message.action == ActionType.MOVE and not message.success:
             self.state = "idle"
+            # Agent can continue acting after failed movement
+            logger.debug(f"Agent {self.config.name} returned to idle state after failed movement")
 
     async def _handle_event(self, message):
         """Handle event from server"""

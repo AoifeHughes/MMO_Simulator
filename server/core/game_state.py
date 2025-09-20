@@ -264,14 +264,34 @@ class GameState:
 
             if entity.velocity.magnitude() > 0:
                 # Simple movement
-                new_x = entity.position.x + entity.velocity.x * delta_time
-                new_y = entity.position.y + entity.velocity.y * delta_time
+                original_x = entity.position.x
+                original_y = entity.position.y
+                new_x = original_x + entity.velocity.x * delta_time
+                new_y = original_y + entity.velocity.y * delta_time
 
-                # Boundary checking
-                new_x = max(0, min(WORLD_WIDTH, new_x))
-                new_y = max(0, min(WORLD_HEIGHT, new_y))
+                # Boundary checking with collision detection
+                clamped_x = max(0, min(WORLD_WIDTH, new_x))
+                clamped_y = max(0, min(WORLD_HEIGHT, new_y))
 
-                self.update_entity_position(entity.id, Vector2(new_x, new_y))
+                # If position was clamped, stop movement in that direction
+                velocity_x = entity.velocity.x
+                velocity_y = entity.velocity.y
+
+                if clamped_x != new_x:
+                    # Hit boundary on X axis
+                    velocity_x = 0
+                    entity.state = 'idle'  # Stop moving when hitting boundary
+
+                if clamped_y != new_y:
+                    # Hit boundary on Y axis
+                    velocity_y = 0
+                    entity.state = 'idle'  # Stop moving when hitting boundary
+
+                # Update velocity if we hit a boundary
+                if velocity_x != entity.velocity.x or velocity_y != entity.velocity.y:
+                    entity.velocity = Vector2(velocity_x, velocity_y)
+
+                self.update_entity_position(entity.id, Vector2(clamped_x, clamped_y))
 
         # Handle respawns
         for entity in self.entities.values():

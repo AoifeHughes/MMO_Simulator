@@ -80,8 +80,8 @@ class WorldServer:
         # Server socket
         self.server = None
 
-        # Load existing player data if available
-        self._load_player_data()
+        # Clean start - clear existing player data for fresh start
+        self._clean_start_initialization()
 
         # Initialize world from config
         self._initialize_world_from_config()
@@ -112,22 +112,11 @@ class WorldServer:
         self.monitor_api = MonitorAPI(self.game_state, port=8080)
         logger.info("MonitorAPI initialized successfully")
 
-    def _load_player_data(self):
-        """Load existing player data if available"""
-        if self.persistence.has_saved_data():
-            save_info = self.persistence.get_save_info()
-            if save_info:
-                logger.info(f"Found saved player data from {save_info['save_time_str']}")
-                logger.info(f"Players: {save_info['total_players']} total, {save_info['active_players']} active, {save_info['inactive_players']} inactive")
-
-                if self.persistence.load_player_data(self.game_state):
-                    logger.info("Successfully loaded player data")
-                else:
-                    logger.warning("Failed to load player data")
-            else:
-                logger.info("No valid saved player data found")
-        else:
-            logger.info("No saved player data found - starting fresh")
+    def _clean_start_initialization(self):
+        """Initialize with clean start - no existing character data"""
+        logger.info("Performing clean start - clearing any existing character data")
+        self.persistence.clean_start()
+        logger.info("Clean start completed - server will start fresh")
 
     def _initialize_world_from_config(self):
         """Set up initial world state from configuration"""
@@ -442,23 +431,42 @@ class WorldServer:
 
     def create_agent_entity(self, client_id: str, name: str, agent_class: str) -> ServerEntity:
         """Create a new agent entity for a client"""
-        import random
+        # Determine spawn region based on character class
+        spawn_region = "center"  # default
+        if agent_class.lower() == "warrior":
+            spawn_region = "southwest"
+        elif agent_class.lower() == "mage":
+            spawn_region = "northeast"
 
-        # Get spawn position from bounds checker
-        spawn_pos = self.bounds_checker.get_nearest_safe_position(
-            Vector2(random.uniform(400, 600), random.uniform(400, 600))
-        )
+        # Get spawn position from config loader based on character class
+        spawn_pos = config_loader.get_spawn_position(spawn_region=spawn_region)
 
-        # Create entity
+        # Ensure the position is safe
+        spawn_pos = self.bounds_checker.get_nearest_safe_position(spawn_pos)
+
+        # Get character stats based on class
+        from shared.character import Warrior, Mage
+        if agent_class.lower() == "warrior":
+            character = Warrior(name)
+        elif agent_class.lower() == "mage":
+            character = Mage(name)
+        else:
+            # Default to mage
+            character = Mage(name)
+
+        # Create entity with character stats
         entity = self.game_state.create_entity(
             name=name,
             entity_type="agent",
             position=spawn_pos,
-            health=100,
-            max_health=100,
-            level=1,
+            health=character.stats.health,
+            max_health=character.stats.max_health,
+            level=character.stats.level,
             owner_id=client_id,
-            data={'class': agent_class}
+            data={
+                'class': agent_class,
+                'character_data': character.to_dict()
+            }
         )
 
         # Map to client
