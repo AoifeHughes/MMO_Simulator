@@ -1,0 +1,180 @@
+MMO SIMULATION ANALYSIS REPORT
+==================================================
+
+Simulation Duration: 57.08 seconds
+Total Snapshots: 29
+Start Time: 2025-09-20 13:16:52.301700
+End Time: 2025-09-20 13:17:49.384237
+
+AGENT ANALYSIS
+------------------------------
+Total Unique Agents: 15
+
+Agent: Cautious_01
+  Initial Health: 79.3/100
+  Final Health: 79.1/100
+  Health Range: 48.4 - 81.1
+  Average Health: 68.7
+  Total Distance Traveled: 3056.3
+  Action Distribution:
+    avoid_hazard: 2 (6.9%)
+    seek_healing: 3 (10.3%)
+    wander: 24 (82.8%)
+
+Agent: Cautious_11
+  Initial Health: 96.3/100
+  Final Health: 100.0/100
+  Health Range: 44.5 - 100.0
+  Average Health: 90.5
+  Total Distance Traveled: 1187.8
+  Action Distribution:
+    avoid_hazard: 3 (10.3%)
+    seek_healing: 17 (58.6%)
+    wander: 9 (31.0%)
+
+Agent: Balanced_07
+  Initial Health: 87.3/100
+  Final Health: 100.0/100
+  Health Range: 34.8 - 100.0
+  Average Health: 89.1
+  Total Distance Traveled: 1176.5
+  Action Distribution:
+    avoid_hazard: 3 (10.3%)
+    seek_healing: 19 (65.5%)
+    wander: 7 (24.1%)
+
+Agent: Social_14
+  Initial Health: 77.3/100
+  Final Health: 100.0/100
+  Health Range: 46.0 - 100.0
+  Average Health: 93.4
+  Total Distance Traveled: 429.4
+  Action Distribution:
+    avoid_hazard: 1 (3.4%)
+    seek_healing: 27 (93.1%)
+    wander: 1 (3.4%)
+
+Agent: Balanced_02
+  Initial Health: 83.3/100
+  Final Health: 45.1/100
+  Health Range: 44.8 - 87.2
+  Average Health: 70.6
+  Total Distance Traveled: 2193.0
+  Action Distribution:
+    avoid_hazard: 2 (6.9%)
+    seek_healing: 2 (6.9%)
+    wander: 25 (86.2%)
+
+Agent: Social_09
+  Initial Health: 65.3/100
+  Final Health: 100.0/100
+  Health Range: 49.7 - 100.0
+  Average Health: 89.6
+  Total Distance Traveled: 500.7
+  Action Distribution:
+    avoid_hazard: 1 (3.4%)
+    seek_healing: 28 (96.6%)
+
+Agent: Explorer_05
+  Initial Health: 47.3/100
+  Final Health: 100.0/100
+  Health Range: 47.3 - 100.0
+  Average Health: 93.8
+  Total Distance Traveled: 497.2
+  Action Distribution:
+    avoid_hazard: 1 (3.4%)
+    seek_healing: 28 (96.6%)
+
+Agent: Explorer_00
+  Initial Health: 100.0/100
+  Final Health: 100.0/100
+  Health Range: 40.2 - 100.0
+  Average Health: 89.1
+  Total Distance Traveled: 1693.7
+  Action Distribution:
+    avoid_hazard: 2 (6.9%)
+    seek_healing: 14 (48.3%)
+    wander: 13 (44.8%)
+
+Agent: Aggressive_08
+  Initial Health: 85.3/100
+  Final Health: 100.0/100
+  Health Range: 38.7 - 100.0
+  Average Health: 92.2
+  Total Distance Traveled: 715.6
+  Action Distribution:
+    avoid_hazard: 1 (3.4%)
+    seek_healing: 25 (86.2%)
+    wander: 3 (10.3%)
+
+Agent: Aggressive_03
+  Initial Health: 79.3/100
+  Final Health: 100.0/100
+  Health Range: 49.4 - 100.0
+  Average Health: 91.2
+  Total Distance Traveled: 1123.3
+  Action Distribution:
+    seek_healing: 23 (79.3%)
+    wander: 6 (20.7%)
+
+Agent: Explorer_10
+  Initial Health: 86.3/100
+  Final Health: 100.0/100
+  Health Range: 47.4 - 100.0
+  Average Health: 92.4
+  Total Distance Traveled: 894.4
+  Action Distribution:
+    avoid_hazard: 2 (6.9%)
+    seek_healing: 26 (89.7%)
+    wander: 1 (3.4%)
+
+Agent: Aggressive_13
+  Initial Health: 87.3/100
+  Final Health: 100.0/100
+  Health Range: 50.1 - 100.0
+  Average Health: 74.0
+  Total Distance Traveled: 1118.2
+  Action Distribution:
+    avoid_hazard: 1 (3.4%)
+    seek_healing: 21 (72.4%)
+    wander: 7 (24.1%)
+
+Agent: Social_04
+  Initial Health: 93.3/100
+  Final Health: 100.0/100
+  Health Range: 45.3 - 100.0
+  Average Health: 91.8
+  Total Distance Traveled: 1496.5
+  Action Distribution:
+    avoid_hazard: 3 (10.3%)
+    seek_healing: 14 (48.3%)
+    wander: 12 (41.4%)
+
+Agent: Cautious_06
+  Initial Health: 83.3/100
+  Final Health: 100.0/100
+  Health Range: 45.4 - 100.0
+  Average Health: 90.5
+  Total Distance Traveled: 746.1
+  Action Distribution:
+    seek_healing: 23 (79.3%)
+    wander: 6 (20.7%)
+
+Agent: Balanced_12
+  Initial Health: 88.3/100
+  Final Health: 100.0/100
+  Health Range: 44.2 - 100.0
+  Average Health: 90.9
+  Total Distance Traveled: 1240.9
+  Action Distribution:
+    avoid_hazard: 3 (10.3%)
+    seek_healing: 18 (62.1%)
+    wander: 8 (27.6%)
+
+WORLD STATISTICS OVER TIME
+------------------------------
+Average Agent Health:
+  Initial: 82.6
+  Final: 94.9
+  Minimum: 77.4
+  Maximum: 94.9

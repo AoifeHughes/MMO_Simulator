@@ -1,0 +1,1627 @@
+{
+  "3b6df19f-b9e2-4ac5-a844-8428483c3da9": {
+    "id": "3b6df19f-b9e2-4ac5-a844-8428483c3da9",
+    "name": "TestAgent_A",
+    "entity_type": "agent",
+    "position": [
+      98.41508446733903,
+      559.7318506137403
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758371510.345294,
+    "owner_id": "client_0",
+    "data": {
+      "class": "TestAgent"
+    },
+    "vision_range": 100.0
+  },
+  "0d0b4265-f639-4463-aedc-2cfc6253efdc": {
+    "id": "0d0b4265-f639-4463-aedc-2cfc6253efdc",
+    "name": "TestAgent_B",
+    "entity_type": "agent",
+    "position": [
+      799.9394104373009,
+      9.543385680125365
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758371510.345464,
+    "owner_id": "client_1",
+    "data": {
+      "class": "TestAgent"
+    },
+    "vision_range": 100.0
+  },
+  "f89e9c48-ff2e-4442-81e2-18bceca97a4f": {
+    "id": "f89e9c48-ff2e-4442-81e2-18bceca97a4f",
+    "name": "TestAgent_C",
+    "entity_type": "agent",
+    "position": [
+      237.32439647576456,
+      56.47335249875287
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758371510.345689,
+    "owner_id": "client_2",
+    "data": {
+      "class": "TestAgent"
+    },
+    "vision_range": 100.0
+  },
+  "7e75d98f-97de-4d34-aff8-216ae8b5ca2f": {
+    "id": "7e75d98f-97de-4d34-aff8-216ae8b5ca2f",
+    "name": "TestAgent_A",
+    "entity_type": "agent",
+    "position": [
+      595.5093641644823,
+      45.914692978307365
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758371560.426765,
+    "owner_id": "client_0",
+    "data": {
+      "class": "TestAgent"
+    },
+    "vision_range": 100.0
+  },
+  "1936bc64-348e-48c2-a859-a327fcbf1138": {
+    "id": "1936bc64-348e-48c2-a859-a327fcbf1138",
+    "name": "TestAgent_B",
+    "entity_type": "agent",
+    "position": [
+      1023.6574880446728,
+      408.0344350370807
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758371560.426854,
+    "owner_id": "client_1",
+    "data": {
+      "class": "TestAgent"
+    },
+    "vision_range": 100.0
+  },
+  "fef39f4b-9ad8-4dd8-8a8a-feece8486fe4": {
+    "id": "fef39f4b-9ad8-4dd8-8a8a-feece8486fe4",
+    "name": "TestAgent_C",
+    "entity_type": "agent",
+    "position": [
+      25.535780341380217,
+      345.67907299529
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758371560.426914,
+    "owner_id": "client_2",
+    "data": {
+      "class": "TestAgent"
+    },
+    "vision_range": 100.0
+  },
+  "cbb199cb-0e0d-46e1-8ac2-6916f3bad8d2": {
+    "id": "cbb199cb-0e0d-46e1-8ac2-6916f3bad8d2",
+    "name": "Alice_1",
+    "entity_type": "agent",
+    "position": [
+      907.5282540267311,
+      170.90335390776525
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374856.60772,
+    "owner_id": "client_0",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "8556575c-f06a-4e94-a324-dcb847622e75": {
+    "id": "8556575c-f06a-4e94-a324-dcb847622e75",
+    "name": "Bob_1",
+    "entity_type": "agent",
+    "position": [
+      1695.2377883109218,
+      1503.911455758784
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374885.8736901,
+    "owner_id": "client_1",
+    "data": {
+      "class": "Warrior"
+    },
+    "vision_range": 100.0
+  },
+  "bfe67bbb-f22e-4ff6-b583-e5af659b83f0": {
+    "id": "bfe67bbb-f22e-4ff6-b583-e5af659b83f0",
+    "name": "Charlie_1",
+    "entity_type": "agent",
+    "position": [
+      0,
+      220.58852457332551
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374856.607795,
+    "owner_id": "client_2",
+    "data": {
+      "class": "Merchant"
+    },
+    "vision_range": 100.0
+  },
+  "404fdd3f-da95-4a83-9a46-6ee1e8163f9b": {
+    "id": "404fdd3f-da95-4a83-9a46-6ee1e8163f9b",
+    "name": "Warrior",
+    "entity_type": "agent",
+    "position": [
+      3980.3852795163193,
+      3528.5977521553004
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375000.576986,
+    "owner_id": "client_3",
+    "data": {
+      "class": "Warrior"
+    },
+    "vision_range": 100.0
+  },
+  "6f248095-d460-4728-8c63-ef3c544b0bee": {
+    "id": "6f248095-d460-4728-8c63-ef3c544b0bee",
+    "name": "Mage",
+    "entity_type": "agent",
+    "position": [
+      96.25882844254862,
+      815.7601467353979
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374859.3116748,
+    "owner_id": "client_4",
+    "data": {
+      "class": "Mage"
+    },
+    "vision_range": 100.0
+  },
+  "43b24017-84f5-4f56-a9a5-10d4fc060c93": {
+    "id": "43b24017-84f5-4f56-a9a5-10d4fc060c93",
+    "name": "Explorer_2",
+    "entity_type": "agent",
+    "position": [
+      1060.386258161245,
+      702.4006453552472
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374859.3125062,
+    "owner_id": "client_5",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "0b275e29-a89e-4aef-af6d-946d6ab55c2c": {
+    "id": "0b275e29-a89e-4aef-af6d-946d6ab55c2c",
+    "name": "Explorer_1",
+    "entity_type": "agent",
+    "position": [
+      854.3488802419329,
+      772.3406974385257
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374859.314592,
+    "owner_id": "client_6",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "48d9e6f6-1e80-4116-96f1-baaabc82f55e": {
+    "id": "48d9e6f6-1e80-4116-96f1-baaabc82f55e",
+    "name": "Merchant",
+    "entity_type": "agent",
+    "position": [
+      979.525990080425,
+      759.643249216784
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374859.314858,
+    "owner_id": "client_7",
+    "data": {
+      "class": "Merchant"
+    },
+    "vision_range": 100.0
+  },
+  "f11540d2-e00d-45a3-8eb7-219c14767d5a": {
+    "id": "f11540d2-e00d-45a3-8eb7-219c14767d5a",
+    "name": "Explorer_2_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      773.5494290244354,
+      985.0674865963601
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374894.3746948,
+    "owner_id": "client_8",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "d25585d1-2657-4472-9de9-518894050ecf": {
+    "id": "d25585d1-2657-4472-9de9-518894050ecf",
+    "name": "Explorer_1_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      881.8732476746598,
+      808.1315343497881
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374894.382422,
+    "owner_id": "client_9",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "54052093-ac49-4ec0-bb41-193e127bed22": {
+    "id": "54052093-ac49-4ec0-bb41-193e127bed22",
+    "name": "Warrior_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      2761.030959260013,
+      3576.29261454992
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375000.835724,
+    "owner_id": "client_10",
+    "data": {
+      "class": "Warrior"
+    },
+    "vision_range": 100.0
+  },
+  "e4e3308f-ae49-4f0b-b0c0-6063e7f3025f": {
+    "id": "e4e3308f-ae49-4f0b-b0c0-6063e7f3025f",
+    "name": "Merchant_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      394.4295926519211,
+      923.0072467670466
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374894.4254332,
+    "owner_id": "client_11",
+    "data": {
+      "class": "Merchant"
+    },
+    "vision_range": 100.0
+  },
+  "8e90e779-c726-44ed-824b-b06d0fbcd4da": {
+    "id": "8e90e779-c726-44ed-824b-b06d0fbcd4da",
+    "name": "Mage_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      292.167868228983,
+      1055.1748295258199
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374894.446841,
+    "owner_id": "client_12",
+    "data": {
+      "class": "Mage"
+    },
+    "vision_range": 100.0
+  },
+  "093fbb9e-bc4a-469e-8a6a-2e9ac385125f": {
+    "id": "093fbb9e-bc4a-469e-8a6a-2e9ac385125f",
+    "name": "Warrior",
+    "entity_type": "agent",
+    "position": [
+      2733.4287019746903,
+      2497.2602255320166
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375004.006846,
+    "owner_id": "client_14",
+    "data": {
+      "class": "Warrior"
+    },
+    "vision_range": 100.0
+  },
+  "3984c4fa-3eda-4942-8a99-f4b9405962aa": {
+    "id": "3984c4fa-3eda-4942-8a99-f4b9405962aa",
+    "name": "Explorer_1",
+    "entity_type": "agent",
+    "position": [
+      123.32496617637655,
+      875.8758281163173
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374914.513933,
+    "owner_id": "client_13",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "81633456-a811-40db-a20a-455101607079": {
+    "id": "81633456-a811-40db-a20a-455101607079",
+    "name": "Mage",
+    "entity_type": "agent",
+    "position": [
+      43.348950736177,
+      598.8573325073282
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374914.519265,
+    "owner_id": "client_15",
+    "data": {
+      "class": "Mage"
+    },
+    "vision_range": 100.0
+  },
+  "f44ed1d8-afc9-45da-b657-f2ff10f43991": {
+    "id": "f44ed1d8-afc9-45da-b657-f2ff10f43991",
+    "name": "Merchant",
+    "entity_type": "agent",
+    "position": [
+      911.4941271089924,
+      758.8518925036966
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374914.519527,
+    "owner_id": "client_16",
+    "data": {
+      "class": "Merchant"
+    },
+    "vision_range": 100.0
+  },
+  "99c795b5-737c-434b-85ea-9358ef18af19": {
+    "id": "99c795b5-737c-434b-85ea-9358ef18af19",
+    "name": "Explorer_2",
+    "entity_type": "agent",
+    "position": [
+      125.8735346661778,
+      800.2501475178452
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374919.5295959,
+    "owner_id": "client_17",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "2bdac74e-7767-4166-aba3-ad4e2542c2d9": {
+    "id": "2bdac74e-7767-4166-aba3-ad4e2542c2d9",
+    "name": "Warrior_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      2553.6294533037444,
+      2342.2694201241006
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375001.236678,
+    "owner_id": "client_19",
+    "data": {
+      "class": "Warrior"
+    },
+    "vision_range": 100.0
+  },
+  "7dfac6fb-d0f7-49b8-a764-92108a874a45": {
+    "id": "7dfac6fb-d0f7-49b8-a764-92108a874a45",
+    "name": "Merchant_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      78.03689277136857,
+      891.2644995472172
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374929.5738869,
+    "owner_id": "client_18",
+    "data": {
+      "class": "Merchant"
+    },
+    "vision_range": 100.0
+  },
+  "b908ab46-1ba2-421b-9025-045bed228739": {
+    "id": "b908ab46-1ba2-421b-9025-045bed228739",
+    "name": "Explorer_2_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      404.14473185039407,
+      26.541419166936016
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374929.573109,
+    "owner_id": "client_20",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "fa72ca21-e6b9-40f7-9475-0529f6420876": {
+    "id": "fa72ca21-e6b9-40f7-9475-0529f6420876",
+    "name": "Explorer_1_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      0,
+      316.66086449412643
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374929.580544,
+    "owner_id": "client_21",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "96a56191-38cd-4ce0-bc03-9279501a4337": {
+    "id": "96a56191-38cd-4ce0-bc03-9279501a4337",
+    "name": "Mage_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      0,
+      512.3683195963325
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374929.5812,
+    "owner_id": "client_22",
+    "data": {
+      "class": "Mage"
+    },
+    "vision_range": 100.0
+  },
+  "de85177b-9bcf-4aca-a6d6-6419a99a7c02": {
+    "id": "de85177b-9bcf-4aca-a6d6-6419a99a7c02",
+    "name": "Explorer_1_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      700.1684751937757,
+      89.31431790380284
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374949.610146,
+    "owner_id": "client_23",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "bb893ce7-fc73-4525-b362-298cf8b7a6aa": {
+    "id": "bb893ce7-fc73-4525-b362-298cf8b7a6aa",
+    "name": "Warrior_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      2038.6204297177492,
+      1925.068235748981
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375004.110063,
+    "owner_id": "client_24",
+    "data": {
+      "class": "Warrior"
+    },
+    "vision_range": 100.0
+  },
+  "e31fa987-1256-49a1-945d-daf2d6b1f7fa": {
+    "id": "e31fa987-1256-49a1-945d-daf2d6b1f7fa",
+    "name": "Mage_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      77.52672127486123,
+      245.2035219909837
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374949.6212978,
+    "owner_id": "client_25",
+    "data": {
+      "class": "Mage"
+    },
+    "vision_range": 100.0
+  },
+  "8c398865-dec4-43f2-b414-b142247152dd": {
+    "id": "8c398865-dec4-43f2-b414-b142247152dd",
+    "name": "Merchant_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      174.42530456605482,
+      819.4936426525684
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374949.643553,
+    "owner_id": "client_26",
+    "data": {
+      "class": "Merchant"
+    },
+    "vision_range": 100.0
+  },
+  "1d3c8c13-f9e8-4fd3-bb7d-7ed96a0b9a9c": {
+    "id": "1d3c8c13-f9e8-4fd3-bb7d-7ed96a0b9a9c",
+    "name": "Explorer_2_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      905.2429306260426,
+      449.2025600917451
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374954.5826402,
+    "owner_id": "client_27",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "7595dbbe-d368-4d64-8c74-4e83f396c1a3": {
+    "id": "7595dbbe-d368-4d64-8c74-4e83f396c1a3",
+    "name": "Warrior_respawn_0_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      1765.1325173633884,
+      1298.066180024416
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375003.9556851,
+    "owner_id": "client_28",
+    "data": {
+      "class": "Warrior"
+    },
+    "vision_range": 100.0
+  },
+  "61f8464c-112d-4f21-9e6e-3bd3e457574b": {
+    "id": "61f8464c-112d-4f21-9e6e-3bd3e457574b",
+    "name": "Explorer_2_respawn_0_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      431.5824845213973,
+      66.78576505314925
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374964.594095,
+    "owner_id": "client_29",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "c8d92dbd-2b43-4430-bf57-471dc2c6a1eb": {
+    "id": "c8d92dbd-2b43-4430-bf57-471dc2c6a1eb",
+    "name": "Explorer_1_respawn_0_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      404.3850119161596,
+      67.42223455591976
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374964.600192,
+    "owner_id": "client_30",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "7ad6fdf3-8c30-41a1-9a4d-1958831582e1": {
+    "id": "7ad6fdf3-8c30-41a1-9a4d-1958831582e1",
+    "name": "Mage_respawn_0_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      348.86523587940104,
+      24.51540368990968
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374964.606385,
+    "owner_id": "client_31",
+    "data": {
+      "class": "Mage"
+    },
+    "vision_range": 100.0
+  },
+  "645c2fbc-fb1c-470f-a034-6442a9b28b67": {
+    "id": "645c2fbc-fb1c-470f-a034-6442a9b28b67",
+    "name": "Merchant_respawn_0_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      267.94076284764145,
+      1005.9362912169814
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374964.609868,
+    "owner_id": "client_32",
+    "data": {
+      "class": "Merchant"
+    },
+    "vision_range": 100.0
+  },
+  "b19ad02a-1a8c-420b-868b-0f56c7d5398f": {
+    "id": "b19ad02a-1a8c-420b-868b-0f56c7d5398f",
+    "name": "Explorer_1",
+    "entity_type": "agent",
+    "position": [
+      90.85598424201393,
+      138.02702587446694
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374974.616415,
+    "owner_id": "client_33",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "7afba87d-5235-4b8f-8450-bc25dcdfdae1": {
+    "id": "7afba87d-5235-4b8f-8450-bc25dcdfdae1",
+    "name": "Warrior",
+    "entity_type": "agent",
+    "position": [
+      1213.2171850303853,
+      943.7288911169203
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374998.8431768,
+    "owner_id": "client_34",
+    "data": {
+      "class": "Warrior"
+    },
+    "vision_range": 100.0
+  },
+  "411f1b7c-f62a-4673-bc1f-e4b803642a23": {
+    "id": "411f1b7c-f62a-4673-bc1f-e4b803642a23",
+    "name": "Merchant",
+    "entity_type": "agent",
+    "position": [
+      305.09568412105585,
+      0
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374974.626341,
+    "owner_id": "client_35",
+    "data": {
+      "class": "Merchant"
+    },
+    "vision_range": 100.0
+  },
+  "c4ef132b-37d5-47b9-9bde-79244f4fe977": {
+    "id": "c4ef132b-37d5-47b9-9bde-79244f4fe977",
+    "name": "Mage",
+    "entity_type": "agent",
+    "position": [
+      664.7916267687984,
+      102.96920791046846
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374974.630798,
+    "owner_id": "client_36",
+    "data": {
+      "class": "Mage"
+    },
+    "vision_range": 100.0
+  },
+  "ba2faea3-930e-4d90-b583-f59720373907": {
+    "id": "ba2faea3-930e-4d90-b583-f59720373907",
+    "name": "Explorer_2",
+    "entity_type": "agent",
+    "position": [
+      42.907616739398854,
+      339.62933055771845
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374979.648093,
+    "owner_id": "client_37",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "addc63e6-6c99-4ac1-b9af-5a68caf61037": {
+    "id": "addc63e6-6c99-4ac1-b9af-5a68caf61037",
+    "name": "Warrior_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      877.5467093254554,
+      1147.6867569210137
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375001.33643,
+    "owner_id": "client_38",
+    "data": {
+      "class": "Warrior"
+    },
+    "vision_range": 100.0
+  },
+  "c3faefd5-79f2-472b-af65-8fb08a51d41b": {
+    "id": "c3faefd5-79f2-472b-af65-8fb08a51d41b",
+    "name": "Merchant_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      735.6726073732887,
+      127.4280705920287
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374984.6828501,
+    "owner_id": "client_39",
+    "data": {
+      "class": "Merchant"
+    },
+    "vision_range": 100.0
+  },
+  "d47688ee-89d5-4555-bcb6-d15ef19cd51b": {
+    "id": "d47688ee-89d5-4555-bcb6-d15ef19cd51b",
+    "name": "Explorer_1_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      915.7894671197075,
+      874.0292628722476
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374984.690185,
+    "owner_id": "client_40",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "f2405927-88df-40ab-8445-6e413f299e70": {
+    "id": "f2405927-88df-40ab-8445-6e413f299e70",
+    "name": "Mage_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      804.2190914528549,
+      155.29400010859473
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374984.694409,
+    "owner_id": "client_41",
+    "data": {
+      "class": "Mage"
+    },
+    "vision_range": 100.0
+  },
+  "7af646e4-347e-4112-a368-c34deee67e23": {
+    "id": "7af646e4-347e-4112-a368-c34deee67e23",
+    "name": "Explorer_2_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      172.873096534664,
+      837.9829791935944
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374989.709037,
+    "owner_id": "client_42",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "1d58b2f6-e61b-401f-a267-b6b62c4b204e": {
+    "id": "1d58b2f6-e61b-401f-a267-b6b62c4b204e",
+    "name": "Mage_respawn_0_respawn_0_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      804.9019226427624,
+      454.1104823278779
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374999.782706,
+    "owner_id": "client_43",
+    "data": {
+      "class": "Mage"
+    },
+    "vision_range": 100.0
+  },
+  "7e5bd82f-7389-404b-8536-b5b4510383a1": {
+    "id": "7e5bd82f-7389-404b-8536-b5b4510383a1",
+    "name": "Explorer_2_respawn_0_respawn_0_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      600.8837676542938,
+      278.6647878003544
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374999.782909,
+    "owner_id": "client_44",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "ff8ba76e-706b-48cf-90cf-de38cafc4c0e": {
+    "id": "ff8ba76e-706b-48cf-90cf-de38cafc4c0e",
+    "name": "Merchant_respawn_0_respawn_0_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      707.2225656050913,
+      681.8206189429138
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374999.782986,
+    "owner_id": "client_45",
+    "data": {
+      "class": "Merchant"
+    },
+    "vision_range": 100.0
+  },
+  "3ca5efc9-1a2b-4cd8-9593-a4d3284d9846": {
+    "id": "3ca5efc9-1a2b-4cd8-9593-a4d3284d9846",
+    "name": "Explorer_1_respawn_0_respawn_0_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      573.3843337833199,
+      666.2810449177531
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758374999.844529,
+    "owner_id": "client_47",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "7d9af7eb-09a6-46ee-81be-935d3855a972": {
+    "id": "7d9af7eb-09a6-46ee-81be-935d3855a972",
+    "name": "Warrior_respawn_0_respawn_0_respawn_0_respawn_0",
+    "entity_type": "agent",
+    "position": [
+      652.6343024196568,
+      586.6254682001224
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375003.377084,
+    "owner_id": "client_46",
+    "data": {
+      "class": "Warrior"
+    },
+    "vision_range": 100.0
+  },
+  "08ab62ba-887e-4d83-be20-940a57f98f12": {
+    "id": "08ab62ba-887e-4d83-be20-940a57f98f12",
+    "name": "Alice_1",
+    "entity_type": "agent",
+    "position": [
+      851.6455677089085,
+      824.9347282894421
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375456.438818,
+    "owner_id": "client_0",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "714d872c-25a3-4bbc-aa32-726e33328168": {
+    "id": "714d872c-25a3-4bbc-aa32-726e33328168",
+    "name": "Bob_1",
+    "entity_type": "agent",
+    "position": [
+      1781.9840581388228,
+      1044.6173288783393
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375486.221266,
+    "owner_id": "client_1",
+    "data": {
+      "class": "Warrior"
+    },
+    "vision_range": 100.0
+  },
+  "3919af05-eeb8-4b4f-a16d-b4b250d7c86a": {
+    "id": "3919af05-eeb8-4b4f-a16d-b4b250d7c86a",
+    "name": "Charlie_1",
+    "entity_type": "agent",
+    "position": [
+      882.5541250524291,
+      153.9631912277389
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375456.439599,
+    "owner_id": "client_2",
+    "data": {
+      "class": "Merchant"
+    },
+    "vision_range": 100.0
+  },
+  "baa73ef1-947d-444c-84bb-d44ef1c061e4": {
+    "id": "baa73ef1-947d-444c-84bb-d44ef1c061e4",
+    "name": "TestAgent_A",
+    "entity_type": "agent",
+    "position": [
+      101.53750699472289,
+      908.8766934750143
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375460.484892,
+    "owner_id": "client_3",
+    "data": {
+      "class": "TestAgent"
+    },
+    "vision_range": 100.0
+  },
+  "9637301e-5219-4e93-ae32-b807e7264830": {
+    "id": "9637301e-5219-4e93-ae32-b807e7264830",
+    "name": "TestAgent_B",
+    "entity_type": "agent",
+    "position": [
+      72.5220037617418,
+      890.47111316986
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375460.484985,
+    "owner_id": "client_4",
+    "data": {
+      "class": "TestAgent"
+    },
+    "vision_range": 100.0
+  },
+  "6aa50b14-1121-430a-aea4-e2539e9329e8": {
+    "id": "6aa50b14-1121-430a-aea4-e2539e9329e8",
+    "name": "TestAgent_C",
+    "entity_type": "agent",
+    "position": [
+      609.1533484215403,
+      891.0584949106373
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375460.485044,
+    "owner_id": "client_5",
+    "data": {
+      "class": "TestAgent"
+    },
+    "vision_range": 100.0
+  },
+  "c2f14bdb-0b8d-4fbe-84ac-ede85466ea17": {
+    "id": "c2f14bdb-0b8d-4fbe-84ac-ede85466ea17",
+    "name": "Warrior",
+    "entity_type": "agent",
+    "position": [
+      1233.7788416820017,
+      1205.34506264211
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375479.299388,
+    "owner_id": "client_6",
+    "data": {
+      "class": "Warrior"
+    },
+    "vision_range": 100.0
+  },
+  "2c13f286-f195-49a6-b783-740689734ab1": {
+    "id": "2c13f286-f195-49a6-b783-740689734ab1",
+    "name": "Explorer_1",
+    "entity_type": "agent",
+    "position": [
+      1037.5501665596714,
+      602.7213966049138
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375459.0906932,
+    "owner_id": "client_7",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "2374ddbf-b5d8-4b82-b9b8-958e8e237bcd": {
+    "id": "2374ddbf-b5d8-4b82-b9b8-958e8e237bcd",
+    "name": "Explorer_2",
+    "entity_type": "agent",
+    "position": [
+      727.4863574813282,
+      845.553980509635
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375459.095072,
+    "owner_id": "client_9",
+    "data": {
+      "class": "Explorer"
+    },
+    "vision_range": 100.0
+  },
+  "b19db4b7-8af5-4e03-94ac-5739367c59d9": {
+    "id": "b19db4b7-8af5-4e03-94ac-5739367c59d9",
+    "name": "Mage",
+    "entity_type": "agent",
+    "position": [
+      869.174845095548,
+      5.15063764530427
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375459.095139,
+    "owner_id": "client_8",
+    "data": {
+      "class": "Mage"
+    },
+    "vision_range": 100.0
+  },
+  "25f1c2f3-bdd7-44cd-89c0-7c996b2b26ac": {
+    "id": "25f1c2f3-bdd7-44cd-89c0-7c996b2b26ac",
+    "name": "Merchant",
+    "entity_type": "agent",
+    "position": [
+      300.43868987752694,
+      990.1422498667866
+    ],
+    "velocity": [
+      0,
+      0
+    ],
+    "health": 100,
+    "max_health": 100,
+    "level": 1,
+    "state": "disconnected",
+    "alive": true,
+    "is_active": false,
+    "last_update_time": 1758375459.095843,
+    "owner_id": "client_10",
+    "data": {
+      "class": "Merchant"
+    },
+    "vision_range": 100.0
+  }
+}

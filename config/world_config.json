@@ -1,0 +1,242 @@
+{
+  "world": {
+    "width": 10000,
+    "height": 10000,
+    "safe_zones": [
+      {
+        "name": "Starting Village",
+        "center": [500, 500],
+        "radius": 200,
+        "level_requirement": 0
+      }
+    ]
+  },
+  "terrain": [
+    {
+      "type": "forest",
+      "position": [2000, 1500],
+      "size": [800, 800],
+      "properties": {
+        "movement_speed_modifier": 0.8,
+        "visibility_modifier": 0.7
+      }
+    },
+    {
+      "type": "mountain",
+      "position": [3500, 2000],
+      "size": [1000, 1000],
+      "properties": {
+        "movement_speed_modifier": 0.6,
+        "visibility_modifier": 1.2
+      }
+    },
+    {
+      "type": "swamp",
+      "position": [1500, 3000],
+      "size": [600, 600],
+      "properties": {
+        "movement_speed_modifier": 0.5,
+        "visibility_modifier": 0.6
+      }
+    }
+  ],
+  "npcs": [
+    {
+      "name": "Merchant Bob",
+      "type": "merchant",
+      "position": [500, 500],
+      "level": 10,
+      "health": 100,
+      "behavior": "stationary",
+      "services": ["buy", "sell", "repair"],
+      "dialogue": ["Welcome to my shop!", "Looking to buy or sell?"]
+    },
+    {
+      "name": "Guard Tom",
+      "type": "guard",
+      "position": [400, 400],
+      "level": 15,
+      "health": 200,
+      "behavior": "patrol",
+      "patrol_radius": 50,
+      "services": ["quest", "information"]
+    },
+    {
+      "name": "Trainer Jane",
+      "type": "trainer",
+      "position": [600, 500],
+      "level": 20,
+      "health": 150,
+      "behavior": "stationary",
+      "services": ["train", "quest"],
+      "specialization": "combat"
+    },
+    {
+      "name": "Elder Sage",
+      "type": "quest_giver",
+      "position": [550, 450],
+      "level": 25,
+      "health": 120,
+      "behavior": "stationary",
+      "services": ["quest", "lore"],
+      "specialization": "magic"
+    }
+  ],
+  "enemies": [
+    {
+      "template": "goblin",
+      "spawn_areas": [
+        {
+          "center": [800, 800],
+          "radius": 200,
+          "count": 10,
+          "level_range": [1, 5],
+          "respawn_time": 60
+        }
+      ]
+    },
+    {
+      "template": "wolf",
+      "spawn_areas": [
+        {
+          "center": [2400, 1900],
+          "radius": 300,
+          "count": 8,
+          "level_range": [10, 20],
+          "respawn_time": 90
+        }
+      ]
+    },
+    {
+      "template": "elite_guardian",
+      "spawn_areas": [
+        {
+          "center": [3600, 2100],
+          "radius": 50,
+          "count": 2,
+          "level_range": [25, 25],
+          "respawn_time": 300
+        }
+      ]
+    },
+    {
+      "template": "dragon_lord",
+      "spawn_areas": [
+        {
+          "center": [4000, 2500],
+          "radius": 100,
+          "count": 1,
+          "level_range": [50, 50],
+          "respawn_time": 600
+        }
+      ]
+    }
+  ],
+  "enemy_templates": {
+    "goblin": {
+      "name_prefix": "Goblin",
+      "entity_type": "enemy",
+      "base_health": 50,
+      "base_damage": 10,
+      "move_speed": 30,
+      "aggro_range": 50,
+      "ai_behavior": "aggressive",
+      "loot_table": ["coins", "goblin_ear"]
+    },
+    "wolf": {
+      "name_prefix": "Wolf",
+      "entity_type": "enemy",
+      "base_health": 80,
+      "base_damage": 20,
+      "move_speed": 45,
+      "aggro_range": 70,
+      "ai_behavior": "pack_hunter",
+      "loot_table": ["coins", "wolf_pelt", "meat"]
+    },
+    "elite_guardian": {
+      "name_prefix": "Elite Guardian",
+      "entity_type": "enemy",
+      "base_health": 200,
+      "base_damage": 40,
+      "move_speed": 35,
+      "aggro_range": 100,
+      "ai_behavior": "tactical",
+      "loot_table": ["rare_weapon", "armor_piece", "coins"]
+    },
+    "dragon_lord": {
+      "name_prefix": "Dragon Lord",
+      "entity_type": "enemy",
+      "base_health": 1000,
+      "base_damage": 100,
+      "move_speed": 25,
+      "aggro_range": 150,
+      "ai_behavior": "boss",
+      "loot_table": ["legendary_item", "dragon_scale", "massive_coins"]
+    }
+  },
+  "objects": [
+    {
+      "type": "resource_node",
+      "template": "ore_node",
+      "positions": [
+        [1400, 1100],
+        [2200, 1700]
+      ]
+    },
+    {
+      "type": "resource_node",
+      "template": "wood_node",
+      "positions": [
+        [1500, 1200]
+      ]
+    },
+    {
+      "type": "resource_node",
+      "template": "herb_node",
+      "positions": [
+        [2100, 1600]
+      ]
+    },
+    {
+      "type": "container",
+      "name": "Treasure Chest",
+      "position": [1250, 1250],
+      "locked": true,
+      "lock_difficulty": 15,
+      "contents": [
+        {"type": "weapon", "name": "Magic Sword", "rarity": "rare"},
+        {"type": "consumable", "name": "Health Potion", "quantity": 3}
+      ]
+    },
+    {
+      "type": "portal",
+      "name": "Forest Portal",
+      "position": [1500, 1000],
+      "destination": "dark_forest",
+      "destination_position": [2000, 1500]
+    }
+  ],
+  "object_templates": {
+    "ore_node": {
+      "name": "Iron Ore Vein",
+      "resource_type": "ore",
+      "max_yield": 10,
+      "respawn_time": 120,
+      "tools_required": ["pickaxe"]
+    },
+    "wood_node": {
+      "name": "Oak Tree",
+      "resource_type": "wood",
+      "max_yield": 15,
+      "respawn_time": 180,
+      "tools_required": ["axe"]
+    },
+    "herb_node": {
+      "name": "Healing Herbs",
+      "resource_type": "herb",
+      "max_yield": 5,
+      "respawn_time": 90,
+      "tools_required": []
+    }
+  }
+}

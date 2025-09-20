@@ -1,0 +1,161 @@
+{
+  "agent_templates": {
+    "explorer": {
+      "class": "Explorer",
+      "personality": {
+        "exploration": 0.8,
+        "risk_taking": 0.3,
+        "social": 0.6,
+        "greed": 0.4,
+        "patience": 0.7
+      },
+      "behavior_params": {
+        "decision_interval": 0.5,
+        "move_frequency": 3.0,
+        "exploration_radius": 150,
+        "flee_health_threshold": 30,
+        "interaction_chance": 0.1
+      },
+      "starting_equipment": [
+        {"type": "weapon", "name": "Explorer's Staff", "damage": 15},
+        {"type": "consumable", "name": "Health Potion", "quantity": 3},
+        {"type": "tool", "name": "Map", "uses": -1}
+      ],
+      "starting_stats": {
+        "level": 1,
+        "health": 100,
+        "move_speed": 50
+      }
+    },
+    "warrior": {
+      "class": "Warrior",
+      "personality": {
+        "exploration": 0.4,
+        "risk_taking": 0.9,
+        "social": 0.3,
+        "greed": 0.6,
+        "patience": 0.3
+      },
+      "behavior_params": {
+        "decision_interval": 0.3,
+        "move_frequency": 2.0,
+        "combat_range": 100,
+        "min_combat_health": 30,
+        "aggression_level": 0.8
+      },
+      "starting_equipment": [
+        {"type": "weapon", "name": "Iron Sword", "damage": 25},
+        {"type": "armor", "name": "Leather Armor", "defense": 10},
+        {"type": "consumable", "name": "Health Potion", "quantity": 5}
+      ],
+      "starting_stats": {
+        "level": 1,
+        "health": 120,
+        "move_speed": 45
+      }
+    },
+    "merchant": {
+      "class": "Merchant",
+      "personality": {
+        "exploration": 0.6,
+        "risk_taking": 0.2,
+        "social": 0.9,
+        "greed": 0.8,
+        "patience": 0.9
+      },
+      "behavior_params": {
+        "decision_interval": 1.0,
+        "move_frequency": 5.0,
+        "trade_range": 80,
+        "npc_interaction_chance": 0.3,
+        "item_collection_priority": 0.9
+      },
+      "starting_equipment": [
+        {"type": "tool", "name": "Merchant's Bag", "capacity": 50},
+        {"type": "consumable", "name": "Health Potion", "quantity": 10},
+        {"type": "currency", "name": "Gold Coins", "amount": 100}
+      ],
+      "starting_stats": {
+        "level": 1,
+        "health": 80,
+        "move_speed": 40
+      }
+    },
+    "mage": {
+      "class": "Mage",
+      "personality": {
+        "exploration": 0.7,
+        "risk_taking": 0.4,
+        "social": 0.5,
+        "greed": 0.3,
+        "patience": 0.8
+      },
+      "behavior_params": {
+        "decision_interval": 0.4,
+        "move_frequency": 4.0,
+        "spell_range": 120,
+        "mana_management": 0.7,
+        "study_chance": 0.2
+      },
+      "starting_equipment": [
+        {"type": "weapon", "name": "Magic Wand", "damage": 20, "mana_cost": 5},
+        {"type": "consumable", "name": "Mana Potion", "quantity": 5},
+        {"type": "consumable", "name": "Health Potion", "quantity": 2}
+      ],
+      "starting_stats": {
+        "level": 1,
+        "health": 90,
+        "mana": 100,
+        "move_speed": 35
+      }
+    }
+  },
+  "default_spawn_config": {
+    "spawn_area": {
+      "center": [500, 500],
+      "radius": 100
+    },
+    "spawn_spread": true,
+    "spawn_delay": 1.0
+  },
+  "test_scenarios": {
+    "basic_exploration": {
+      "description": "Basic exploration and interaction test",
+      "agents": [
+        {"template": "explorer", "name": "Alice", "count": 2},
+        {"template": "warrior", "name": "Bob", "count": 1},
+        {"template": "merchant", "name": "Charlie", "count": 1}
+      ],
+      "duration": 300,
+      "objectives": ["explore_areas", "interact_with_npcs", "collect_resources"]
+    },
+    "combat_test": {
+      "description": "Combat and survival test",
+      "agents": [
+        {"template": "warrior", "name": "Fighter", "count": 3},
+        {"template": "mage", "name": "Wizard", "count": 2}
+      ],
+      "duration": 180,
+      "objectives": ["defeat_enemies", "survive_combat", "gain_levels"]
+    },
+    "mixed_gameplay": {
+      "description": "Comprehensive gameplay test",
+      "agents": [
+        {"template": "explorer", "name": "Scout", "count": 2},
+        {"template": "warrior", "name": "Guardian", "count": 2},
+        {"template": "merchant", "name": "Trader", "count": 1},
+        {"template": "mage", "name": "Scholar", "count": 1}
+      ],
+      "duration": 600,
+      "objectives": ["explore_all_areas", "complete_trades", "defeat_boss", "collect_rare_items"]
+    }
+  },
+  "global_settings": {
+    "max_agents": 50,
+    "auto_respawn": true,
+    "respawn_delay": 30,
+    "experience_multiplier": 1.0,
+    "loot_multiplier": 1.0,
+    "difficulty_scaling": true
+  }
+}

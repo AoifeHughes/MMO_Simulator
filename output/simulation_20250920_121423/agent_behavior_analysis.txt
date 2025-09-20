@@ -1,0 +1,168 @@
+AGENT BEHAVIOR ANALYSIS
+==============================
+
+Agent: Explorer_00
+  Personality:
+    Exploration: 0.90
+    Risk Taking: 0.80
+  Final Health: 100.0/100
+  Final Position: (0.0, 409.3)
+  Behavior Summary:
+    avoid_hazard: 5.7%
+    seek_healing: 90.4%
+    wander: 3.8%
+
+Agent: Cautious_01
+  Personality:
+    Exploration: 0.20
+    Risk Taking: 0.10
+  Final Health: 100.0/100
+  Final Position: (334.4, 0.0)
+  Behavior Summary:
+    avoid_hazard: 5.6%
+    seek_healing: 80.4%
+    wander: 14.0%
+
+Agent: Balanced_02
+  Personality:
+    Exploration: 0.50
+    Risk Taking: 0.50
+  Final Health: 100.0/100
+  Final Position: (448.6, 0.0)
+  Behavior Summary:
+    avoid_hazard: 5.0%
+    seek_healing: 36.2%
+    wander: 58.8%
+
+Agent: Aggressive_03
+  Personality:
+    Exploration: 0.70
+    Risk Taking: 0.90
+  Final Health: 100.0/100
+  Final Position: (509.6, 0.0)
+  Behavior Summary:
+    avoid_hazard: 6.0%
+    seek_healing: 57.4%
+    wander: 36.7%
+
+Agent: Social_04
+  Personality:
+    Exploration: 0.40
+    Risk Taking: 0.30
+  Final Health: 100.0/100
+  Final Position: (1168.6, 194.8)
+  Behavior Summary:
+    avoid_hazard: 8.3%
+    seek_healing: 75.9%
+    wander: 15.8%
+
+Agent: Explorer_05
+  Personality:
+    Exploration: 0.90
+    Risk Taking: 0.80
+  Final Health: 100.0/100
+  Final Position: (373.4, 0.0)
+  Behavior Summary:
+    avoid_hazard: 4.2%
+    seek_healing: 49.1%
+    wander: 46.8%
+
+Agent: Cautious_06
+  Personality:
+    Exploration: 0.20
+    Risk Taking: 0.10
+  Final Health: 100.0/100
+  Final Position: (445.1, 0.0)
+  Behavior Summary:
+    avoid_hazard: 10.3%
+    seek_healing: 85.1%
+    wander: 4.6%
+
+Agent: Balanced_07
+  Personality:
+    Exploration: 0.50
+    Risk Taking: 0.50
+  Final Health: 100.0/100
+  Final Position: (465.6, 0.0)
+  Behavior Summary:
+    avoid_hazard: 7.9%
+    seek_healing: 89.3%
+    wander: 2.8%
+
+Agent: Aggressive_08
+  Personality:
+    Exploration: 0.70
+    Risk Taking: 0.90
+  Final Health: 100.0/100
+  Final Position: (442.1, 0.0)
+  Behavior Summary:
+    avoid_hazard: 4.0%
+    seek_healing: 90.9%
+    wander: 5.1%
+
+Agent: Social_09
+  Personality:
+    Exploration: 0.40
+    Risk Taking: 0.30
+  Final Health: 100.0/100
+  Final Position: (0.0, 393.8)
+  Behavior Summary:
+    avoid_hazard: 5.8%
+    seek_healing: 90.4%
+    wander: 3.8%
+
+Agent: Explorer_10
+  Personality:
+    Exploration: 0.90
+    Risk Taking: 0.80
+  Final Health: 100.0/100
+  Final Position: (0.0, 439.0)
+  Behavior Summary:
+    avoid_hazard: 4.1%
+    seek_healing: 84.4%
+    wander: 11.5%
+
+Agent: Cautious_11
+  Personality:
+    Exploration: 0.20
+    Risk Taking: 0.10
+  Final Health: 100.0/100
+  Final Position: (476.0, 0.0)
+  Behavior Summary:
+    avoid_hazard: 6.9%
+    seek_healing: 93.0%
+    wander: 0.1%
+
+Agent: Balanced_12
+  Personality:
+    Exploration: 0.50
+    Risk Taking: 0.50
+  Final Health: 100.0/100
+  Final Position: (470.6, 0.0)
+  Behavior Summary:
+    avoid_hazard: 4.5%
+    seek_healing: 93.0%
+    wander: 2.5%
+
+Agent: Aggressive_13
+  Personality:
+    Exploration: 0.70
+    Risk Taking: 0.90
+  Final Health: 100.0/100
+  Final Position: (0.0, 0.0)
+  Behavior Summary:
+    avoid_hazard: 5.6%
+    seek_healing: 74.4%
+    wander: 19.9%
+
+Agent: Social_14
+  Personality:
+    Exploration: 0.40
+    Risk Taking: 0.30
+  Final Health: 100.0/100
+  Final Position: (0.0, 404.9)
+  Behavior Summary:
+    avoid_hazard: 7.4%
+    seek_healing: 82.8%
+    wander: 9.8%
+
