@@ -47,61 +47,9 @@ class GameLoop:
         self.last_tick = current_time
         self.tick_count += 1
 
-        self.update_ai_agents(delta_time)
-
-        if self.tick_count % 3 == 0:
-            await self.server.broadcast_world_state()
-
-        if self.tick_count % 2 == 0:
-            for client_id in list(self.server.clients.keys()):
-                await self.server.send_visible_entities(client_id)
-
-    def update_ai_agents(self, delta_time: float):
-        for agent in self.world.get_all_agents():
-            if agent.agent_type in ["npc", "enemy"]:
-                self.simulate_ai_movement(agent, delta_time)
-
-    def simulate_ai_movement(self, agent, delta_time: float):
-        import math
-        import random
-
-        if agent.agent_type == "npc":
-            if random.random() < 0.01:
-                angle = random.uniform(0, 2 * math.pi)
-                distance = random.uniform(0.5, 2.0)
-                new_x = agent.x + math.cos(angle) * distance
-                new_y = agent.y + math.sin(angle) * distance
-
-                if self.world.validate_position(new_x, new_y):
-                    agent.x = new_x
-                    agent.y = new_y
-                    agent.rotation = math.degrees(angle)
-
-        elif agent.agent_type == "enemy":
-            players = [
-                a for a in self.world.get_all_agents() if a.agent_type == "player"
-            ]
-            if players:
-                closest_player = min(
-                    players,
-                    key=lambda p: math.sqrt(
-                        (p.x - agent.x) ** 2 + (p.y - agent.y) ** 2
-                    ),
-                )
-
-                dx = closest_player.x - agent.x
-                dy = closest_player.y - agent.y
-                distance = math.sqrt(dx * dx + dy * dy)
-
-                if distance < 20 and distance > 2:
-                    move_speed = 3.0 * delta_time
-                    new_x = agent.x + (dx / distance) * move_speed
-                    new_y = agent.y + (dy / distance) * move_speed
-
-                    if self.world.validate_position(new_x, new_y):
-                        agent.x = new_x
-                        agent.y = new_y
-                        agent.rotation = math.degrees(math.atan2(dy, dx))
+        # Send standardized updates every 500ms (15 ticks at 30 TPS)
+        if self.tick_count % 15 == 0:
+            await self.server.send_client_updates()
 
     def stop(self):
         self.running = False

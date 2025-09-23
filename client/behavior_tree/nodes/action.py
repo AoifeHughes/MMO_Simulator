@@ -9,6 +9,88 @@ from .base import ActionNode, NodeStatus
 logger = logging.getLogger(__name__)
 
 
+class MoveToTargetWithPathfinding(ActionNode):
+    """Move to a target position using terrain-aware pathfinding"""
+
+    def __init__(self, target_x: float, target_y: float, threshold: float = 1.0):
+        super().__init__(f"MoveToTargetWithPathfinding_{target_x}_{target_y}")
+        self.target_x = target_x
+        self.target_y = target_y
+        self.threshold = threshold
+        self.path_finding_started = False
+        self.fallback_to_direct = False
+        self.last_pathfind_attempt = 0
+        self.pathfind_cooldown = 2.0  # Retry pathfinding every 2 seconds if failed
+
+    def start_action(self, agent) -> bool:
+        logger.debug(
+            f"Starting terrain-aware movement to ({self.target_x}, {self.target_y}) for agent {agent.id[:8]}"
+        )
+        self.path_finding_started = False
+        self.fallback_to_direct = False
+        return True
+
+    def update_action(self, agent, delta_time: float) -> NodeStatus:
+        current_time = time.time()
+        dx = self.target_x - agent.x
+        dy = self.target_y - agent.y
+        distance = math.sqrt(dx * dx + dy * dy)
+
+        if distance <= self.threshold:
+            return NodeStatus.SUCCESS
+
+        # Try pathfinding first if we haven't tried recently
+        if (
+            not self.path_finding_started
+            and not self.fallback_to_direct
+            and (current_time - self.last_pathfind_attempt) >= self.pathfind_cooldown
+        ):
+            if agent.find_path_to(self.target_x, self.target_y):
+                self.path_finding_started = True
+                logger.debug(
+                    f"Agent {agent.id[:8]} found path to target using terrain awareness"
+                )
+            else:
+                # Pathfinding failed, fall back to direct movement
+                self.fallback_to_direct = True
+                self.last_pathfind_attempt = current_time
+                logger.debug(
+                    f"Agent {agent.id[:8]} pathfinding failed, using direct movement"
+                )
+
+        # If pathfinding is active, let the agent's update_pathfinding handle movement
+        if self.path_finding_started and agent.current_path:
+            # Pathfinding is handling movement - just check if we're still moving
+            if not agent.current_waypoint and not agent.current_path:
+                # Path completed, check if we reached target
+                if distance <= self.threshold:
+                    return NodeStatus.SUCCESS
+                else:
+                    # Path completed but didn't reach target, try direct movement
+                    self.fallback_to_direct = True
+                    self.path_finding_started = False
+            return NodeStatus.RUNNING
+
+        # Use direct movement if pathfinding unavailable or failed
+        if distance > 0:
+            agent.velocity_x = (dx / distance) * agent.speed
+            agent.velocity_y = (dy / distance) * agent.speed
+            agent.rotation = math.degrees(math.atan2(dy, dx))
+
+        return NodeStatus.RUNNING
+
+    def stop_action(self, agent):
+        agent.stop_movement()
+
+    def update_target(self, target_x: float, target_y: float):
+        """Update the target position and reset pathfinding state"""
+        self.target_x = target_x
+        self.target_y = target_y
+        self.name = f"MoveToTargetWithPathfinding_{target_x}_{target_y}"
+        self.path_finding_started = False
+        self.fallback_to_direct = False
+
+
 class MoveToTarget(ActionNode):
     """Move directly to a target position"""
 
@@ -59,7 +141,7 @@ class MoveToTarget(ActionNode):
 
 
 class MoveToEntity(ActionNode):
-    """Move toward a specific entity"""
+    """Move toward a specific entity using terrain-aware pathfinding"""
 
     def __init__(self, entity_id: str, threshold: float = 2.0):
         super().__init__(f"MoveToEntity_{entity_id[:8]}")
@@ -67,9 +149,10 @@ class MoveToEntity(ActionNode):
         self.threshold = threshold
         self.target_entity: Optional[Dict[str, Any]] = None
         self.last_movement_update = 0
-        self.movement_update_interval = (
-            0.2  # Update movement every 200ms to reduce jittering
-        )
+        self.last_pathfind_update = 0
+        self.movement_update_interval = 0.2  # Update movement every 200ms
+        self.pathfind_update_interval = 1.0  # Update pathfinding every 1 second
+        self.using_pathfinding = False
 
     def start_action(self, agent) -> bool:
         self.target_entity = self._find_entity(agent)
@@ -93,19 +176,40 @@ class MoveToEntity(ActionNode):
         if distance <= self.threshold:
             return NodeStatus.SUCCESS
 
-        # Only update movement periodically to reduce jitter
-        if current_time - self.last_movement_update >= self.movement_update_interval:
-            if distance > 0:
-                agent.velocity_x = (dx / distance) * agent.speed
-                agent.velocity_y = (dy / distance) * agent.speed
-                agent.rotation = math.degrees(math.atan2(dy, dx))
-                self.last_movement_update = current_time
+        # Try pathfinding periodically for better navigation around obstacles
+        if (
+            current_time - self.last_pathfind_update >= self.pathfind_update_interval
+            and agent.agent_map is not None
+        ):
+            if agent.find_path_to(target_x, target_y):
+                self.using_pathfinding = True
+                self.last_pathfind_update = current_time
+                logger.debug(
+                    f"Agent {agent.id[:8]} using pathfinding to approach entity {self.entity_id[:8]}"
+                )
+            else:
+                self.using_pathfinding = False
+                self.last_pathfind_update = current_time
+
+        # If pathfinding is active and working, let it handle movement
+        if self.using_pathfinding and agent.current_path and agent.current_waypoint:
+            return NodeStatus.RUNNING
+
+        # Fall back to direct movement
+        if (
+            current_time - self.last_movement_update >= self.movement_update_interval
+            and distance > 0
+        ):
+            agent.velocity_x = (dx / distance) * agent.speed
+            agent.velocity_y = (dy / distance) * agent.speed
+            agent.rotation = math.degrees(math.atan2(dy, dx))
+            self.last_movement_update = current_time
 
         return NodeStatus.RUNNING
 
     def stop_action(self, agent):
-        agent.velocity_x = 0
-        agent.velocity_y = 0
+        agent.stop_movement()  # This will clear both velocity and pathfinding state
+        self.using_pathfinding = False
 
     def _find_entity(self, agent) -> Optional[Dict[str, Any]]:
         """Find the target entity in visible entities"""
@@ -131,7 +235,11 @@ class Patrol(ActionNode):
 
         self.current_waypoint_index = 0
         target = self.waypoints[self.current_waypoint_index]
-        self.move_action = MoveToTarget(target[0], target[1])
+        # Try terrain-aware pathfinding first
+        self.move_action = MoveToTargetWithPathfinding(target[0], target[1])
+        if not self.move_action.start_action(agent):
+            # Fall back to direct movement if pathfinding fails
+            self.move_action = MoveToTarget(target[0], target[1])
         return self.move_action.start_action(agent)
 
     def update_action(self, agent, delta_time: float) -> NodeStatus:
@@ -151,9 +259,15 @@ class Patrol(ActionNode):
                 else:
                     return NodeStatus.SUCCESS
 
-            # Start moving to next waypoint
+            # Start moving to next waypoint with terrain awareness
             target = self.waypoints[self.current_waypoint_index]
-            self.move_action.update_target(target[0], target[1])
+            # Create new terrain-aware movement action for the next waypoint
+            new_move_action = MoveToTargetWithPathfinding(target[0], target[1])
+            if new_move_action.start_action(agent):
+                self.move_action = new_move_action
+            else:
+                # Fall back to updating existing action if pathfinding fails
+                self.move_action.update_target(target[0], target[1])
 
         return (
             NodeStatus.RUNNING if status != NodeStatus.FAILURE else NodeStatus.FAILURE
@@ -199,10 +313,26 @@ class Wander(ActionNode):
             self.move_action.stop_action(agent)
 
     def _choose_new_target(self, agent):
-        """Choose a new random target within wander radius"""
+        """Choose a new random target within wander radius using terrain-aware pathfinding"""
+        # Try a few different random targets to find one with a valid path
+        for _ in range(5):  # Try up to 5 different random targets
+            angle = random.uniform(0, 2 * math.pi)
+            distance = random.uniform(3, self.wander_radius)
+
+            target_x = self.center_x + math.cos(angle) * distance
+            target_y = self.center_y + math.sin(angle) * distance
+
+            # Use terrain-aware pathfinding for better navigation
+            self.move_action = MoveToTargetWithPathfinding(
+                target_x, target_y, threshold=0.5
+            )
+            if self.move_action.start_action(agent):
+                self.last_target_time = time.time()
+                return
+
+        # If no pathfinding target worked, fall back to regular movement
         angle = random.uniform(0, 2 * math.pi)
         distance = random.uniform(3, self.wander_radius)
-
         target_x = self.center_x + math.cos(angle) * distance
         target_y = self.center_y + math.sin(angle) * distance
 
@@ -214,11 +344,18 @@ class Wander(ActionNode):
 class Attack(ActionNode):
     """Attack a target entity"""
 
-    def __init__(self, target_id: str, damage: float = 10.0, attack_range: float = 2.0):
+    def __init__(
+        self,
+        target_id: str,
+        attack_name: str = "punch",
+        damage: float = 10.0,
+        attack_range: float = 2.0,
+    ):
         super().__init__(f"Attack_{target_id[:8]}")
         self.target_id = target_id
-        self.damage = damage
-        self.attack_range = attack_range
+        self.attack_name = attack_name
+        self.damage = damage  # Fallback for legacy code
+        self.attack_range = attack_range  # Fallback for legacy code
         self.last_attack_time = 0
         self.attack_cooldown = 1.0
 
@@ -265,7 +402,7 @@ class Attack(ActionNode):
         damage_action = {
             "type": "damage",
             "target_id": self.target_id,
-            "damage": self.damage,
+            "attack_name": self.attack_name,
             "attacker_id": agent.id,
             "position": {"x": agent.x, "y": agent.y},
         }
@@ -411,18 +548,48 @@ class Explore(ActionNode):
             self.move_action.stop_action(agent)
 
     def _choose_exploration_target(self, agent):
-        """Choose next exploration target based on mode"""
-        if self.mode == "random":
-            angle = random.uniform(0, 2 * math.pi)
-            distance = random.uniform(5, self.exploration_radius)
-            target_x = agent.x + math.cos(angle) * distance
-            target_y = agent.y + math.sin(angle) * distance
-        else:
-            # Default to random if mode not supported
-            angle = random.uniform(0, 2 * math.pi)
-            distance = random.uniform(5, self.exploration_radius)
-            target_x = agent.x + math.cos(angle) * distance
-            target_y = agent.y + math.sin(angle) * distance
+        """Choose next exploration target based on mode using terrain-aware pathfinding"""
+        # First try intelligent exploration if agent has map knowledge
+        if agent.agent_map and self.mode == "frontier":
+            # Try to find path to exploration frontier
+            if agent.find_path_to_exploration_frontier():
+                logger.debug(f"Agent {agent.id[:8]} using frontier exploration")
+                return  # Pathfinding will handle movement
+
+        # Try multiple random targets to find a walkable path
+        for attempt in range(3):
+            if (
+                self.mode == "random" or attempt > 0
+            ):  # Fall back to random after first attempt
+                angle = random.uniform(0, 2 * math.pi)
+                distance = random.uniform(5, self.exploration_radius)
+                target_x = agent.x + math.cos(angle) * distance
+                target_y = agent.y + math.sin(angle) * distance
+            else:
+                # First attempt with intelligent target selection
+                angle = random.uniform(0, 2 * math.pi)
+                distance = random.uniform(5, self.exploration_radius)
+                target_x = agent.x + math.cos(angle) * distance
+                target_y = agent.y + math.sin(angle) * distance
+
+            # Use terrain-aware pathfinding for exploration
+            self.move_action = MoveToTargetWithPathfinding(
+                target_x, target_y, threshold=1.0
+            )
+            if self.move_action.start_action(agent):
+                logger.debug(
+                    f"Agent {agent.id[:8]} found exploration path to ({target_x:.1f}, {target_y:.1f})"
+                )
+                return
+
+        # If pathfinding failed, fall back to direct movement
+        angle = random.uniform(0, 2 * math.pi)
+        distance = random.uniform(5, self.exploration_radius)
+        target_x = agent.x + math.cos(angle) * distance
+        target_y = agent.y + math.sin(angle) * distance
 
         self.move_action = MoveToTarget(target_x, target_y, threshold=1.0)
         self.move_action.start_action(agent)
+        logger.debug(
+            f"Agent {agent.id[:8]} using direct movement for exploration (pathfinding failed)"
+        )

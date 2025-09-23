@@ -5,7 +5,7 @@ adding stability mechanisms to prevent stuttering.
 """
 
 import math
-from typing import List, Optional, Tuple
+from typing import Optional
 
 from .nodes import *
 from .tree import BehaviorTree
@@ -54,7 +54,10 @@ def create_npc_tree(
 
 
 def create_explorer_tree(
-    home_x: float, home_y: float, exploration_radius: float = 30.0, mode: str = "spiral"
+    home_x: float,
+    home_y: float,
+    exploration_radius: float = 30.0,
+    mode: str = "frontier",
 ) -> BehaviorTree:
     """
     Create behavior tree for Explorer agents.
@@ -123,9 +126,9 @@ def create_player_tree(
                         TimerDecorator(
                             "FleeTimer",
                             Wander(spawn_x, spawn_y, 15.0),  # Move around spawn area
-                            minimum_duration=3.0,
+                            minimum_duration=6.0,  # Increased for tactical consistency
                         ),
-                        cooldown_duration=5.0,
+                        cooldown_duration=2.0,  # Reduced to allow re-evaluation
                     ),
                 ],
             ),
@@ -147,8 +150,9 @@ def create_player_tree(
                                         TimerDecorator(
                                             "AttackTimer",
                                             AttackNearestEnemy(
-                                                damage=15.0,
-                                                attack_range=3.0,
+                                                attack_name="sword_slash",
+                                                damage=15.0,  # Legacy fallback
+                                                attack_range=3.0,  # Legacy fallback
                                                 enemy_types=["enemy"],
                                             ),
                                             minimum_duration=1.0,
@@ -222,8 +226,9 @@ def create_enemy_tree(
                                         TimerDecorator(
                                             "AttackTimer",
                                             AttackNearestEnemy(
-                                                damage=12.0,
-                                                attack_range=2.0,
+                                                attack_name="claw",
+                                                damage=12.0,  # Legacy fallback
+                                                attack_range=2.0,  # Legacy fallback
                                                 enemy_types=["player"],
                                             ),
                                             minimum_duration=0.8,
@@ -286,7 +291,7 @@ class TreeFactory:
 
         elif agent_type == "explorer":
             exploration_radius = kwargs.get("exploration_radius", 30.0)
-            mode = kwargs.get("exploration_mode", "spiral")
+            mode = kwargs.get("exploration_mode", "frontier")
             return create_explorer_tree(agent_x, agent_y, exploration_radius, mode)
 
         elif agent_type == "player":

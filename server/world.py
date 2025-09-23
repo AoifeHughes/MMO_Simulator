@@ -6,36 +6,55 @@ from shared.collision import CollisionDetector
 from shared.constants import DEFAULT_VISION_ANGLE, DEFAULT_VISION_RANGE
 from shared.messages import AgentData
 from world.map import WorldMap
+from world.terrain_generator import TerrainType
 from world.tiles import TileType
 from world.vision import VisionSystem
 
 
 class ServerWorld:
-    def __init__(self, width: int, height: int):
-        self.world_map = WorldMap(width, height)
+    def __init__(
+        self,
+        width: int,
+        height: int,
+        terrain_type: Optional[TerrainType] = None,
+        seed: int = 42,
+    ):
+        self.world_map = WorldMap(
+            width, height, terrain_type=terrain_type, seed=seed, use_perlin=True
+        )
         self.vision_system = VisionSystem(self.world_map)
         self.collision_detector = CollisionDetector(width, height)
         self.agents: Dict[str, AgentData] = {}
         self.last_update = time.time()
 
     def spawn_agent(
-        self, agent_type: str, x: Optional[float] = None, y: Optional[float] = None
+        self,
+        agent_type: str,
+        x: Optional[float] = None,
+        y: Optional[float] = None,
+        rotation: float = 0.0,
     ) -> str:
         agent_id = str(uuid.uuid4())
 
         if x is None or y is None:
             # Get positions of existing agents for collision avoidance
             existing_positions = [(agent.x, agent.y) for agent in self.agents.values()]
-            x, y = self.collision_detector.get_safe_spawn_position(existing_positions)
+            x, y = self.collision_detector.get_safe_spawn_position(
+                existing_positions, world_map=self.world_map
+            )
         else:
-            # Ensure provided position is within bounds
+            # Ensure provided position is within bounds and on walkable terrain
             x, y = self.collision_detector.clamp_to_bounds(x, y)
+
+            # If the clamped position is not walkable, find a nearby walkable position
+            if not self.world_map.is_walkable(int(x), int(y)):
+                x, y = self.find_nearest_walkable_position(x, y)
 
         agent = AgentData(
             id=agent_id,
             x=x,
             y=y,
-            rotation=0.0,
+            rotation=rotation,
             agent_type=agent_type,
             health=100.0,
             vision_range=DEFAULT_VISION_RANGE,
@@ -74,20 +93,28 @@ class ServerWorld:
             current_pos, intended_pos, other_agents
         )
 
-        # Additional check for tile walkability
-        tile_x = int(safe_x)
-        tile_y = int(safe_y)
+        # Enhanced terrain validation
+        if not self.validate_movement_path(current_pos, (safe_x, safe_y)):
+            # Movement blocked by terrain - try to find nearby walkable position
+            safe_x, safe_y = self.find_nearest_walkable_position(safe_x, safe_y)
 
-        if not self.world_map.is_walkable(tile_x, tile_y):
-            # If the resolved position is not walkable, keep current position
-            return False
+            # If still not walkable, reject movement
+            if not self.world_map.is_walkable(int(safe_x), int(safe_y)):
+                return False
+
+        # Apply movement cost penalty for difficult terrain
+        movement_cost = self.get_movement_cost_penalty(safe_x, safe_y)
+
+        # Reduce velocity based on terrain difficulty
+        adjusted_velocity_x = velocity_x * movement_cost
+        adjusted_velocity_y = velocity_y * movement_cost
 
         # Update agent position and velocity
         agent.x = safe_x
         agent.y = safe_y
         agent.rotation = rotation
-        agent.velocity_x = velocity_x
-        agent.velocity_y = velocity_y
+        agent.velocity_x = adjusted_velocity_x
+        agent.velocity_y = adjusted_velocity_y
 
         return True
 
@@ -121,16 +148,24 @@ class ServerWorld:
     def get_all_agents(self) -> List[AgentData]:
         return list(self.agents.values())
 
-    def update_agent_health(self, agent_id: str, health_change: float) -> bool:
+    def update_agent_health(
+        self, agent_id: str, health_change: float, server=None
+    ) -> bool:
         if agent_id not in self.agents:
             return False
 
         agent = self.agents[agent_id]
+        old_health = agent.health
         agent.health = max(0, min(agent.max_health, agent.health + health_change))
 
-        # Don't despawn here - let the server handle death properly with respawn logic
-        if agent.health <= 0:
+        # Trigger immediate death processing if agent dies
+        if agent.health <= 0 and old_health > 0 and agent.is_alive:
             agent.is_alive = False
+            # If server is provided, schedule immediate death processing
+            if server and hasattr(server, "schedule_immediate_death"):
+                import asyncio
+
+                asyncio.create_task(server.schedule_immediate_death(agent_id))
 
         return True
 
@@ -182,6 +217,83 @@ class ServerWorld:
         tile_x = int(x)
         tile_y = int(y)
         return self.world_map.is_walkable(tile_x, tile_y)
+
+    def validate_movement_path(
+        self, start_pos: Tuple[float, float], end_pos: Tuple[float, float]
+    ) -> bool:
+        """Validate that a movement path doesn't cross unwalkable terrain"""
+        start_x, start_y = start_pos
+        end_x, end_y = end_pos
+
+        # Simple line-of-movement check
+        distance = ((end_x - start_x) ** 2 + (end_y - start_y) ** 2) ** 0.5
+
+        if distance < 1.0:  # Short movements are usually fine
+            return self.world_map.is_walkable(int(end_x), int(end_y))
+
+        # Check intermediate points along the path
+        steps = max(2, int(distance))
+        for i in range(1, steps + 1):
+            t = i / steps
+            check_x = start_x + (end_x - start_x) * t
+            check_y = start_y + (end_y - start_y) * t
+
+            if not self.world_map.is_walkable(int(check_x), int(check_y)):
+                return False
+
+        return True
+
+    def find_nearest_walkable_position(
+        self, x: float, y: float, max_radius: int = 3
+    ) -> Tuple[float, float]:
+        """Find the nearest walkable position to the given coordinates"""
+        start_x, start_y = int(x), int(y)
+
+        # Check the current position first
+        if self.world_map.is_walkable(start_x, start_y):
+            return x, y
+
+        # Search in expanding circles
+        for radius in range(1, max_radius + 1):
+            for dy in range(-radius, radius + 1):
+                for dx in range(-radius, radius + 1):
+                    # Only check the edge of the current radius
+                    if abs(dx) == radius or abs(dy) == radius:
+                        check_x = start_x + dx
+                        check_y = start_y + dy
+
+                        if (
+                            0 <= check_x < self.world_map.width
+                            and 0 <= check_y < self.world_map.height
+                            and self.world_map.is_walkable(check_x, check_y)
+                        ):
+                            return float(check_x), float(check_y)
+
+        # If no walkable position found, return original
+        return x, y
+
+    def get_movement_cost_penalty(self, x: float, y: float) -> float:
+        """Get movement speed multiplier based on terrain"""
+        tile_x, tile_y = int(x), int(y)
+
+        if not (
+            0 <= tile_x < self.world_map.width and 0 <= tile_y < self.world_map.height
+        ):
+            return 0.5  # Out of bounds penalty
+
+        movement_cost = self.world_map.get_movement_cost(tile_x, tile_y)
+
+        # Convert movement cost to speed multiplier
+        if movement_cost == float("inf"):
+            return 0.0  # Completely blocked
+        elif movement_cost > 2.0:
+            return 0.3  # Very slow (sand, difficult terrain)
+        elif movement_cost > 1.5:
+            return 0.6  # Slow
+        elif movement_cost > 1.1:
+            return 0.8  # Slightly slow
+        else:
+            return 1.0  # Normal speed
 
     def get_world_bounds(self) -> Tuple[int, int]:
         """Get world dimensions"""

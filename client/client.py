@@ -162,7 +162,6 @@ class GameClient:
                     self.agent.perceive(self.visible_entities)
 
             elif message.type == MessageType.DAMAGE_DEALT:
-                attacker_id = message.payload.get("attacker_id")
                 target_id = message.payload.get("target_id")
                 damage = message.payload.get("damage")
                 new_health = message.payload.get("new_health")
@@ -170,12 +169,12 @@ class GameClient:
                 if self.agent and target_id == self.agent_id:
                     self.agent.health = new_health
                     logger.info(
-                        f"[DAMAGE RECEIVED] Agent {self.agent_id[:8]} took {damage} damage, health now {new_health}"
+                        f"[DAMAGE RECEIVED] Agent {self.agent_id[:8]} took "
+                        f"{damage} damage, health now {new_health}"
                     )
 
             elif message.type == MessageType.AGENT_DEATH:
                 dead_agent_id = message.payload.get("dead_agent_id")
-                killer_id = message.payload.get("killer_id")
 
                 if self.agent and dead_agent_id == self.agent_id:
                     self.agent.health = 0
@@ -193,7 +192,8 @@ class GameClient:
                     self.agent.health = getattr(self.agent, "max_health", 100)
                     self.agent.is_alive = True
                     logger.info(
-                        f"[RESPAWN] Agent {self.agent_id[:8]} respawned at ({respawn_x:.1f}, {respawn_y:.1f})"
+                        f"[RESPAWN] Agent {self.agent_id[:8]} respawned at "
+                        f"({respawn_x:.1f}, {respawn_y:.1f})"
                     )
 
     def update_agent_from_world_state(self):

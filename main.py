@@ -35,7 +35,27 @@ class SimulatorApp:
         self.scenario_manager = ScenarioManager()
 
     async def start_server(self):
-        self.server = GameServer(100, 100)
+        # Get scenario first to determine terrain type
+        scenario = None
+        terrain_type = None
+        seed = 42
+
+        if self.scenario_name:
+            # Get scenario without server to access terrain properties
+            temp_scenario = self.scenario_manager.get_scenario(self.scenario_name)
+            if temp_scenario:
+                terrain_type = temp_scenario.terrain_type
+                seed = temp_scenario.seed
+                logger.info(
+                    f"Using terrain type: {terrain_type.value} with seed: {seed}"
+                )
+            else:
+                logger.error(f"Failed to find scenario: {self.scenario_name}")
+                self.running = False
+                return None
+
+        # Create server with terrain parameters
+        self.server = GameServer(100, 100, terrain_type=terrain_type, seed=seed)
         logger.info("Starting server...")
 
         # Load scenario if specified

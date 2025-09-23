@@ -1,7 +1,6 @@
-import math
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
-from shared.math_utils import distance, point_in_cone
+from shared.math_utils import distance
 from world.map import WorldMap
 
 
@@ -16,6 +15,8 @@ class VisionSystem:
         cone_angle: float,
         vision_range: float,
     ) -> List[Tuple[int, int]]:
+        """Get all positions visible within radius (ignores direction and
+        cone_angle for simple radius awareness)"""
         visible_positions = []
         origin_tile = (int(origin[0]), int(origin[1]))
 
@@ -31,9 +32,9 @@ class VisionSystem:
 
                 tile_center = (tile_x + 0.5, tile_y + 0.5)
 
-                if not point_in_cone(
-                    origin, direction, cone_angle, vision_range, tile_center
-                ):
+                # Simple radius check instead of cone-based vision
+                distance_to_tile = distance(origin, tile_center)
+                if distance_to_tile > vision_range:
                     continue
 
                 if self.has_line_of_sight(origin, tile_center):
@@ -77,10 +78,14 @@ class VisionSystem:
         vision_range: float,
         entities: List[Tuple[str, Tuple[float, float]]],
     ) -> List[str]:
+        """Get entities visible within radius (ignores direction and
+        cone_angle for simple radius awareness)"""
         visible_entities = []
 
         for entity_id, entity_pos in entities:
-            if point_in_cone(origin, direction, cone_angle, vision_range, entity_pos):
+            # Simple radius check instead of cone-based vision
+            distance_to_entity = distance(origin, entity_pos)
+            if distance_to_entity <= vision_range:
                 if self.has_line_of_sight(origin, entity_pos):
                     visible_entities.append(entity_id)
 

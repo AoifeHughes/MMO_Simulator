@@ -3,6 +3,7 @@ import math
 from typing import Any, Dict, List
 
 from scenarios.base_scenario import BaseScenario
+from world.terrain_generator import TerrainType
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +13,8 @@ class PeacefulVillageScenario(BaseScenario):
         super().__init__(
             name="Peaceful Village",
             description="A peaceful village with NPCs wandering around",
+            terrain_type=TerrainType.GRASSLAND,  # Open grassland for village setting
+            seed=300,  # Consistent village layout
         )
         self.num_npcs = 10
         self.num_explorers = 2

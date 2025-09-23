@@ -3,13 +3,23 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
+from world.terrain_generator import TerrainType
+
 logger = logging.getLogger(__name__)
 
 
 class BaseScenario(ABC):
-    def __init__(self, name: str, description: str):
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        terrain_type: TerrainType = TerrainType.MIXED,
+        seed: int = 42,
+    ):
         self.name = name
         self.description = description
+        self.terrain_type = terrain_type
+        self.seed = seed
         self.agents = []
         self.server = None
         self.visualization_enabled = True

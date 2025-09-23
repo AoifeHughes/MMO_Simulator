@@ -205,9 +205,12 @@ class CollisionDetector:
         return self.clamp_to_bounds(intended_x, intended_y, radius)
 
     def get_safe_spawn_position(
-        self, existing_agents: List[Tuple[float, float]], attempts: int = 50
+        self,
+        existing_agents: List[Tuple[float, float]],
+        attempts: int = 50,
+        world_map=None,
     ) -> Tuple[float, float]:
-        """Find a safe spawn position that doesn't collide with existing agents"""
+        """Find a safe spawn position that doesn't collide with existing agents and is on walkable terrain"""
         import random
 
         for _ in range(attempts):
@@ -219,10 +222,35 @@ class CollisionDetector:
                 self.agent_radius + 1, self.world_height - self.agent_radius - 1
             )
 
+            # Check if position is on walkable terrain
+            if world_map and not world_map.is_walkable(int(x), int(y)):
+                continue
+
             # Check if it collides with any existing agent
             collision = self.check_multiple_agent_collisions((x, y), existing_agents)
             if not collision.collided:
                 return x, y
 
-        # Fallback to center if no safe position found
+        # Fallback: find any walkable position near center
+        if world_map:
+            center_x, center_y = self.world_width // 2, self.world_height // 2
+            for radius in range(1, min(self.world_width, self.world_height) // 4):
+                for angle_deg in range(0, 360, 30):  # Check every 30 degrees
+                    angle_rad = math.radians(angle_deg)
+                    test_x = center_x + radius * math.cos(angle_rad)
+                    test_y = center_y + radius * math.sin(angle_rad)
+
+                    # Ensure within bounds
+                    if not self.is_position_valid(test_x, test_y):
+                        continue
+
+                    # Check if walkable
+                    if world_map.is_walkable(int(test_x), int(test_y)):
+                        collision = self.check_multiple_agent_collisions(
+                            (test_x, test_y), existing_agents
+                        )
+                        if not collision.collided:
+                            return test_x, test_y
+
+        # Last fallback to center if no safe position found
         return self.world_width / 2, self.world_height / 2

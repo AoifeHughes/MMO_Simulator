@@ -21,6 +21,9 @@ class HealthBelowThreshold(ConditionNode):
         # Force intention change for emergency health situations
         if is_low_health and hasattr(agent, "force_intention"):
             agent.force_intention("Emergency")
+            # Extend intention cooldown during emergency to maintain tactical consistency
+            if hasattr(agent, "intention_cooldown"):
+                agent.intention_cooldown = max(agent.intention_cooldown, 8.0)
 
         return is_low_health
 
@@ -48,24 +51,35 @@ class EnemyInRange(ConditionNode):
     def check_condition(self, agent) -> bool:
         self.detected_enemy = None
 
+        visible_count = len(getattr(agent, "visible_entities", []))
+        if visible_count > 0:
+            logger.debug(
+                f"[VISIBILITY] Agent {agent.id[:8]} ({agent.agent_type}) can see {visible_count} entities, looking for: {self.enemy_types}"
+            )
+
         for entity in getattr(agent, "visible_entities", []):
+            entity_type = entity.get("agent_type")
+            entity_id = entity.get("id")
+
+            # Debug logging to understand what we're seeing
+            logger.debug(
+                f"[VISIBILITY] Agent {agent.id[:8]} sees entity {entity_id[:8] if entity_id else 'unknown'} of type '{entity_type}'"
+            )
+
             # Fix: Use 'agent_type' instead of 'type' since entities come from AgentData.to_dict()
-            if (
-                entity.get("agent_type") in self.enemy_types
-                and entity.get("id") != agent.id
-            ):
+            if entity_type in self.enemy_types and entity_id != agent.id:
                 dx = entity["x"] - agent.x
                 dy = entity["y"] - agent.y
                 distance = math.sqrt(dx * dx + dy * dy)
 
                 logger.debug(
-                    f"[ENEMY_DETECT] Agent {agent.id[:8]} sees {entity.get('agent_type')} at distance {distance:.1f} (threshold: {self.range_distance})"
+                    f"[ENEMY_DETECT] Agent {agent.id[:8]} sees {entity_type} at distance {distance:.1f} (threshold: {self.range_distance})"
                 )
 
                 if distance <= self.range_distance:
                     self.detected_enemy = entity
                     logger.info(
-                        f"[COMBAT] Agent {agent.id[:8]} ({agent.agent_type}) detected enemy {entity.get('agent_type')} at {distance:.1f} units!"
+                        f"[COMBAT] Agent {agent.id[:8]} ({agent.agent_type}) detected enemy {entity_type} {entity_id[:8]} at {distance:.1f} units!"
                     )
                     return True
 
@@ -117,7 +131,9 @@ class TargetVisible(ConditionNode):
         self.visible_target = None
 
         for entity in getattr(agent, "visible_entities", []):
-            if entity.get("id") == self.target_id:
+            if entity.get("id") == self.target_id and entity.get(
+                "is_alive", True
+            ):  # Check target is alive
                 self.visible_target = entity
                 return True
 

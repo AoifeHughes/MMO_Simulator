@@ -46,6 +46,7 @@ class BaseAgent(ABC):
             time.time() - 3.0
         )  # Allow immediate first intention change
         self.intention_cooldown: float = 3.0  # 3 seconds between intention changes
+        self.base_intention_cooldown: float = 3.0  # Original cooldown for recovery
 
         # Collision detection (will be set when world bounds are known)
         self.collision_detector: Optional[CollisionDetector] = None
@@ -130,7 +131,8 @@ class BaseAgent(ABC):
                 current_time - self.last_intention_change
             )
             logger.debug(
-                f"Agent {self.id[:8]} intention change blocked - {remaining:.1f}s remaining on cooldown"
+                f"Agent {self.id[:8]} intention change blocked - "
+                f"{remaining:.1f}s remaining on cooldown"
             )
             return False
 
@@ -141,7 +143,8 @@ class BaseAgent(ABC):
 
         if old_intention != new_intention:
             logger.debug(
-                f"Agent {self.id[:8]} intention changed: {old_intention} → {new_intention}"
+                f"Agent {self.id[:8]} intention changed: "
+                f"{old_intention} → {new_intention}"
             )
 
         return True
@@ -153,6 +156,14 @@ class BaseAgent(ABC):
     def force_intention(self, new_intention: str):
         """Force an intention change bypassing cooldown (for emergencies)"""
         self.set_intention(new_intention, force=True)
+
+    def check_health_recovery(self):
+        """Check if health has recovered and restore normal intention cooldown"""
+        # If health is above 40% (healthy), restore normal intention cooldown
+        # This provides hysteresis - low health at 20%, recovery at 40%
+        if hasattr(self, "max_health") and self.health > (self.max_health * 0.4):
+            if self.intention_cooldown > self.base_intention_cooldown:
+                self.intention_cooldown = self.base_intention_cooldown
 
     def set_rotation(self, rotation: float):
         self.rotation = normalize_angle(rotation)
@@ -171,7 +182,8 @@ class BaseAgent(ABC):
 
     # Pathfinding methods
     def find_path_to(self, target_x: float, target_y: float) -> bool:
-        """Find path to target position using agent's known map. Returns True if path found."""
+        """Find path to target position using agent's known map.
+        Returns True if path found."""
         if not self.agent_map:
             return False
 
@@ -331,6 +343,9 @@ class BaseAgent(ABC):
 
         # Update pathfinding (still needed for path-based movement)
         self.update_pathfinding(delta_time)
+
+        # Check for health recovery to restore normal intention cooldown
+        self.check_health_recovery()
 
         # Execute behavior tree
         try:

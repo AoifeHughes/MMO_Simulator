@@ -2,6 +2,7 @@ import logging
 from typing import Any, Dict, List
 
 from scenarios.base_scenario import BaseScenario
+from world.terrain_generator import TerrainType
 
 logger = logging.getLogger(__name__)
 
@@ -11,6 +12,8 @@ class SimpleDuelScenario(BaseScenario):
         super().__init__(
             name="Simple Duel",
             description="Two agents in close combat for testing behavior trees",
+            terrain_type=TerrainType.GRASSLAND,  # Simple arena for dueling
+            seed=500,  # Consistent duel arena
         )
 
     async def setup(self, server):

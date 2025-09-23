@@ -3,6 +3,7 @@ import random
 from typing import Any, Dict, List
 
 from scenarios.base_scenario import BaseScenario
+from world.terrain_generator import TerrainType
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +13,8 @@ class ExplorationDemoScenario(BaseScenario):
         super().__init__(
             name="Exploration Demo",
             description="Demonstrates explorer agents mapping the world using different strategies",
+            terrain_type=TerrainType.MIXED,  # Varied terrain for interesting exploration
+            seed=200,  # Consistent exploration map
         )
         self.num_explorers = 5
         self.num_npcs = 3

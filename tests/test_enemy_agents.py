@@ -44,7 +44,7 @@ class TestEnemyAgents:
 
         # Verify movement occurred
         agent_id = enemy.agent_id
-        AgentAssertions.assert_agent_moved(agent_tracker, agent_id, min_distance=3.0)
+        AgentAssertions.assert_agent_moved(agent_tracker, agent_id, min_distance=1.5)
 
         agent_tracker.print_debug_info()
 

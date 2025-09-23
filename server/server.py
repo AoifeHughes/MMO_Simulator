@@ -5,27 +5,37 @@ import socket
 import time
 from typing import Any, Dict, Optional, Set
 
+from server.agent_state import AgentRegistry
+from server.attack_system import AttackSystem
 from server.game_loop import GameLoop
 from server.world import ServerWorld
 from shared.constants import MAX_CLIENTS, SERVER_PORT, UDP_PORT
 from shared.messages import AgentData, Message, MessageType, WorldState
+from world.terrain_generator import TerrainType
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class GameServer:
-    def __init__(self, world_width: int = 100, world_height: int = 100):
-        self.world = ServerWorld(world_width, world_height)
+    def __init__(
+        self,
+        world_width: int = 100,
+        world_height: int = 100,
+        terrain_type: Optional[TerrainType] = None,
+        seed: int = 42,
+    ):
+        self.world = ServerWorld(
+            world_width, world_height, terrain_type=terrain_type, seed=seed
+        )
         self.game_loop = GameLoop(self.world, self)
+        self.agent_registry = AgentRegistry()
+        self.attack_system = AttackSystem()
         self.clients: Dict[str, "ClientConnection"] = {}
         self.udp_endpoints: Dict[str, tuple] = {}
         self.tcp_server = None
         self.udp_socket = None
         self.running = False
-        self.controlled_agents: Set[
-            str
-        ] = set()  # Track which agents are controlled by clients
 
     async def start(self):
         self.running = True
@@ -92,14 +102,8 @@ class GameServer:
 
     def find_uncontrolled_agent(self, agent_type: str) -> Optional[str]:
         """Find an uncontrolled agent of the specified type"""
-        all_agents = self.world.get_all_agents()
-        for agent in all_agents:
-            if (
-                agent.agent_type == agent_type
-                and agent.id not in self.controlled_agents
-            ):
-                return agent.id
-        return None
+        uncontrolled = self.agent_registry.get_uncontrolled_agents(agent_type)
+        return uncontrolled[0] if uncontrolled else None
 
     async def process_agent_action(self, agent_id: str, action_data: Dict[str, Any]):
         """Process actions from agents (damage, abilities, etc.)"""
@@ -117,9 +121,9 @@ class GameServer:
     ):
         """Process damage dealt by one agent to another"""
         target_id = action_data.get("target_id")
-        damage = action_data.get("damage", 0)
+        attack_name = action_data.get("attack_name", "punch")  # Default to basic attack
 
-        if not target_id or damage <= 0:
+        if not target_id:
             return
 
         # Verify attacker exists and is alive
@@ -132,45 +136,74 @@ class GameServer:
         if not target or not target.is_alive:
             return
 
-        # Calculate distance to verify attack is valid (prevent cheating)
-        dx = target.x - attacker.x
-        dy = target.y - attacker.y
-        distance = (dx**2 + dy**2) ** 0.5
+        # Get attacker's last attack time from agent registry
+        attacker_state = self.agent_registry.get_agent(attacker_id)
+        last_attack_time = (
+            getattr(attacker_state, "last_attack_time", 0) if attacker_state else 0
+        )
 
-        max_attack_range = 5.0  # Maximum allowed attack range
-        if distance > max_attack_range:
+        # Validate attack using attack system
+        is_valid, reason = self.attack_system.validate_attack(
+            attacker_id,
+            attack_name,
+            target_id,
+            (attacker.x, attacker.y),
+            (target.x, target.y),
+            attacker.agent_type,
+            last_attack_time,
+        )
+
+        if not is_valid:
             logger.warning(
-                f"Attack from {attacker_id[:8]} to {target_id[:8]} rejected: too far ({distance:.1f} > {max_attack_range})"
+                f"Attack from {attacker_id[:8]} to {target_id[:8]} rejected: {reason}"
             )
             return
 
-        # Apply damage
-        import time
+        # Get attack definition for damage calculation
+        attack_def = self.attack_system.get_attack_definition(attack_name)
+        if not attack_def:
+            logger.warning(f"Unknown attack: {attack_name}")
+            return
 
+        # Apply damage
         old_health = target.health
-        target.health = max(0, target.health - damage)
+        target.health = max(0, target.health - attack_def.damage)
         target.last_damage_time = time.time()
 
+        # Update attacker's last attack time
+        if attacker_state:
+            attacker_state.last_attack_time = time.time()
+
         logger.info(
-            f"[DAMAGE] {attacker.agent_type} {attacker_id[:8]} dealt {damage} damage to {target.agent_type} {target_id[:8]} (health: {old_health:.0f} → {target.health:.0f})"
+            f"[DAMAGE] {attacker.agent_type} {attacker_id[:8]} used {attack_name} on {target.agent_type} {target_id[:8]} for {attack_def.damage} damage (health: {old_health:.0f} → {target.health:.0f})"
         )
 
-        # Check for death
+        # Check for death and process immediately
         if target.health <= 0 and target.is_alive:
+            target.is_alive = False  # Mark as dead immediately
             await self.process_agent_death(target_id, attacker_id)
 
         # Broadcast damage event to all clients
-        await self.broadcast_damage_event(attacker_id, target_id, damage, target.health)
+        await self.broadcast_damage_event(
+            attacker_id, target_id, attack_def.damage, target.health
+        )
+
+    async def schedule_immediate_death(self, dead_agent_id: str):
+        """Immediately process agent death without a killer"""
+        await self.process_agent_death(dead_agent_id, None)
 
     async def process_agent_death(
         self, dead_agent_id: str, killer_id: Optional[str] = None
     ):
         """Handle agent death and setup respawn"""
         dead_agent = self.world.get_agent(dead_agent_id)
-        if not dead_agent or not dead_agent.is_alive:
-            return  # Already dead or doesn't exist
+        if not dead_agent:
+            return  # Agent doesn't exist
 
-        dead_agent.is_alive = False
+        # Ensure agent is marked as dead immediately
+        if dead_agent.is_alive:
+            dead_agent.is_alive = False
+
         dead_agent.health = 0  # Ensure health is 0
         import time
 
@@ -186,8 +219,12 @@ class GameServer:
             f"[DEATH] {dead_agent.agent_type} {dead_agent_id[:8]} has died{killer_info} - respawning in 5s"
         )
 
-        # Broadcast death event
+        # Broadcast death event immediately
         await self.broadcast_death_event(dead_agent_id, killer_id)
+
+        # Send immediate client updates to reflect the death state
+        # This ensures dead agents disappear from all clients immediately
+        await self.send_client_updates()
 
         # Schedule respawn - ensure it happens even if other systems fail
         asyncio.create_task(self.schedule_respawn(dead_agent_id))
@@ -215,14 +252,14 @@ class GameServer:
         if not agent:
             return
 
-        # Find safe respawn position
+        # Find safe respawn position on walkable terrain
         existing_positions = [
             (a.x, a.y)
             for a in self.world.get_all_agents()
             if a.id != agent_id and a.is_alive
         ]
         spawn_x, spawn_y = self.world.collision_detector.get_safe_spawn_position(
-            existing_positions
+            existing_positions, world_map=self.world.world_map
         )
 
         # Reset agent state
@@ -321,9 +358,8 @@ class GameServer:
             client = self.clients[client_id]
             if client.agent_id:
                 # Remove from controlled agents instead of despawning
-                if client.agent_id in self.controlled_agents:
-                    self.controlled_agents.remove(client.agent_id)
-                    logger.info(f"Agent {client.agent_id[:8]} is now uncontrolled")
+                self.agent_registry.unassign_agent(client.agent_id)
+                logger.info(f"Agent {client.agent_id[:8]} is now uncontrolled")
 
             del self.clients[client_id]
             if client_id in self.udp_endpoints:
@@ -345,7 +381,16 @@ class GameServer:
             except Exception as e:
                 logger.error(f"Failed to send world state to {client_id}: {e}")
 
-    async def send_visible_entities(self, client_id: str):
+    async def send_client_updates(self):
+        """Send standardized 500ms update packets to all clients"""
+        for client_id, client in self.clients.items():
+            try:
+                await self.send_client_update(client_id)
+            except Exception as e:
+                logger.error(f"Failed to send client update to {client_id}: {e}")
+
+    async def send_client_update(self, client_id: str):
+        """Send comprehensive update packet to a specific client"""
         if client_id not in self.clients:
             return
 
@@ -353,7 +398,10 @@ class GameServer:
         if not client.agent_id:
             return
 
+        # Get visible agents for this client
         visible_agents = self.world.get_visible_agents(client.agent_id)
+
+        # Get terrain data within vision range
         terrain_data = self.world.get_terrain_in_vision(client.agent_id)
 
         # Convert terrain data to serializable format
@@ -361,19 +409,34 @@ class GameServer:
         for (x, y), tile_type in terrain_data.items():
             terrain_dict[f"{x},{y}"] = tile_type.value
 
+        # Create comprehensive update packet (maintain compatibility with client)
+        update_payload = {
+            "entities": [
+                agent.to_dict() for agent in visible_agents
+            ],  # Client expects "entities"
+            "terrain": terrain_dict,  # Client expects "terrain"
+            "world_bounds": {
+                "width": self.world.world_map.width,
+                "height": self.world.world_map.height,
+            },
+            "events": [],  # TODO: Add combat/damage events in future
+            "timestamp": time.time(),
+        }
+
         message = Message(
             type=MessageType.VISIBLE_ENTITIES_UPDATE,
-            payload={
-                "entities": [agent.to_dict() for agent in visible_agents],
-                "terrain": terrain_dict,
-            },
+            payload=update_payload,
             timestamp=time.time(),
         )
 
         try:
             await client.send_message(message)
         except Exception as e:
-            logger.error(f"Failed to send visible entities to {client_id}: {e}")
+            logger.error(f"Failed to send client update to {client_id}: {e}")
+
+    async def send_visible_entities(self, client_id: str):
+        """Legacy method - replaced by send_client_update"""
+        await self.send_client_update(client_id)
 
     def stop(self):
         self.running = False
@@ -421,20 +484,35 @@ class ClientConnection:
 
             if self.agent_id:
                 # Take control of existing agent
-                self.server.controlled_agents.add(self.agent_id)
+                self.server.agent_registry.assign_agent_to_client(
+                    self.agent_id, self.client_id
+                )
                 logger.info(
                     f"Client {self.client_id} taking control of existing {agent_type} agent {self.agent_id[:8]}"
                 )
             else:
                 # No uncontrolled agent available, spawn a new one
                 self.agent_id = self.server.world.spawn_agent(agent_type)
-                self.server.controlled_agents.add(self.agent_id)
+
+                # Register the new agent in the registry
+                agent = self.server.world.get_agent(self.agent_id)
+                if agent:
+                    self.server.agent_registry.register_agent(
+                        self.agent_id, agent_type, agent.x, agent.y
+                    )
+
+                self.server.agent_registry.assign_agent_to_client(
+                    self.agent_id, self.client_id
+                )
                 logger.info(
                     f"Client {self.client_id} spawned new {agent_type} agent {self.agent_id[:8]}"
                 )
 
             # Get the agent's position
             agent = self.server.world.get_agent(self.agent_id)
+
+            # Get attack system data for this character type
+            attack_data = self.server.attack_system.get_all_attacks_for_client()
 
             response = Message(
                 type=MessageType.SPAWN_AGENT,
@@ -444,6 +522,7 @@ class ClientConnection:
                     "x": agent.x,
                     "y": agent.y,
                     "rotation": agent.rotation,
+                    "attack_data": attack_data,
                 },
                 timestamp=time.time(),
             )

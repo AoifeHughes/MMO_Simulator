@@ -16,11 +16,16 @@ class AttackNearestEnemy(ActionNode):
     """Attack the nearest visible enemy"""
 
     def __init__(
-        self, damage: float = 10.0, attack_range: float = 3.0, enemy_types: list = None
+        self,
+        attack_name: str = "punch",
+        damage: float = 10.0,
+        attack_range: float = 3.0,
+        enemy_types: list = None,
     ):
         super().__init__("AttackNearestEnemy")
-        self.damage = damage
-        self.attack_range = attack_range
+        self.attack_name = attack_name
+        self.damage = damage  # Fallback for legacy code
+        self.attack_range = attack_range  # Fallback for legacy code
         self.enemy_types = enemy_types or ["enemy", "player"]
         self.last_attack_time = 0
         self.attack_cooldown = 1.0
@@ -44,6 +49,19 @@ class AttackNearestEnemy(ActionNode):
         # Check attack cooldown
         if current_time - self.last_attack_time < self.attack_cooldown:
             return NodeStatus.RUNNING
+
+        # Validate current target is still alive and visible
+        if self.current_target:
+            target_still_valid = False
+            for entity in getattr(agent, "visible_entities", []):
+                if entity.get("id") == self.current_target["id"] and entity.get(
+                    "is_alive", True
+                ):
+                    target_still_valid = True
+                    break
+
+            if not target_still_valid:
+                self.current_target = None
 
         # Find current target
         self.current_target = self._find_nearest_enemy(agent)
@@ -70,7 +88,7 @@ class AttackNearestEnemy(ActionNode):
         damage_action = {
             "type": "damage",
             "target_id": self.current_target["id"],
-            "damage": self.damage,
+            "attack_name": self.attack_name,
             "attacker_id": agent.id,
             "position": {"x": agent.x, "y": agent.y},
         }
@@ -94,10 +112,13 @@ class AttackNearestEnemy(ActionNode):
         nearest_distance = float("inf")
 
         for entity in getattr(agent, "visible_entities", []):
-            # Check if entity is an enemy type and not the agent itself
+            # Check if entity is an enemy type, alive, and not the agent itself
             if (
                 entity.get("agent_type") in self.enemy_types
                 and entity.get("id") != agent.id
+                and entity.get(
+                    "is_alive", True
+                )  # Default to True for legacy compatibility
             ):
                 dx = entity["x"] - agent.x
                 dy = entity["y"] - agent.y
@@ -129,6 +150,19 @@ class ChaseNearestEnemy(ActionNode):
 
     def update_action(self, agent, delta_time: float) -> NodeStatus:
         current_time = time.time()
+
+        # Validate current target is still alive and visible
+        if self.current_target:
+            target_still_valid = False
+            for entity in getattr(agent, "visible_entities", []):
+                if entity.get("id") == self.current_target["id"] and entity.get(
+                    "is_alive", True
+                ):
+                    target_still_valid = True
+                    break
+
+            if not target_still_valid:
+                self.current_target = None
 
         # Update target (enemies might move)
         self.current_target = self._find_nearest_enemy(agent)
@@ -174,10 +208,13 @@ class ChaseNearestEnemy(ActionNode):
         nearest_distance = float("inf")
 
         for entity in getattr(agent, "visible_entities", []):
-            # Check if entity is an enemy type and not the agent itself
+            # Check if entity is an enemy type, alive, and not the agent itself
             if (
                 entity.get("agent_type") in self.enemy_types
                 and entity.get("id") != agent.id
+                and entity.get(
+                    "is_alive", True
+                )  # Default to True for legacy compatibility
             ):
                 dx = entity["x"] - agent.x
                 dy = entity["y"] - agent.y

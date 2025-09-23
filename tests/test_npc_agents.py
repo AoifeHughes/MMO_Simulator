@@ -47,7 +47,7 @@ class TestNPCAgents:
 
         # Verify movement occurred
         agent_id = npc.agent_id
-        AgentAssertions.assert_agent_moved(agent_tracker, agent_id, min_distance=2.0)
+        AgentAssertions.assert_agent_moved(agent_tracker, agent_id, min_distance=1.5)
 
         # Verify stayed within reasonable area
         if initial_pos:

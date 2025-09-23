@@ -2,22 +2,40 @@ import random
 from typing import List, Optional, Tuple
 
 from shared.constants import WORLD_HEIGHT, WORLD_WIDTH
+from world.terrain_generator import TerrainType, generate_terrain
 from world.tiles import TILE_PROPERTIES, TileType
 
 
 class WorldMap:
-    def __init__(self, width: int = WORLD_WIDTH, height: int = WORLD_HEIGHT):
+    def __init__(
+        self,
+        width: int = WORLD_WIDTH,
+        height: int = WORLD_HEIGHT,
+        terrain_type: Optional[TerrainType] = None,
+        seed: int = 42,
+        use_perlin: bool = True,
+    ):
         self.width = width
         self.height = height
+        self.terrain_type = terrain_type or TerrainType.MIXED
+        self.seed = seed
+        self.use_perlin = use_perlin
         self.tiles: List[List[TileType]] = []
         self.generate()
 
     def generate(self):
-        for y in range(self.height):
-            row = []
-            for x in range(self.width):
-                row.append(TileType.GRASS)
-            self.tiles.append(row)
+        if self.use_perlin:
+            # Use Perlin noise terrain generation
+            self.tiles = generate_terrain(
+                self.width, self.height, self.seed, self.terrain_type
+            )
+        else:
+            # Use simple flat grass generation (legacy)
+            for y in range(self.height):
+                row = []
+                for x in range(self.width):
+                    row.append(TileType.GRASS)
+                self.tiles.append(row)
 
     def get_tile(self, x: int, y: int) -> Optional[TileType]:
         if self.is_valid_position(x, y):

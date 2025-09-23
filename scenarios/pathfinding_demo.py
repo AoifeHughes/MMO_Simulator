@@ -2,6 +2,7 @@ import logging
 from typing import Any, Dict, List
 
 from scenarios.base_scenario import BaseScenario
+from world.terrain_generator import TerrainType
 
 logger = logging.getLogger(__name__)
 
@@ -11,6 +12,8 @@ class PathfindingDemoScenario(BaseScenario):
         super().__init__(
             name="Pathfinding Demo",
             description="Demonstrates pathfinding capabilities with predetermined waypoints",
+            terrain_type=TerrainType.MIXED,  # Mixed terrain to test pathfinding around obstacles
+            seed=400,  # Consistent pathfinding challenges
         )
         self.test_waypoints = [
             (10, 10),  # Start point
