@@ -10,6 +10,7 @@ from client.agent_types.player import PlayerAgent
 from client.agent_types.npc import NPCAgent
 from client.agent_types.enemy import EnemyAgent
 from client.agent_types.explorer import ExplorerAgent
+from client.agent_types.pathfinding_test import PathfindingTestAgent
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -47,10 +48,13 @@ class GameClient:
             if response and response.type == MessageType.SPAWN_AGENT:
                 self.agent_id = response.payload['agent_id']
                 self.client_id = response.payload.get('client_id', self.agent_id)  # Get client_id from server
+                spawn_x = response.payload.get('x', 50)
+                spawn_y = response.payload.get('y', 50)
+                spawn_rotation = response.payload.get('rotation', 0)
                 self.connected = True
                 logger.info(f"Connected as agent {self.agent_id}")
 
-                self.create_agent(agent_type)
+                self.create_agent(agent_type, spawn_x, spawn_y, spawn_rotation)
 
                 return True
 
@@ -58,8 +62,7 @@ class GameClient:
             logger.error(f"Connection failed: {e}")
             return False
 
-    def create_agent(self, agent_type: str):
-        x, y = 50, 50
+    def create_agent(self, agent_type: str, x: float = 50, y: float = 50, rotation: float = 0):
         if agent_type == 'player':
             self.agent = PlayerAgent(self.agent_id, x, y)
         elif agent_type == 'npc':
@@ -68,6 +71,19 @@ class GameClient:
             self.agent = EnemyAgent(self.agent_id, x, y)
         elif agent_type == 'explorer':
             self.agent = ExplorerAgent(self.agent_id, x, y)
+        elif agent_type == 'pathfinding_test':
+            # For pathfinding test, use the test agent with predefined waypoints
+            test_waypoints = [(10, 10), (90, 10), (90, 90), (10, 90), (50, 50), (10, 10)]
+            self.agent = PathfindingTestAgent(self.agent_id, x, y, test_waypoints)
+            # Ensure agent uses the actual spawn position
+            self.agent.x = x
+            self.agent.y = y
+
+        if self.agent:
+            self.agent.rotation = rotation
+            # Set default world bounds immediately so pathfinding can work
+            # These will be updated with actual bounds when world state arrives
+            self.agent.set_world_bounds(100, 100)
 
     async def send_tcp_message(self, message: Message):
         if self.tcp_writer:

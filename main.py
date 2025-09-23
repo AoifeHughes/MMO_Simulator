@@ -77,7 +77,7 @@ class SimulatorApp:
         # Get agent configs from scenario
         for agent_data in self.server.world.get_all_agents():
             agent_type = agent_data.agent_type
-            if agent_type in ['explorer', 'npc', 'enemy']:
+            if agent_type in ['explorer', 'npc', 'enemy', 'player', 'pathfinding_test']:
                 client = GameClient()
                 connected = await client.connect(agent_type=agent_type)
                 if connected:

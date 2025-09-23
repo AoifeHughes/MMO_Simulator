@@ -3,6 +3,7 @@ from scenarios.base_scenario import BaseScenario
 from scenarios.test_explore import TestExploreScenario
 from scenarios.basic_combat import BasicCombatScenario
 from scenarios.peaceful_village import PeacefulVillageScenario
+from scenarios.pathfinding_test import PathfindingTestScenario
 import logging
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,8 @@ class ScenarioManager:
         scenarios = [
             TestExploreScenario(),
             BasicCombatScenario(),
-            PeacefulVillageScenario()
+            PeacefulVillageScenario(),
+            PathfindingTestScenario()
         ]
 
         for scenario in scenarios:

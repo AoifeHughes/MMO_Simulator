@@ -5,6 +5,7 @@ from shared.math_utils import clamp, normalize_angle
 from shared.collision import CollisionDetector
 from shared.pathfinding import Pathfinder
 from client.agent_map import AgentMap
+from client.agent_goals import GoalManager
 from world.tiles import TileType
 import time
 import math
@@ -40,6 +41,9 @@ class BaseAgent(ABC):
         self.current_path: Optional[List[Tuple[float, float]]] = None
         self.current_waypoint: Optional[Tuple[float, float]] = None
         self.waypoint_threshold = 0.5
+
+        # Goal management system
+        self.goal_manager = GoalManager()
 
     @abstractmethod
     def update(self, delta_time: float):

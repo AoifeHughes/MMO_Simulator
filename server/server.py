@@ -177,9 +177,18 @@ class ClientConnection:
             agent_type = message.payload.get('agent_type', 'player')
             self.agent_id = self.server.world.spawn_agent(agent_type)
 
+            # Get the spawned agent's position
+            agent = self.server.world.get_agent(self.agent_id)
+
             response = Message(
                 type=MessageType.SPAWN_AGENT,
-                payload={'agent_id': self.agent_id, 'client_id': self.client_id},
+                payload={
+                    'agent_id': self.agent_id,
+                    'client_id': self.client_id,
+                    'x': agent.x,
+                    'y': agent.y,
+                    'rotation': agent.rotation
+                },
                 timestamp=time.time()
             )
             await self.send_message(response)
