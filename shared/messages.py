@@ -12,6 +12,9 @@ class MessageType(Enum):
     WORLD_STATE_UPDATE = "world_state_update"
     VISIBLE_ENTITIES_UPDATE = "visible_entities_update"
     AGENT_ACTION = "agent_action"
+    DAMAGE_DEALT = "damage_dealt"
+    AGENT_DEATH = "agent_death"
+    AGENT_RESPAWN = "agent_respawn"
     PING = "ping"
     PONG = "pong"
     ERROR = "error"
@@ -46,7 +49,13 @@ class AgentData:
     rotation: float
     agent_type: str
     health: float = 100.0
+    max_health: float = 100.0
     vision_range: float = 10.0
+    velocity_x: float = 0.0
+    velocity_y: float = 0.0
+    is_alive: bool = True
+    last_damage_time: float = 0.0
+    respawn_time: float = 0.0
 
     def to_dict(self) -> Dict:
         return asdict(self)

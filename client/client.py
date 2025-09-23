@@ -147,6 +147,37 @@ class GameClient:
                     self.agent.discover_terrain_from_vision(terrain_data)
                     self.agent.perceive(self.visible_entities)
 
+            elif message.type == MessageType.DAMAGE_DEALT:
+                attacker_id = message.payload.get('attacker_id')
+                target_id = message.payload.get('target_id')
+                damage = message.payload.get('damage')
+                new_health = message.payload.get('new_health')
+
+                if self.agent and target_id == self.agent_id:
+                    self.agent.health = new_health
+                    logger.info(f"[DAMAGE RECEIVED] Agent {self.agent_id[:8]} took {damage} damage, health now {new_health}")
+
+            elif message.type == MessageType.AGENT_DEATH:
+                dead_agent_id = message.payload.get('dead_agent_id')
+                killer_id = message.payload.get('killer_id')
+
+                if self.agent and dead_agent_id == self.agent_id:
+                    self.agent.health = 0
+                    self.agent.is_alive = False
+                    logger.info(f"[DEATH] Agent {self.agent_id[:8]} has died")
+
+            elif message.type == MessageType.AGENT_RESPAWN:
+                agent_id = message.payload.get('agent_id')
+                respawn_x = message.payload.get('x')
+                respawn_y = message.payload.get('y')
+
+                if self.agent and agent_id == self.agent_id:
+                    self.agent.x = respawn_x
+                    self.agent.y = respawn_y
+                    self.agent.health = getattr(self.agent, 'max_health', 100)
+                    self.agent.is_alive = True
+                    logger.info(f"[RESPAWN] Agent {self.agent_id[:8]} respawned at ({respawn_x:.1f}, {respawn_y:.1f})")
+
     def update_agent_from_world_state(self):
         if not self.agent or not self.agent_id:
             return
@@ -175,6 +206,12 @@ class GameClient:
         action = self.agent.decide()
         if action:
             await self.send_action(action)
+
+        # Send any pending actions (like damage)
+        if hasattr(self.agent, 'pending_actions') and self.agent.pending_actions:
+            for pending_action in self.agent.pending_actions:
+                await self.send_action(pending_action)
+            self.agent.pending_actions.clear()
 
         if abs(self.agent.velocity_x) > 0.01 or abs(self.agent.velocity_y) > 0.01:
             self.send_udp_message({

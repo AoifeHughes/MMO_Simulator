@@ -13,7 +13,7 @@ from world.map import WorldMap
 from scenarios.scenario_manager import ScenarioManager
 import logging
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 class SimulatorApp:

@@ -4,6 +4,7 @@ from scenarios.test_explore import TestExploreScenario
 from scenarios.basic_combat import BasicCombatScenario
 from scenarios.peaceful_village import PeacefulVillageScenario
 from scenarios.pathfinding_test import PathfindingTestScenario
+from scenarios.simple_duel import SimpleDuelScenario
 import logging
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,8 @@ class ScenarioManager:
             TestExploreScenario(),
             BasicCombatScenario(),
             PeacefulVillageScenario(),
-            PathfindingTestScenario()
+            PathfindingTestScenario(),
+            SimpleDuelScenario()
         ]
 
         for scenario in scenarios:

@@ -22,10 +22,10 @@ class BasicCombatScenario(BaseScenario):
         """Spawn combat agents"""
         agent_configs = []
 
-        # Spawn players on one side
+        # Spawn players on one side (close formation for guaranteed combat)
+        player_positions = [(40, 45), (42, 52)]  # Close together
         for i in range(self.num_players):
-            x = 20 + i * 10
-            y = 50
+            x, y = player_positions[i]
 
             agent_config = {
                 'type': 'player',
@@ -37,10 +37,10 @@ class BasicCombatScenario(BaseScenario):
             agent_id = self.server.world.spawn_agent("player", x, y)
             logger.info(f"Spawned player {agent_id} at ({x}, {y})")
 
-        # Spawn enemies on other side
+        # Spawn enemies on other side (very close for guaranteed combat)
+        enemy_positions = [(52, 47), (54, 45), (50, 50), (56, 52)]  # Very close formation
         for i in range(self.num_enemies):
-            x = 80 - i * 5
-            y = 50 + (i - 2) * 10
+            x, y = enemy_positions[i]
 
             agent_config = {
                 'type': 'enemy',
@@ -51,5 +51,11 @@ class BasicCombatScenario(BaseScenario):
 
             agent_id = self.server.world.spawn_agent("enemy", x, y)
             logger.info(f"Spawned enemy {agent_id} at ({x}, {y})")
+
+        logger.info("Combat arena setup:")
+        logger.info(f"  Players: {self.num_players} agents in tight formation (40-42, 45-52)")
+        logger.info(f"  Enemies: {self.num_enemies} agents in tight formation (50-56, 45-52)")
+        logger.info(f"  Distance between sides: ~8-16 units (guaranteed detection and combat)")
+        logger.info("  Expected behavior: Immediate multi-agent combat with damage/death/respawn")
 
         return agent_configs

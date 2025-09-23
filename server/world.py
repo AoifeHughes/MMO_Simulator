@@ -48,7 +48,7 @@ class ServerWorld:
         return False
 
     def move_agent(self, agent_id: str, new_x: float, new_y: float,
-                  rotation: float) -> bool:
+                  rotation: float, velocity_x: float = 0.0, velocity_y: float = 0.0) -> bool:
         if agent_id not in self.agents:
             return False
 
@@ -72,10 +72,12 @@ class ServerWorld:
             # If the resolved position is not walkable, keep current position
             return False
 
-        # Update agent position
+        # Update agent position and velocity
         agent.x = safe_x
         agent.y = safe_y
         agent.rotation = rotation
+        agent.velocity_x = velocity_x
+        agent.velocity_y = velocity_y
 
         return True
 
@@ -88,7 +90,7 @@ class ServerWorld:
         origin = (observer.x, observer.y)
 
         entities = [(aid, (a.x, a.y)) for aid, a in self.agents.items()
-                   if aid != agent_id]
+                   if aid != agent_id and a.is_alive]
 
         visible_ids = self.vision_system.get_entities_in_vision(
             origin, observer.rotation, vision_angle, vision_range, entities
@@ -107,10 +109,11 @@ class ServerWorld:
             return False
 
         agent = self.agents[agent_id]
-        agent.health = max(0, min(100, agent.health + health_change))
+        agent.health = max(0, min(agent.max_health, agent.health + health_change))
 
+        # Don't despawn here - let the server handle death properly with respawn logic
         if agent.health <= 0:
-            self.despawn_agent(agent_id)
+            agent.is_alive = False
 
         return True
 

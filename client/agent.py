@@ -5,10 +5,12 @@ from shared.math_utils import clamp, normalize_angle
 from shared.collision import CollisionDetector
 from shared.pathfinding import Pathfinder
 from client.agent_map import AgentMap
-from client.agent_goals import GoalManager
 from world.tiles import TileType
 import time
 import math
+import logging
+
+logger = logging.getLogger(__name__)
 
 class BaseAgent(ABC):
     def __init__(self, agent_id: str, x: float, y: float, agent_type: str):
@@ -27,9 +29,15 @@ class BaseAgent(ABC):
 
         self.health = 100.0
         self.max_health = 100.0
+        self.is_alive = True
 
         self.visible_entities: List[Dict[str, Any]] = []
         self.last_update = time.time()
+
+        # Intention change cooldown system
+        self.current_intention: Optional[str] = None
+        self.last_intention_change: float = time.time() - 3.0  # Allow immediate first intention change
+        self.intention_cooldown: float = 3.0  # 3 seconds between intention changes
 
         # Collision detection (will be set when world bounds are known)
         self.collision_detector: Optional[CollisionDetector] = None
@@ -42,8 +50,14 @@ class BaseAgent(ABC):
         self.current_waypoint: Optional[Tuple[float, float]] = None
         self.waypoint_threshold = 0.5
 
-        # Goal management system
-        self.goal_manager = GoalManager()
+        # Behavior tree system
+        self.behavior_tree: Optional['BehaviorTree'] = None
+        self.use_behavior_tree = False
+        self.last_position = (x, y)
+        self.last_position_time = time.time()
+
+        # Action tracking for conditions
+        self.current_target: Optional[Tuple[float, float]] = None
 
     @abstractmethod
     def update(self, delta_time: float):
@@ -87,6 +101,44 @@ class BaseAgent(ABC):
         self.world_bounds = (width, height)
         self.collision_detector = CollisionDetector(width, height)
         self.agent_map = AgentMap(width, height)
+
+    def can_change_intention(self) -> bool:
+        """Check if enough time has passed to allow intention change"""
+        current_time = time.time()
+        return (current_time - self.last_intention_change) >= self.intention_cooldown
+
+    def set_intention(self, new_intention: str, force: bool = False) -> bool:
+        """Set a new intention with cooldown protection"""
+        current_time = time.time()
+
+        # Allow setting intention if it's the same as current (no change needed)
+        if self.current_intention == new_intention:
+            return True
+
+        # Check cooldown unless forced
+        if not force and not self.can_change_intention():
+            # Still on cooldown, keep current intention
+            remaining = self.intention_cooldown - (current_time - self.last_intention_change)
+            logger.debug(f"Agent {self.id[:8]} intention change blocked - {remaining:.1f}s remaining on cooldown")
+            return False
+
+        # Allow intention change
+        old_intention = self.current_intention
+        self.current_intention = new_intention
+        self.last_intention_change = current_time
+
+        if old_intention != new_intention:
+            logger.debug(f"Agent {self.id[:8]} intention changed: {old_intention} → {new_intention}")
+
+        return True
+
+    def get_intention(self) -> Optional[str]:
+        """Get current intention"""
+        return self.current_intention
+
+    def force_intention(self, new_intention: str):
+        """Force an intention change bypassing cooldown (for emergencies)"""
+        self.set_intention(new_intention, force=True)
 
     def set_rotation(self, rotation: float):
         self.rotation = normalize_angle(rotation)
@@ -236,3 +288,116 @@ class BaseAgent(ABC):
         self.health = state.get('health', self.health)
         self.velocity_x = state.get('velocity_x', 0)
         self.velocity_y = state.get('velocity_y', 0)
+
+    # Behavior Tree Support Methods
+    def set_behavior_tree(self, behavior_tree: 'BehaviorTree'):
+        """Set the behavior tree for this agent and enable behavior tree mode"""
+        self.behavior_tree = behavior_tree
+        self.use_behavior_tree = True
+        logger.debug(f"Agent {self.id[:8]} set to use behavior tree: {behavior_tree.name}")
+
+    def disable_behavior_tree(self):
+        """Disable behavior tree mode and revert to legacy behavior"""
+        self.use_behavior_tree = False
+        if self.behavior_tree:
+            self.behavior_tree.reset()
+        logger.debug(f"Agent {self.id[:8]} disabled behavior tree mode")
+
+    def update_behavior_tree(self, delta_time: float):
+        """Update the agent using the behavior tree system"""
+        if not self.behavior_tree or not self.use_behavior_tree:
+            return
+
+        # Update position tracking for stuck detection
+        current_time = time.time()
+        if current_time - self.last_position_time > 2.0:
+            self.last_position = (self.x, self.y)
+            self.last_position_time = current_time
+
+        # Update pathfinding (still needed for path-based movement)
+        self.update_pathfinding(delta_time)
+
+        # Execute behavior tree
+        try:
+            status = self.behavior_tree.update(self, delta_time)
+            logger.debug(f"Agent {self.id[:8]} behavior tree status: {status.value}")
+        except Exception as e:
+            logger.error(f"Error updating behavior tree for agent {self.id[:8]}: {e}")
+
+        # Apply movement using velocity system
+        self.move(delta_time)
+
+    def get_behavior_tree_debug_info(self) -> Optional[Dict[str, Any]]:
+        """Get debug information about the current behavior tree state"""
+        if not self.behavior_tree:
+            return None
+
+        return self.behavior_tree.get_debug_info(self)
+
+    # Utility methods for behavior tree nodes
+    def set_target(self, target_x: float, target_y: float):
+        """Set the current target position"""
+        self.current_target = (target_x, target_y)
+
+    def clear_target(self):
+        """Clear the current target"""
+        self.current_target = None
+
+    def get_distance_to_target(self) -> Optional[float]:
+        """Get distance to current target, or None if no target"""
+        if not self.current_target:
+            return None
+
+        dx = self.current_target[0] - self.x
+        dy = self.current_target[1] - self.y
+        return math.sqrt(dx * dx + dy * dy)
+
+    def move_towards_target(self, target_x: float, target_y: float, speed_multiplier: float = 1.0):
+        """Move towards a target position with optional speed multiplier"""
+        dx = target_x - self.x
+        dy = target_y - self.y
+        distance = math.sqrt(dx * dx + dy * dy)
+
+        if distance > 0:
+            speed = self.speed * speed_multiplier
+            self.velocity_x = (dx / distance) * speed
+            self.velocity_y = (dy / distance) * speed
+            self.rotation = math.degrees(math.atan2(dy, dx))
+
+    def stop_movement(self):
+        """Stop all movement and clear current path"""
+        self.velocity_x = 0
+        self.velocity_y = 0
+        self.current_path = None
+        self.current_waypoint = None
+
+    def find_entity_by_id(self, entity_id: str) -> Optional[Dict[str, Any]]:
+        """Find an entity by ID in the visible entities list"""
+        for entity in self.visible_entities:
+            if entity.get('id') == entity_id:
+                return entity
+        return None
+
+    def find_entities_by_type(self, entity_types: List[str]) -> List[Dict[str, Any]]:
+        """Find all entities of specified types in the visible entities list"""
+        matching_entities = []
+        for entity in self.visible_entities:
+            if entity.get('type') in entity_types or entity.get('agent_type') in entity_types:
+                matching_entities.append(entity)
+        return matching_entities
+
+    def get_nearest_entity_of_type(self, entity_types: List[str]) -> Optional[Dict[str, Any]]:
+        """Get the nearest entity of the specified types"""
+        nearest_entity = None
+        nearest_distance = float('inf')
+
+        for entity in self.find_entities_by_type(entity_types):
+            dx = entity['x'] - self.x
+            dy = entity['y'] - self.y
+            distance = math.sqrt(dx * dx + dy * dy)
+
+            if distance < nearest_distance:
+                nearest_distance = distance
+                nearest_entity = entity
+
+        return nearest_entity
