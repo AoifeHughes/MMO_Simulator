@@ -18,6 +18,8 @@ class NPCAgent(BaseAgent):
     def update(self, delta_time: float):
         if self.behavior_state == "idle":
             self.idle_time += delta_time
+            self.velocity_x = 0
+            self.velocity_y = 0
             if self.idle_time >= self.max_idle_time:
                 self.start_wandering()
 
@@ -28,9 +30,10 @@ class NPCAgent(BaseAgent):
                 distance = math.sqrt(dx * dx + dy * dy)
 
                 if distance > 0.5:
-                    move_distance = min(distance, self.speed * 0.5 * delta_time)
-                    self.x += (dx / distance) * move_distance
-                    self.y += (dy / distance) * move_distance
+                    # Set velocity toward target
+                    wander_speed = self.speed * 0.5
+                    self.velocity_x = (dx / distance) * wander_speed
+                    self.velocity_y = (dy / distance) * wander_speed
                     self.rotation = math.degrees(math.atan2(dy, dx))
                 else:
                     self.behavior_state = "idle"
@@ -39,6 +42,9 @@ class NPCAgent(BaseAgent):
                     self.wander_target = None
                     self.velocity_x = 0
                     self.velocity_y = 0
+
+        # Apply movement using the velocity system
+        self.move(delta_time)
 
     def perceive(self, visible_entities: List[Dict[str, Any]]):
         self.visible_entities = visible_entities

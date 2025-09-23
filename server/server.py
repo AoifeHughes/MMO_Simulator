@@ -171,7 +171,7 @@ class ClientConnection:
 
             response = Message(
                 type=MessageType.SPAWN_AGENT,
-                payload={'agent_id': self.agent_id},
+                payload={'agent_id': self.agent_id, 'client_id': self.client_id},
                 timestamp=time.time()
             )
             await self.send_message(response)

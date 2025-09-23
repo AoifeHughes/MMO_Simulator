@@ -44,19 +44,17 @@ class ExplorerAgent(BaseAgent):
             distance = math.sqrt(dx * dx + dy * dy)
 
             if distance > 0.5:
-                move_distance = min(distance, self.speed * delta_time)
-                self.x += (dx / distance) * move_distance
-                self.y += (dy / distance) * move_distance
-                self.rotation = math.degrees(math.atan2(dy, dx))
-
-                # Update velocity for network sync
+                # Set velocity toward target
                 self.velocity_x = (dx / distance) * self.speed
                 self.velocity_y = (dy / distance) * self.speed
+                self.rotation = math.degrees(math.atan2(dy, dx))
             else:
                 # Reached target, record as explored
                 tile_x = int(self.x)
                 tile_y = int(self.y)
                 self.explored_tiles.add((tile_x, tile_y))
+                self.velocity_x = 0
+                self.velocity_y = 0
 
                 # Add to exploration history
                 self.exploration_history.append((self.x, self.y, time.time()))
@@ -67,6 +65,9 @@ class ExplorerAgent(BaseAgent):
                 self.choose_new_exploration_target()
         else:
             self.choose_new_exploration_target()
+
+        # Apply movement using the velocity system
+        self.move(delta_time)
 
     def choose_new_exploration_target(self):
         """Select next exploration target based on mode"""

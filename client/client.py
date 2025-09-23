@@ -22,6 +22,7 @@ class GameClient:
         self.udp_socket: Optional[socket.socket] = None
         self.agent: Optional[BaseAgent] = None
         self.agent_id: Optional[str] = None
+        self.client_id: Optional[str] = None
         self.connected = False
         self.world_state = {}
         self.visible_entities = []
@@ -45,6 +46,7 @@ class GameClient:
             response = await self.receive_tcp_message()
             if response and response.type == MessageType.SPAWN_AGENT:
                 self.agent_id = response.payload['agent_id']
+                self.client_id = response.payload.get('client_id', self.agent_id)  # Get client_id from server
                 self.connected = True
                 logger.info(f"Connected as agent {self.agent_id}")
 
@@ -84,8 +86,8 @@ class GameClient:
         return None
 
     def send_udp_message(self, data: dict, host: str = '127.0.0.1'):
-        if self.udp_socket and self.agent_id:
-            data['client_id'] = self.agent_id
+        if self.udp_socket and self.client_id:
+            data['client_id'] = self.client_id
             message = json.dumps(data).encode()
             self.udp_socket.sendto(message, (host, UDP_PORT))
 
@@ -118,6 +120,14 @@ class GameClient:
     def update_agent_from_world_state(self):
         if not self.agent or not self.agent_id:
             return
+
+        # Set world bounds if available
+        map_info = self.world_state.get('map_info')
+        if map_info and not self.agent.world_bounds:
+            width = map_info.get('width')
+            height = map_info.get('height')
+            if width and height:
+                self.agent.set_world_bounds(width, height)
 
         agents = self.world_state.get('agents', [])
         for agent_data in agents:
@@ -181,6 +191,15 @@ class GameClient:
 
             self.connected = False
             logger.info("Disconnected from server")
+
+    async def run_update_loop(self):
+        """Run the main client update loop"""
+        try:
+            while self.connected:
+                await self.update()
+                await asyncio.sleep(0.033)  # ~30 FPS
+        except asyncio.CancelledError:
+            pass
 
     def get_world_state(self) -> dict:
         return self.world_state

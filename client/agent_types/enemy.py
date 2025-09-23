@@ -41,8 +41,13 @@ class EnemyAgent(BaseAgent):
             if current_time - self.last_attack_time >= self.attack_cooldown:
                 self.behavior_state = "chase"
 
+        # Apply movement using the velocity system
+        self.move(delta_time)
+
     def patrol(self, delta_time: float):
         if not self.patrol_points:
+            self.velocity_x = 0
+            self.velocity_y = 0
             return
 
         target = self.patrol_points[self.current_patrol_index]
@@ -51,21 +56,29 @@ class EnemyAgent(BaseAgent):
         distance = math.sqrt(dx * dx + dy * dy)
 
         if distance > 0.5:
-            move_distance = min(distance, self.speed * 0.3 * delta_time)
-            self.x += (dx / distance) * move_distance
-            self.y += (dy / distance) * move_distance
+            # Set velocity toward target
+            patrol_speed = self.speed * 0.3
+            self.velocity_x = (dx / distance) * patrol_speed
+            self.velocity_y = (dy / distance) * patrol_speed
             self.rotation = math.degrees(math.atan2(dy, dx))
         else:
+            # Reached patrol point, move to next
             self.current_patrol_index = (self.current_patrol_index + 1) % len(self.patrol_points)
+            self.velocity_x = 0
+            self.velocity_y = 0
 
     def chase_target(self, delta_time: float):
         if not self.target_id:
+            self.velocity_x = 0
+            self.velocity_y = 0
             return
 
         target_entity = self.find_entity_by_id(self.target_id)
         if not target_entity:
             self.target_id = None
             self.behavior_state = "patrol"
+            self.velocity_x = 0
+            self.velocity_y = 0
             return
 
         dx = target_entity['x'] - self.x
@@ -78,15 +91,16 @@ class EnemyAgent(BaseAgent):
             self.velocity_x = 0
             self.velocity_y = 0
         elif distance <= self.chase_range:
-            move_distance = min(distance, self.speed * self.aggression_level * delta_time)
-            self.x += (dx / distance) * move_distance
-            self.y += (dy / distance) * move_distance
+            # Set velocity toward target
+            chase_speed = self.speed * self.aggression_level
+            self.velocity_x = (dx / distance) * chase_speed
+            self.velocity_y = (dy / distance) * chase_speed
             self.rotation = math.degrees(math.atan2(dy, dx))
-            self.velocity_x = (dx / distance) * self.speed * self.aggression_level
-            self.velocity_y = (dy / distance) * self.speed * self.aggression_level
         else:
             self.target_id = None
             self.behavior_state = "patrol"
+            self.velocity_x = 0
+            self.velocity_y = 0
 
     def perceive(self, visible_entities: List[Dict[str, Any]]):
         self.visible_entities = visible_entities

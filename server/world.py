@@ -3,6 +3,7 @@ from world.map import WorldMap
 from world.vision import VisionSystem
 from shared.messages import AgentData
 from shared.constants import DEFAULT_VISION_RANGE, DEFAULT_VISION_ANGLE
+from shared.collision import CollisionDetector
 import uuid
 import time
 
@@ -10,6 +11,7 @@ class ServerWorld:
     def __init__(self, width: int, height: int):
         self.world_map = WorldMap(width, height)
         self.vision_system = VisionSystem(self.world_map)
+        self.collision_detector = CollisionDetector(width, height)
         self.agents: Dict[str, AgentData] = {}
         self.last_update = time.time()
 
@@ -18,9 +20,12 @@ class ServerWorld:
         agent_id = str(uuid.uuid4())
 
         if x is None or y is None:
-            spawn_x, spawn_y = self.world_map.get_random_walkable_position()
-            x = float(spawn_x)
-            y = float(spawn_y)
+            # Get positions of existing agents for collision avoidance
+            existing_positions = [(agent.x, agent.y) for agent in self.agents.values()]
+            x, y = self.collision_detector.get_safe_spawn_position(existing_positions)
+        else:
+            # Ensure provided position is within bounds
+            x, y = self.collision_detector.clamp_to_bounds(x, y)
 
         agent = AgentData(
             id=agent_id,
@@ -45,15 +50,29 @@ class ServerWorld:
         if agent_id not in self.agents:
             return False
 
-        tile_x = int(new_x)
-        tile_y = int(new_y)
+        agent = self.agents[agent_id]
+        current_pos = (agent.x, agent.y)
+        intended_pos = (new_x, new_y)
+
+        # Get positions of other agents for collision checking
+        other_agents = [(a.x, a.y) for aid, a in self.agents.items() if aid != agent_id]
+
+        # Resolve collisions and get safe position
+        safe_x, safe_y = self.collision_detector.resolve_movement_collision(
+            current_pos, intended_pos, other_agents
+        )
+
+        # Additional check for tile walkability
+        tile_x = int(safe_x)
+        tile_y = int(safe_y)
 
         if not self.world_map.is_walkable(tile_x, tile_y):
+            # If the resolved position is not walkable, keep current position
             return False
 
-        agent = self.agents[agent_id]
-        agent.x = new_x
-        agent.y = new_y
+        # Update agent position
+        agent.x = safe_x
+        agent.y = safe_y
         agent.rotation = rotation
 
         return True
@@ -104,6 +123,14 @@ class ServerWorld:
         }
 
     def validate_position(self, x: float, y: float) -> bool:
+        # Check both boundary and walkability
+        if not self.collision_detector.is_position_valid(x, y):
+            return False
+
         tile_x = int(x)
         tile_y = int(y)
         return self.world_map.is_walkable(tile_x, tile_y)
+
+    def get_world_bounds(self) -> Tuple[int, int]:
+        """Get world dimensions"""
+        return self.world_map.width, self.world_map.height

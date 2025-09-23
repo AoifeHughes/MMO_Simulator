@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Tuple, List, Dict, Any, Optional
 from shared.constants import DEFAULT_AGENT_SPEED, DEFAULT_VISION_RANGE, DEFAULT_VISION_ANGLE
 from shared.math_utils import clamp, normalize_angle
+from shared.collision import CollisionDetector
 import time
 
 class BaseAgent(ABC):
@@ -25,6 +26,10 @@ class BaseAgent(ABC):
         self.visible_entities: List[Dict[str, Any]] = []
         self.last_update = time.time()
 
+        # Collision detection (will be set when world bounds are known)
+        self.collision_detector: Optional[CollisionDetector] = None
+        self.world_bounds: Optional[Tuple[int, int]] = None
+
     @abstractmethod
     def update(self, delta_time: float):
         pass
@@ -38,16 +43,34 @@ class BaseAgent(ABC):
         pass
 
     def move(self, delta_time: float):
-        self.x += self.velocity_x * delta_time
-        self.y += self.velocity_y * delta_time
+        # Calculate intended new position
+        new_x = self.x + self.velocity_x * delta_time
+        new_y = self.y + self.velocity_y * delta_time
+
+        # Apply collision detection if available
+        if self.collision_detector:
+            new_x, new_y = self.collision_detector.resolve_movement_collision(
+                (self.x, self.y), (new_x, new_y)
+            )
+
+        self.x = new_x
+        self.y = new_y
 
     def set_velocity(self, vx: float, vy: float):
         self.velocity_x = vx
         self.velocity_y = vy
 
     def set_position(self, x: float, y: float):
+        # Apply boundary clamping if collision detector is available
+        if self.collision_detector:
+            x, y = self.collision_detector.clamp_to_bounds(x, y)
         self.x = x
         self.y = y
+
+    def set_world_bounds(self, width: int, height: int):
+        """Set the world bounds and initialize collision detector"""
+        self.world_bounds = (width, height)
+        self.collision_detector = CollisionDetector(width, height)
 
     def set_rotation(self, rotation: float):
         self.rotation = normalize_angle(rotation)
