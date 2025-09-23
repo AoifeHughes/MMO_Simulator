@@ -135,10 +135,12 @@ class GameServer:
 
     def stop(self):
         self.running = False
+        logger.info("Stopping server...")
         if self.tcp_server:
             self.tcp_server.close()
         if self.udp_socket:
             self.udp_socket.close()
+        logger.info("Server stopped")
 
 class ClientConnection:
     def __init__(self, client_id: str, reader: asyncio.StreamReader,

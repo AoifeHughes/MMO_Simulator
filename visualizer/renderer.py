@@ -23,16 +23,25 @@ class Renderer:
         self.show_vision_cones = True
         self.show_minimap = True
 
+        # Mouse panning
+        self.is_panning = False
+        self.pan_start_x = 0
+        self.pan_start_y = 0
+        self.camera_start_x = 0
+        self.camera_start_y = 0
+        self.follow_mode = False  # Disable auto-follow when manually panning
+
         self.agent_colors = {
             'player': (0, 100, 255),
             'npc': (0, 255, 100),
-            'enemy': (255, 50, 50)
+            'enemy': (255, 50, 50),
+            'explorer': (255, 165, 0)
         }
 
     def render_frame(self, world_map, agents: List[Dict], focus_agent_id: Optional[str] = None):
         self.screen.fill((20, 20, 20))
 
-        if focus_agent_id:
+        if focus_agent_id and self.follow_mode and not self.is_panning:
             self.update_camera_focus(agents, focus_agent_id)
 
         self.render_map(world_map)
@@ -197,6 +206,27 @@ class Renderer:
 
     def toggle_vision_cones(self):
         self.show_vision_cones = not self.show_vision_cones
+
+    def toggle_follow_mode(self):
+        self.follow_mode = not self.follow_mode
+
+    def start_panning(self, mouse_x: int, mouse_y: int):
+        self.is_panning = True
+        self.pan_start_x = mouse_x
+        self.pan_start_y = mouse_y
+        self.camera_start_x = self.camera_x
+        self.camera_start_y = self.camera_y
+        self.follow_mode = False
+
+    def update_panning(self, mouse_x: int, mouse_y: int):
+        if self.is_panning:
+            dx = mouse_x - self.pan_start_x
+            dy = mouse_y - self.pan_start_y
+            self.camera_x = self.camera_start_x - dx / self.zoom
+            self.camera_y = self.camera_start_y - dy / self.zoom
+
+    def stop_panning(self):
+        self.is_panning = False
 
     def cleanup(self):
         pygame.quit()

@@ -9,6 +9,7 @@ from client.agent import BaseAgent
 from client.agent_types.player import PlayerAgent
 from client.agent_types.npc import NPCAgent
 from client.agent_types.enemy import EnemyAgent
+from client.agent_types.explorer import ExplorerAgent
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -63,6 +64,8 @@ class GameClient:
             self.agent = NPCAgent(self.agent_id, x, y)
         elif agent_type == 'enemy':
             self.agent = EnemyAgent(self.agent_id, x, y)
+        elif agent_type == 'explorer':
+            self.agent = ExplorerAgent(self.agent_id, x, y)
 
     async def send_tcp_message(self, message: Message):
         if self.tcp_writer:
