@@ -14,6 +14,8 @@ class EnemyAgent(BaseAgent):
         self.attack_cooldown = 1.0
         self.last_attack_time = 0
         self.aggression_level = random.uniform(0.5, 1.0)
+        self.last_goal_change_time = 0
+        self.goal_change_cooldown = 0.5  # Prevent rapid goal switching
 
         # Setup patrol route and start patrol goal
         self.patrol_points = self.setup_patrol_route()
@@ -30,10 +32,7 @@ class EnemyAgent(BaseAgent):
         return patrol_points
 
     def update(self, delta_time: float):
-        # Update pathfinding state
-        self.update_pathfinding(delta_time)
-
-        # Update goal system
+        # Update goal system (this handles all movement control)
         self.goal_manager.update(self, delta_time)
 
         # Apply movement using the velocity system
@@ -60,8 +59,11 @@ class EnemyAgent(BaseAgent):
         # If we found a target and it's different from current target, start chasing
         if closest_player:
             new_target_id = closest_player['id']
-            if new_target_id != self.target_id:
+            current_time = time.time()
+            if (new_target_id != self.target_id and
+                current_time - self.last_goal_change_time > self.goal_change_cooldown):
                 self.target_id = new_target_id
+                self.last_goal_change_time = current_time
                 chase_goal = ChaseTargetGoal(
                     target_id=new_target_id,
                     chase_range=self.chase_range,
