@@ -1,308 +1,190 @@
 #!/usr/bin/env python3
-"""
-MMO Simulation Engine
-Main entry point demonstrating the game systems
-"""
-
-import time
-import random
-import logging
+import asyncio
+import pygame
+from typing import Optional
 import sys
-from typing import List
-import threading
+import argparse
+from server.server import GameServer
+from client.client import GameClient
+from visualizer.renderer import Renderer
+from world.map import WorldMap
+import logging
 
-from src.engine.game import Game, GameConfig
-from src.agents.agent import Agent
-from src.agents.npc import NPC, NPCRole
-from src.agents.enemy import Enemy, EnemyType
-from src.world.world import Vector2
-from src.world.objects import (
-    GameObject, Container, ResourceNode, Portal,
-    Item, Weapon, Armor, ItemRarity, ItemType,
-    Terrain, TerrainType
-)
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
-class MMOSimulation:
-    """Main simulation class that sets up and runs the MMO world"""
-
-    def __init__(self):
-        self.game = Game(GameConfig(
-            target_fps=60,
-            agent_update_interval=0.5,
-            request_resolution_interval=0.1
-        ))
+class SimulatorApp:
+    def __init__(self, mode: str = "both", visualize: bool = True):
+        self.mode = mode
+        self.visualize = visualize
+        self.server: Optional[GameServer] = None
+        self.client: Optional[GameClient] = None
+        self.renderer: Optional[Renderer] = None
         self.running = False
+        self.clock = pygame.time.Clock()
 
-    def setup_world(self):
-        """Populate the world with entities"""
-        logger.info("Setting up MMO world...")
+    async def start_server(self):
+        self.server = GameServer(100, 100)
+        logger.info("Starting server...")
 
-        # Add terrain features
-        self._create_terrain()
+        for i in range(3):
+            self.server.world.spawn_agent("npc")
 
-        # Add NPCs
-        self._create_npcs()
+        for i in range(2):
+            self.server.world.spawn_agent("enemy")
 
-        # Add enemies
-        self._create_enemies()
+        server_task = asyncio.create_task(self.server.start())
+        return server_task
 
-        # Add agents with diverse personalities
-        self._create_agents(50)  # Create 50 intelligent agents
+    async def start_client(self, agent_type: str = "player"):
+        self.client = GameClient()
+        await asyncio.sleep(0.5)
 
-        # Add world objects
-        self._create_world_objects()
+        logger.info(f"Connecting client as {agent_type}...")
+        connected = await self.client.connect(agent_type=agent_type)
 
-        logger.info("World setup complete!")
+        if not connected:
+            logger.error("Failed to connect client")
+            return None
 
-    def _create_terrain(self):
-        """Create terrain features"""
-        terrains = [
-            Terrain(TerrainType.FOREST, Vector2(2000, 1500), Vector2(800, 800)),
-            Terrain(TerrainType.MOUNTAIN, Vector2(3500, 2000), Vector2(1000, 1000)),
-            Terrain(TerrainType.SWAMP, Vector2(1500, 3000), Vector2(600, 600)),
-        ]
+        return self.client
 
-        for terrain in terrains:
-            self.game.world.terrain[terrain.id] = terrain
+    async def run_visualization(self):
+        if not self.visualize or not self.client:
+            return
 
-    def _create_npcs(self):
-        """Create NPCs in the world"""
-        npcs = [
-            NPC("Marcus the Merchant", NPCRole.MERCHANT, Vector2(1100, 1100)),
-            NPC("Elder Sage", NPCRole.QUEST_GIVER, Vector2(1200, 1000)),
-            NPC("Captain Rex", NPCRole.TRAINER, Vector2(1000, 1200)),
-            NPC("Guard Tom", NPCRole.GUARD, Vector2(900, 1000)),
-            NPC("Guard Sarah", NPCRole.GUARD, Vector2(1100, 900)),
-            NPC("Wanderer Jim", NPCRole.WANDERER, Vector2(1300, 1300)),
-            NPC("Blacksmith Joe", NPCRole.BLACKSMITH, Vector2(1050, 1150)),
-        ]
+        self.renderer = Renderer()
+        focus_agent_id = self.client.agent_id
 
-        for npc in npcs:
-            self.game.world.add_npc(npc)
+        while self.running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self.running = False
+                    elif event.key == pygame.K_d:
+                        self.renderer.toggle_debug()
+                    elif event.key == pygame.K_v:
+                        self.renderer.toggle_vision_cones()
+                    elif event.key == pygame.K_EQUALS:
+                        self.renderer.handle_zoom(0.1)
+                    elif event.key == pygame.K_MINUS:
+                        self.renderer.handle_zoom(-0.1)
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:
+                        mouse_x, mouse_y = pygame.mouse.get_pos()
+                        world_x, world_y = self.renderer.screen_to_world(mouse_x, mouse_y)
+                        await self.client.move_to(world_x, world_y)
 
-    def _create_enemies(self):
-        """Create enemies in different areas"""
-        # Starting area - weak enemies
-        for i in range(10):
-            pos = Vector2(
-                random.uniform(800, 1300),
-                random.uniform(800, 1300)
-            )
-            enemy = Enemy(f"Goblin_{i}", EnemyType.NORMAL, level=random.randint(1, 5), position=pos)
-            self.game.world.add_enemy(enemy)
+            world_state = self.client.get_world_state()
+            agents = world_state.get('agents', [])
 
-        # Forest area - medium enemies
-        for i in range(8):
-            pos = Vector2(
-                random.uniform(2000, 2800),
-                random.uniform(1500, 2300)
-            )
-            enemy = Enemy(f"Wolf_{i}", EnemyType.NORMAL, level=random.randint(10, 20), position=pos)
-            self.game.world.add_enemy(enemy)
+            if self.server:
+                world_map = self.server.world.world_map
+            else:
+                world_map = WorldMap(100, 100)
 
-        # Add some elite enemies
-        elite_positions = [
-            Vector2(2400, 1900),
-            Vector2(3600, 2100),
-        ]
-        for i, pos in enumerate(elite_positions):
-            enemy = Enemy(f"Elite_Guardian_{i}", EnemyType.ELITE, level=25, position=pos)
-            self.game.world.add_enemy(enemy)
+            self.renderer.render_frame(world_map, agents, focus_agent_id)
+            self.clock.tick(60)
 
-        # Add a boss
-        boss = Enemy("Dragon Lord", EnemyType.BOSS, level=50, position=Vector2(4000, 2500))
-        self.game.world.add_enemy(boss)
+            await asyncio.sleep(0.001)
 
-    def _create_agents(self, count: int):
-        """Create intelligent agents with varied personalities"""
-        agent_classes = ["Warrior", "Mage", "Ranger", "Rogue", "Cleric"]
+    async def run_client_update_loop(self):
+        while self.running and self.client:
+            await self.client.update()
+            await asyncio.sleep(0.016)
 
-        for i in range(count):
-            agent = Agent(f"Agent_{i:03d}")
-
-            # Randomize personality
-            agent.personality.randomize()
-
-            # Assign class
-            agent.character_class = random.choice(agent_classes)
-
-            # Set level (some variation in starting levels)
-            agent.level = random.randint(1, 10)
-
-            # Random starting position in safe zone
-            agent.position = Vector2(
-                random.uniform(900, 1200),
-                random.uniform(900, 1200)
-            )
-
-            # Give starting equipment
-            if random.random() > 0.5:
-                weapon = Weapon(
-                    f"Starter {agent.character_class} Weapon",
-                    "sword" if agent.character_class == "Warrior" else "staff",
-                    damage=10 + agent.level,
-                    rarity=ItemRarity.COMMON
-                )
-                agent.inventory.append(weapon)
-                agent.equipment['weapon'] = weapon
-
-            # Add some initial knowledge
-            initial_knowledge = [
-                {
-                    'type': 'area_info',
-                    'content': 'Starting zone is safe for low levels',
-                    'confidence': 1.0
-                },
-                {
-                    'type': 'enemy_weakness',
-                    'content': 'Goblins are weak to fire',
-                    'confidence': 0.7
-                }
-            ]
-            agent.memory.knowledge_base.extend(initial_knowledge)
-
-            self.game.world.add_agent(agent)
-
-        logger.info(f"Created {count} agents with diverse personalities")
-
-    def _create_world_objects(self):
-        """Create interactive objects in the world"""
-        # Resource nodes
-        resource_positions = [
-            (Vector2(1400, 1100), "ore"),
-            (Vector2(1500, 1200), "wood"),
-            (Vector2(2100, 1600), "herb"),
-            (Vector2(2200, 1700), "ore"),
-        ]
-
-        for pos, resource_type in resource_positions:
-            node = ResourceNode(f"{resource_type}_node", pos, resource_type)
-            self.game.world.add_object(node)
-
-        # Containers with loot
-        chest = Container("Treasure Chest", Vector2(1250, 1250))
-        chest.locked = True
-        chest.lock_difficulty = 15
-
-        # Add items to chest
-        chest.add_item(Weapon("Magic Sword", "sword", 25, ItemRarity.RARE))
-        chest.add_item(Item("Health Potion", ItemType.CONSUMABLE, ItemRarity.COMMON))
-
-        self.game.world.add_object(chest)
-
-        # Portals
-        portal = Portal(
-            "Forest Portal",
-            Vector2(1500, 1000),
-            "dark_forest",
-            Vector2(2000, 1500)
-        )
-        self.game.world.add_object(portal)
-
-    def run(self):
-        """Run the simulation"""
+    async def run(self):
         self.running = True
+        tasks = []
 
-        # Start game in a separate thread
-        game_thread = threading.Thread(target=self.game.start)
-        game_thread.daemon = True
-        game_thread.start()
-
-        logger.info("MMO Simulation started! Press Ctrl+C to stop.")
-
-        # Main monitoring loop
         try:
-            last_stats_time = time.time()
-            while self.running:
-                current_time = time.time()
+            if self.mode in ["server", "both"]:
+                server_task = await self.start_server()
+                tasks.append(server_task)
 
-                # Print statistics every 5 seconds
-                if current_time - last_stats_time >= 5.0:
-                    self._print_statistics()
-                    last_stats_time = current_time
+            if self.mode in ["client", "both"]:
+                await self.start_client("player")
+                if self.client:
+                    client_task = asyncio.create_task(self.run_client_update_loop())
+                    tasks.append(client_task)
 
-                time.sleep(0.1)
+                    if self.visualize:
+                        viz_task = asyncio.create_task(self.run_visualization())
+                        tasks.append(viz_task)
+
+            if tasks:
+                await asyncio.gather(*tasks)
 
         except KeyboardInterrupt:
-            logger.info("Stopping simulation...")
-            self.stop()
+            logger.info("Shutting down...")
+        finally:
+            await self.cleanup()
 
-    def _print_statistics(self):
-        """Print current game statistics"""
-        stats = self.game.get_stats()
-        world_stats = stats.get('world_stats', {})
-
-        print("\n" + "="*50)
-        print("MMO SIMULATION STATISTICS")
-        print("="*50)
-        print(f"Game Tick: {stats['current_tick']}")
-        print(f"Target FPS: {stats['target_fps']}")
-        print(f"Running: {stats['running']}, Paused: {stats['paused']}")
-        print("-"*50)
-        print(f"Agents: {world_stats.get('total_agents', 0)}")
-        print(f"NPCs: {world_stats.get('total_npcs', 0)}")
-        print(f"Enemies: {world_stats.get('total_enemies', 0)}")
-        print(f"Objects: {world_stats.get('total_objects', 0)}")
-        print(f"Pending Requests: {stats.get('pending_requests', 0)}")
-
-        # Sample agent status
-        if self.game.world.agents:
-            sample_agent = list(self.game.world.agents.values())[0]
-            agent_info = sample_agent.get_info()
-            print("-"*50)
-            print("Sample Agent Status:")
-            print(f"  Name: {agent_info['name']}")
-            print(f"  Level: {agent_info['level']}")
-            print(f"  State: {agent_info['state']}")
-            print(f"  Health: {agent_info['health']}")
-            print(f"  Position: {agent_info['position']}")
-
-        # Request manager statistics
-        if self.game.request_manager:
-            req_stats = self.game.request_manager.get_statistics()
-            print("-"*50)
-            print("Request Processing:")
-            print(f"  Total Processed: {req_stats['total_processed']}")
-            print(f"  Pending: {req_stats['pending']}")
-            print(f"  Failed: {req_stats['failed']}")
-
-            if req_stats['by_type']:
-                print("  By Type:")
-                for req_type, count in req_stats['by_type'].items():
-                    print(f"    {req_type.value}: {count}")
-
-        print("="*50)
-
-    def stop(self):
-        """Stop the simulation"""
+    async def cleanup(self):
         self.running = False
-        self.game.stop()
-        logger.info("Simulation stopped.")
 
+        if self.client:
+            await self.client.disconnect()
+
+        if self.server:
+            self.server.stop()
+
+        if self.renderer:
+            self.renderer.cleanup()
+
+async def demo_multiple_clients():
+    server = GameServer(100, 100)
+    server_task = asyncio.create_task(server.start())
+
+    await asyncio.sleep(1)
+
+    clients = []
+    for i in range(5):
+        client = GameClient()
+        agent_type = "player" if i == 0 else ("npc" if i < 3 else "enemy")
+        connected = await client.connect(agent_type=agent_type)
+        if connected:
+            clients.append(client)
+            logger.info(f"Client {i} connected as {agent_type}")
+
+    try:
+        update_tasks = []
+        for client in clients:
+            update_task = asyncio.create_task(update_client_loop(client))
+            update_tasks.append(update_task)
+
+        await asyncio.gather(server_task, *update_tasks)
+
+    except KeyboardInterrupt:
+        logger.info("Shutting down demo...")
+    finally:
+        for client in clients:
+            await client.disconnect()
+        server.stop()
+
+async def update_client_loop(client: GameClient):
+    while True:
+        await client.update()
+        await asyncio.sleep(0.016)
 
 def main():
-    """Main entry point"""
-    print("""
-    ╔══════════════════════════════════════════╗
-    ║     MMO SIMULATION ENGINE v1.0           ║
-    ║                                          ║
-    ║  Intelligent Agent-Based MMO World       ║
-    ║  With Emergent Behaviors                 ║
-    ╚══════════════════════════════════════════╝
-    """)
+    parser = argparse.ArgumentParser(description='MMO Simulator')
+    parser.add_argument('--mode', choices=['server', 'client', 'both', 'demo'],
+                       default='both', help='Run mode')
+    parser.add_argument('--no-viz', action='store_true',
+                       help='Disable visualization')
+    parser.add_argument('--host', default='127.0.0.1',
+                       help='Server host (for client mode)')
 
-    simulation = MMOSimulation()
-    simulation.setup_world()
-    simulation.run()
+    args = parser.parse_args()
 
+    if args.mode == 'demo':
+        asyncio.run(demo_multiple_clients())
+    else:
+        app = SimulatorApp(mode=args.mode, visualize=not args.no_viz)
+        asyncio.run(app.run())
 
 if __name__ == "__main__":
     main()
