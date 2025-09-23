@@ -46,6 +46,7 @@ class AgentData:
     rotation: float
     agent_type: str
     health: float = 100.0
+    vision_range: float = 10.0
 
     def to_dict(self) -> Dict:
         return asdict(self)

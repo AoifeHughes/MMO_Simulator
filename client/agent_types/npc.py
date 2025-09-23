@@ -16,21 +16,34 @@ class NPCAgent(BaseAgent):
         self.home_y = y
 
     def update(self, delta_time: float):
+        # Update pathfinding state
+        self.update_pathfinding(delta_time)
+
         if self.behavior_state == "idle":
             self.idle_time += delta_time
-            self.velocity_x = 0
-            self.velocity_y = 0
+            if not self.current_path:  # Only stop if not pathfinding
+                self.velocity_x = 0
+                self.velocity_y = 0
             if self.idle_time >= self.max_idle_time:
                 self.start_wandering()
 
         elif self.behavior_state == "wandering":
-            if self.wander_target:
+            # Check if pathfinding is handling movement
+            if self.current_path:
+                # Pathfinding is active, check if we've reached destination
+                if not self.current_waypoint:
+                    # Path completed
+                    self.behavior_state = "idle"
+                    self.idle_time = 0
+                    self.max_idle_time = random.uniform(2, 5)
+                    self.wander_target = None
+            elif self.wander_target:
+                # Fallback to direct movement if no pathfinding
                 dx = self.wander_target[0] - self.x
                 dy = self.wander_target[1] - self.y
                 distance = math.sqrt(dx * dx + dy * dy)
 
                 if distance > 0.5:
-                    # Set velocity toward target
                     wander_speed = self.speed * 0.5
                     self.velocity_x = (dx / distance) * wander_speed
                     self.velocity_y = (dy / distance) * wander_speed
@@ -74,9 +87,12 @@ class NPCAgent(BaseAgent):
         self.wander_target = (target_x, target_y)
         self.behavior_state = "wandering"
 
-        dx = target_x - self.x
-        dy = target_y - self.y
-        dist = math.sqrt(dx * dx + dy * dy)
-        if dist > 0:
-            self.velocity_x = (dx / dist) * self.speed * 0.5
-            self.velocity_y = (dy / dist) * self.speed * 0.5
+        # Try pathfinding first, fall back to direct movement
+        if not self.find_path_to(target_x, target_y):
+            # No path found, use direct movement
+            dx = target_x - self.x
+            dy = target_y - self.y
+            dist = math.sqrt(dx * dx + dy * dy)
+            if dist > 0:
+                self.velocity_x = (dx / dist) * self.speed * 0.5
+                self.velocity_y = (dy / dist) * self.speed * 0.5

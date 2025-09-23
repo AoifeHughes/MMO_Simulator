@@ -21,6 +21,9 @@ class ExplorerAgent(BaseAgent):
         self.max_history = 100
 
     def update(self, delta_time: float):
+        # Update pathfinding state
+        self.update_pathfinding(delta_time)
+
         # Check if stuck
         current_time = time.time()
         if current_time - self.last_position_time > 2.0:
@@ -37,14 +40,27 @@ class ExplorerAgent(BaseAgent):
             self.last_position = (self.x, self.y)
             self.last_position_time = current_time
 
-        # Move towards current target
-        if self.current_target:
+        # If pathfinding is active, check if we need new target
+        if self.current_path:
+            if not self.current_waypoint:
+                # Path completed, record exploration and choose new target
+                tile_x = int(self.x)
+                tile_y = int(self.y)
+                self.explored_tiles.add((tile_x, tile_y))
+
+                # Add to exploration history
+                self.exploration_history.append((self.x, self.y, time.time()))
+                if len(self.exploration_history) > self.max_history:
+                    self.exploration_history.pop(0)
+
+                self.choose_new_exploration_target()
+        # If no pathfinding active, use direct movement toward target
+        elif self.current_target:
             dx = self.current_target[0] - self.x
             dy = self.current_target[1] - self.y
             distance = math.sqrt(dx * dx + dy * dy)
 
             if distance > 0.5:
-                # Set velocity toward target
                 self.velocity_x = (dx / distance) * self.speed
                 self.velocity_y = (dy / distance) * self.speed
                 self.rotation = math.degrees(math.atan2(dy, dx))
@@ -61,7 +77,6 @@ class ExplorerAgent(BaseAgent):
                 if len(self.exploration_history) > self.max_history:
                     self.exploration_history.pop(0)
 
-                # Choose new target
                 self.choose_new_exploration_target()
         else:
             self.choose_new_exploration_target()
@@ -71,6 +86,12 @@ class ExplorerAgent(BaseAgent):
 
     def choose_new_exploration_target(self):
         """Select next exploration target based on mode"""
+        # First try intelligent pathfinding to frontiers if agent map is available
+        if self.agent_map and self.exploration_mode == "frontier":
+            if self.find_path_to_exploration_frontier():
+                return  # Pathfinding active, no need for manual target
+
+        # Fallback to original exploration methods
         if self.exploration_mode == "spiral":
             self.spiral_explore()
         elif self.exploration_mode == "random":
@@ -89,7 +110,9 @@ class ExplorerAgent(BaseAgent):
         target_x = self.home_base[0] + math.cos(angle_rad) * self.spiral_radius
         target_y = self.home_base[1] + math.sin(angle_rad) * self.spiral_radius
 
-        self.current_target = (target_x, target_y)
+        # Try pathfinding first, fall back to direct movement
+        if not self.find_path_to(target_x, target_y):
+            self.current_target = (target_x, target_y)
 
     def random_explore(self):
         """Choose random unexplored location within radius"""
@@ -105,7 +128,9 @@ class ExplorerAgent(BaseAgent):
             tile_y = int(target_y)
 
             if (tile_x, tile_y) not in self.explored_tiles:
-                self.current_target = (target_x, target_y)
+                # Try pathfinding first, fall back to direct movement
+                if not self.find_path_to(target_x, target_y):
+                    self.current_target = (target_x, target_y)
                 break
 
             attempts += 1
@@ -114,8 +139,12 @@ class ExplorerAgent(BaseAgent):
         if attempts >= 10:
             angle = random.uniform(0, 2 * math.pi)
             distance = random.uniform(10, self.exploration_radius)
-            self.current_target = (self.x + math.cos(angle) * distance,
-                                  self.y + math.sin(angle) * distance)
+            target_x = self.x + math.cos(angle) * distance
+            target_y = self.y + math.sin(angle) * distance
+
+            # Try pathfinding first, fall back to direct movement
+            if not self.find_path_to(target_x, target_y):
+                self.current_target = (target_x, target_y)
 
     def frontier_explore(self):
         """Move towards nearest unexplored frontier"""
@@ -140,7 +169,12 @@ class ExplorerAgent(BaseAgent):
             # Choose nearest frontier
             frontier_tiles.sort()
             _, target_tile = frontier_tiles[0]
-            self.current_target = (target_tile[0] + 0.5, target_tile[1] + 0.5)
+            target_x = target_tile[0] + 0.5
+            target_y = target_tile[1] + 0.5
+
+            # Try pathfinding first, fall back to direct movement
+            if not self.find_path_to(target_x, target_y):
+                self.current_target = (target_x, target_y)
         else:
             # No frontiers, switch to random
             self.random_explore()

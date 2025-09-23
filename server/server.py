@@ -120,10 +120,18 @@ class GameServer:
             return
 
         visible_agents = self.world.get_visible_agents(client.agent_id)
+        terrain_data = self.world.get_terrain_in_vision(client.agent_id)
+
+        # Convert terrain data to serializable format
+        terrain_dict = {}
+        for (x, y), tile_type in terrain_data.items():
+            terrain_dict[f"{x},{y}"] = tile_type.value
+
         message = Message(
             type=MessageType.VISIBLE_ENTITIES_UPDATE,
             payload={
-                'entities': [agent.to_dict() for agent in visible_agents]
+                'entities': [agent.to_dict() for agent in visible_agents],
+                'terrain': terrain_dict
             },
             timestamp=time.time()
         )

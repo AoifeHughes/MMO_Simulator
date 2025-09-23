@@ -68,6 +68,20 @@ class TestExplorerAgents:
                     )
             await asyncio.sleep(0.5)
 
+        # Check pathfinding integration
+        for explorer in explorers:
+            if explorer.agent and explorer.agent.agent_map:
+                map_completion = explorer.agent.agent_map.get_map_completion_percentage()
+                print(f"Explorer {explorer.agent_id} map completion: {map_completion:.1f}%")
+
+                # Agent should have built up some map knowledge
+                assert map_completion > 0, f"Explorer should have discovered terrain"
+
+                # Check exploration state
+                state = explorer.agent.get_state()
+                if 'map_completion' in state:
+                    assert state['map_completion'] >= 0
+
         # Analyze exploration behavior
         analysis = behavior_metrics.analyze_explorer_behavior()
         print(f"\nExploration Analysis: {analysis}")

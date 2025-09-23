@@ -11,21 +11,26 @@ class PlayerAgent(BaseAgent):
         self.input_buffer = []
 
     def update(self, delta_time: float):
-        if self.is_moving:
+        # Update pathfinding state
+        self.update_pathfinding(delta_time)
+
+        # If no active pathfinding, use direct movement
+        if self.is_moving and not self.current_path:
             dx = self.target_x - self.x
             dy = self.target_y - self.y
             distance = math.sqrt(dx * dx + dy * dy)
 
             if distance > 0.1:
-                move_distance = min(distance, self.speed * delta_time)
-                self.x += (dx / distance) * move_distance
-                self.y += (dy / distance) * move_distance
-
+                self.velocity_x = (dx / distance) * self.speed
+                self.velocity_y = (dy / distance) * self.speed
                 self.rotation = math.degrees(math.atan2(dy, dx))
             else:
                 self.is_moving = False
                 self.velocity_x = 0
                 self.velocity_y = 0
+
+        # Apply movement using the velocity system
+        self.move(delta_time)
 
     def perceive(self, visible_entities: List[Dict[str, Any]]):
         self.visible_entities = visible_entities
@@ -40,15 +45,15 @@ class PlayerAgent(BaseAgent):
         if input_type == "move_to":
             self.target_x = data['x']
             self.target_y = data['y']
-            self.is_moving = True
 
-            dx = self.target_x - self.x
-            dy = self.target_y - self.y
-            distance = math.sqrt(dx * dx + dy * dy)
-
-            if distance > 0:
-                self.velocity_x = (dx / distance) * self.speed
-                self.velocity_y = (dy / distance) * self.speed
+            # Try pathfinding first, fall back to direct movement
+            if not self.find_path_to(self.target_x, self.target_y):
+                # No path found, use direct movement
+                self.is_moving = True
+                self.move_direct(self.target_x, self.target_y)
+            else:
+                # Pathfinding active, stop direct movement
+                self.is_moving = False
 
             self.input_buffer.append({
                 'type': 'move',
@@ -58,8 +63,7 @@ class PlayerAgent(BaseAgent):
 
         elif input_type == "stop":
             self.is_moving = False
-            self.velocity_x = 0
-            self.velocity_y = 0
+            self.stop_movement()  # This clears both velocity and pathfinding
             self.input_buffer.append({'type': 'stop'})
 
         elif input_type == "attack":

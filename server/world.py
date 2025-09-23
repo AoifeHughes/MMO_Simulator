@@ -1,6 +1,7 @@
 from typing import Dict, List, Tuple, Optional
 from world.map import WorldMap
 from world.vision import VisionSystem
+from world.tiles import TileType
 from shared.messages import AgentData
 from shared.constants import DEFAULT_VISION_RANGE, DEFAULT_VISION_ANGLE
 from shared.collision import CollisionDetector
@@ -33,7 +34,8 @@ class ServerWorld:
             y=y,
             rotation=0.0,
             agent_type=agent_type,
-            health=100.0
+            health=100.0,
+            vision_range=DEFAULT_VISION_RANGE
         )
 
         self.agents[agent_id] = agent
@@ -121,6 +123,33 @@ class ServerWorld:
             },
             'timestamp': time.time()
         }
+
+    def get_terrain_in_vision(self, agent_id: str) -> Dict[Tuple[int, int], TileType]:
+        """Get terrain information visible to an agent"""
+        if agent_id not in self.agents:
+            return {}
+
+        agent = self.agents[agent_id]
+        terrain_data = {}
+
+        # Get tiles within vision range
+        vision_range = int(agent.vision_range) + 1
+        center_x, center_y = int(agent.x), int(agent.y)
+
+        for y in range(max(0, center_y - vision_range),
+                      min(self.world_map.height, center_y + vision_range + 1)):
+            for x in range(max(0, center_x - vision_range),
+                          min(self.world_map.width, center_x + vision_range + 1)):
+
+                # Calculate distance from agent
+                distance = ((x - agent.x)**2 + (y - agent.y)**2)**0.5
+
+                if distance <= agent.vision_range:
+                    tile_type = self.world_map.get_tile(x, y)
+                    if tile_type is not None:
+                        terrain_data[(x, y)] = tile_type
+
+        return terrain_data
 
     def validate_position(self, x: float, y: float) -> bool:
         # Check both boundary and walkability

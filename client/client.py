@@ -114,7 +114,21 @@ class GameClient:
 
             elif message.type == MessageType.VISIBLE_ENTITIES_UPDATE:
                 self.visible_entities = message.payload.get('entities', [])
+                terrain_dict = message.payload.get('terrain', {})
+
+                # Convert terrain data back to usable format
+                terrain_data = {}
+                for coord_str, tile_value in terrain_dict.items():
+                    x_str, y_str = coord_str.split(',')
+                    x, y = int(x_str), int(y_str)
+                    # Import TileType here to avoid circular imports
+                    from world.tiles import TileType
+                    tile_type = TileType(tile_value)
+                    terrain_data[(x, y)] = tile_type
+
                 if self.agent:
+                    # Update agent's personal map with discovered terrain
+                    self.agent.discover_terrain_from_vision(terrain_data)
                     self.agent.perceive(self.visible_entities)
 
     def update_agent_from_world_state(self):

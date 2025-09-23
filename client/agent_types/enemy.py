@@ -26,6 +26,9 @@ class EnemyAgent(BaseAgent):
             self.patrol_points.append((px, py))
 
     def update(self, delta_time: float):
+        # Update pathfinding state
+        self.update_pathfinding(delta_time)
+
         current_time = time.time()
 
         if self.behavior_state == "patrol":
@@ -46,61 +49,76 @@ class EnemyAgent(BaseAgent):
 
     def patrol(self, delta_time: float):
         if not self.patrol_points:
-            self.velocity_x = 0
-            self.velocity_y = 0
+            self.stop_movement()
             return
 
         target = self.patrol_points[self.current_patrol_index]
-        dx = target[0] - self.x
-        dy = target[1] - self.y
-        distance = math.sqrt(dx * dx + dy * dy)
 
-        if distance > 0.5:
-            # Set velocity toward target
-            patrol_speed = self.speed * 0.3
-            self.velocity_x = (dx / distance) * patrol_speed
-            self.velocity_y = (dy / distance) * patrol_speed
-            self.rotation = math.degrees(math.atan2(dy, dx))
+        # Check if pathfinding is active
+        if self.current_path:
+            if not self.current_waypoint:
+                # Reached patrol point, move to next
+                self.current_patrol_index = (self.current_patrol_index + 1) % len(self.patrol_points)
+                next_target = self.patrol_points[self.current_patrol_index]
+                # Try pathfinding to next patrol point
+                if not self.find_path_to(next_target[0], next_target[1]):
+                    # Fallback to direct movement
+                    self.move_direct(next_target[0], next_target[1])
+                    self.velocity_x *= 0.3  # Patrol speed
+                    self.velocity_y *= 0.3
         else:
-            # Reached patrol point, move to next
-            self.current_patrol_index = (self.current_patrol_index + 1) % len(self.patrol_points)
-            self.velocity_x = 0
-            self.velocity_y = 0
+            # No active pathfinding, check distance to current patrol target
+            dx = target[0] - self.x
+            dy = target[1] - self.y
+            distance = math.sqrt(dx * dx + dy * dy)
+
+            if distance > 0.5:
+                # Try pathfinding first, fall back to direct movement
+                if not self.find_path_to(target[0], target[1]):
+                    patrol_speed = self.speed * 0.3
+                    self.velocity_x = (dx / distance) * patrol_speed
+                    self.velocity_y = (dy / distance) * patrol_speed
+                    self.rotation = math.degrees(math.atan2(dy, dx))
+            else:
+                # Reached patrol point, move to next
+                self.current_patrol_index = (self.current_patrol_index + 1) % len(self.patrol_points)
+                self.velocity_x = 0
+                self.velocity_y = 0
 
     def chase_target(self, delta_time: float):
         if not self.target_id:
-            self.velocity_x = 0
-            self.velocity_y = 0
+            self.stop_movement()
             return
 
         target_entity = self.find_entity_by_id(self.target_id)
         if not target_entity:
             self.target_id = None
             self.behavior_state = "patrol"
-            self.velocity_x = 0
-            self.velocity_y = 0
+            self.stop_movement()
             return
 
-        dx = target_entity['x'] - self.x
-        dy = target_entity['y'] - self.y
+        target_x = target_entity['x']
+        target_y = target_entity['y']
+        dx = target_x - self.x
+        dy = target_y - self.y
         distance = math.sqrt(dx * dx + dy * dy)
 
         if distance <= self.attack_range:
             self.behavior_state = "attack"
             self.last_attack_time = time.time()
-            self.velocity_x = 0
-            self.velocity_y = 0
+            self.stop_movement()
         elif distance <= self.chase_range:
-            # Set velocity toward target
-            chase_speed = self.speed * self.aggression_level
-            self.velocity_x = (dx / distance) * chase_speed
-            self.velocity_y = (dy / distance) * chase_speed
-            self.rotation = math.degrees(math.atan2(dy, dx))
+            # Try pathfinding first for intelligent chasing
+            if not self.find_path_to(target_x, target_y):
+                # Fallback to direct movement
+                chase_speed = self.speed * self.aggression_level
+                self.velocity_x = (dx / distance) * chase_speed
+                self.velocity_y = (dy / distance) * chase_speed
+                self.rotation = math.degrees(math.atan2(dy, dx))
         else:
             self.target_id = None
             self.behavior_state = "patrol"
-            self.velocity_x = 0
-            self.velocity_y = 0
+            self.stop_movement()
 
     def perceive(self, visible_entities: List[Dict[str, Any]]):
         self.visible_entities = visible_entities
