@@ -1,15 +1,17 @@
-from scenarios.base_scenario import BaseScenario
-from typing import List, Dict, Any
 import logging
 import math
+from typing import Any, Dict, List
+
+from scenarios.base_scenario import BaseScenario
 
 logger = logging.getLogger(__name__)
+
 
 class PeacefulVillageScenario(BaseScenario):
     def __init__(self):
         super().__init__(
             name="Peaceful Village",
-            description="A peaceful village with NPCs wandering around"
+            description="A peaceful village with NPCs wandering around",
         )
         self.num_npcs = 10
         self.num_explorers = 2
@@ -35,9 +37,9 @@ class PeacefulVillageScenario(BaseScenario):
             y = village_center_y + math.sin(angle) * village_radius
 
             agent_config = {
-                'type': 'npc',
-                'position': (x, y),
-                'name': f"Villager_{i+1}"
+                "type": "npc",
+                "position": (x, y),
+                "name": f"Villager_{i+1}",
             }
             agent_configs.append(agent_config)
 
@@ -50,10 +52,10 @@ class PeacefulVillageScenario(BaseScenario):
             y = village_center_y
 
             agent_config = {
-                'type': 'explorer',
-                'position': (x, y),
-                'exploration_mode': 'random',
-                'name': f"Visitor_{i+1}"
+                "type": "explorer",
+                "position": (x, y),
+                "exploration_mode": "random",
+                "name": f"Visitor_{i+1}",
             }
             agent_configs.append(agent_config)
 

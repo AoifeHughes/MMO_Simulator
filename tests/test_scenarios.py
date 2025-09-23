@@ -1,8 +1,16 @@
-import pytest
 import asyncio
 import time
-from tests.utils.assertions import AgentAssertions, ExplorerAssertions, NPCAssertions, EnemyAssertions
+
+import pytest
+
+from tests.utils.assertions import (
+    AgentAssertions,
+    EnemyAssertions,
+    ExplorerAssertions,
+    NPCAssertions,
+)
 from tests.utils.metrics import BehaviorMetrics
+
 
 @pytest.mark.asyncio
 @pytest.mark.integration
@@ -10,7 +18,9 @@ class TestScenarios:
     """Integration tests for complete scenarios"""
 
     @pytest.mark.timeout(30)
-    async def test_exploration_scenario(self, game_server, test_scenario, agent_tracker, behavior_metrics):
+    async def test_exploration_scenario(
+        self, game_server, test_scenario, agent_tracker, behavior_metrics
+    ):
         """Test the exploration scenario with multiple explorer types"""
         # Load exploration scenario
         scenario = await test_scenario("test_exploration")
@@ -25,11 +35,15 @@ class TestScenarios:
         npcs = [a for a in agents if a.agent_type == "npc"]
         enemies = [a for a in agents if a.agent_type == "enemy"]
 
-        assert len(explorers) >= 3, f"Expected at least 3 explorers, got {len(explorers)}"
+        assert (
+            len(explorers) >= 3
+        ), f"Expected at least 3 explorers, got {len(explorers)}"
         assert len(npcs) >= 2, f"Expected at least 2 NPCs, got {len(npcs)}"
         assert len(enemies) >= 1, f"Expected at least 1 enemy, got {len(enemies)}"
 
-        print(f"Scenario loaded: {len(explorers)} explorers, {len(npcs)} NPCs, {len(enemies)} enemies")
+        print(
+            f"Scenario loaded: {len(explorers)} explorers, {len(npcs)} NPCs, {len(enemies)} enemies"
+        )
 
         # Track scenario execution
         start_time = time.time()
@@ -39,14 +53,20 @@ class TestScenarios:
             # Record all agent positions
             for agent in agents:
                 pos = (agent.x, agent.y)
-                behavior_metrics.record_agent_position(agent.id, agent.agent_type, pos, current_time)
+                behavior_metrics.record_agent_position(
+                    agent.id, agent.agent_type, pos, current_time
+                )
 
             await asyncio.sleep(1.0)
 
         # Verify exploration behavior
         for explorer in explorers:
-            AgentAssertions.assert_agent_moved(agent_tracker, explorer.id, min_distance=8.0)
-            AgentAssertions.assert_agent_explored_area(agent_tracker, explorer.id, min_tiles=12)
+            AgentAssertions.assert_agent_moved(
+                agent_tracker, explorer.id, min_distance=8.0
+            )
+            AgentAssertions.assert_agent_explored_area(
+                agent_tracker, explorer.id, min_tiles=12
+            )
 
         # Verify NPC behavior
         for npc in npcs:
@@ -54,19 +74,29 @@ class TestScenarios:
 
         # Verify enemy behavior
         for enemy in enemies:
-            AgentAssertions.assert_agent_moved(agent_tracker, enemy.id, min_distance=3.0)
+            AgentAssertions.assert_agent_moved(
+                agent_tracker, enemy.id, min_distance=3.0
+            )
 
         # Generate analysis
         analysis = behavior_metrics.generate_report()
         print(f"\nScenario Analysis:")
-        print(f"Explorer efficiency: {analysis['explorer_analysis'].get('average_efficiency', 0):.3f}")
-        print(f"NPC wander radius: {analysis['npc_analysis'].get('average_wander_radius', 0):.2f}")
-        print(f"Enemy interactions: {analysis['enemy_analysis'].get('chase_events', 0)}")
+        print(
+            f"Explorer efficiency: {analysis['explorer_analysis'].get('average_efficiency', 0):.3f}"
+        )
+        print(
+            f"NPC wander radius: {analysis['npc_analysis'].get('average_wander_radius', 0):.2f}"
+        )
+        print(
+            f"Enemy interactions: {analysis['enemy_analysis'].get('chase_events', 0)}"
+        )
 
         agent_tracker.print_debug_info()
 
     @pytest.mark.timeout(25)
-    async def test_combat_scenario(self, game_server, test_scenario, agent_tracker, behavior_metrics):
+    async def test_combat_scenario(
+        self, game_server, test_scenario, agent_tracker, behavior_metrics
+    ):
         """Test the combat scenario with players vs enemies"""
         scenario = await test_scenario("basic_combat")
         assert scenario is not None
@@ -93,12 +123,16 @@ class TestScenarios:
             # Record positions and check for interactions
             for agent in agents:
                 pos = (agent.x, agent.y)
-                behavior_metrics.record_agent_position(agent.id, agent.agent_type, pos, current_time)
+                behavior_metrics.record_agent_position(
+                    agent.id, agent.agent_type, pos, current_time
+                )
 
             # Check for player-enemy proximity (combat situations)
             for player in players:
                 for enemy in enemies:
-                    distance = ((player.x - enemy.x)**2 + (player.y - enemy.y)**2)**0.5
+                    distance = (
+                        (player.x - enemy.x) ** 2 + (player.y - enemy.y) ** 2
+                    ) ** 0.5
                     if distance < 10.0:  # Close enough for combat
                         behavior_metrics.record_interaction(
                             player.id, enemy.id, "combat_proximity", current_time
@@ -112,16 +146,22 @@ class TestScenarios:
 
         # Verify movement
         for player in players:
-            AgentAssertions.assert_agent_moved(agent_tracker, player.id, min_distance=1.0)
+            AgentAssertions.assert_agent_moved(
+                agent_tracker, player.id, min_distance=1.0
+            )
 
         for enemy in enemies:
-            AgentAssertions.assert_agent_moved(agent_tracker, enemy.id, min_distance=2.0)
+            AgentAssertions.assert_agent_moved(
+                agent_tracker, enemy.id, min_distance=2.0
+            )
 
         print(f"Combat interactions detected: {interaction_count}")
         agent_tracker.print_debug_info()
 
     @pytest.mark.timeout(20)
-    async def test_peaceful_village_scenario(self, game_server, test_scenario, agent_tracker, behavior_metrics):
+    async def test_peaceful_village_scenario(
+        self, game_server, test_scenario, agent_tracker, behavior_metrics
+    ):
         """Test the peaceful village scenario"""
         scenario = await test_scenario("peaceful_village")
         assert scenario is not None
@@ -152,32 +192,46 @@ class TestScenarios:
 
             for agent in agents:
                 pos = (agent.x, agent.y)
-                behavior_metrics.record_agent_position(agent.id, agent.agent_type, pos, current_time)
+                behavior_metrics.record_agent_position(
+                    agent.id, agent.agent_type, pos, current_time
+                )
 
             await asyncio.sleep(1.0)
 
         # Verify villagers stayed near village
         for npc in npcs:
-            NPCAssertions.assert_wandering_behavior(agent_tracker, npc.id, max_wander_radius=25.0)
+            NPCAssertions.assert_wandering_behavior(
+                agent_tracker, npc.id, max_wander_radius=25.0
+            )
 
         # Verify visitors moved around
         for explorer in explorers:
-            AgentAssertions.assert_agent_moved(agent_tracker, explorer.id, min_distance=5.0)
+            AgentAssertions.assert_agent_moved(
+                agent_tracker, explorer.id, min_distance=5.0
+            )
 
         # Check village compactness (NPCs should be clustered)
         npc_distances_from_center = []
         for npc in npcs:
-            distance = ((npc.x - village_center_x)**2 + (npc.y - village_center_y)**2)**0.5
+            distance = (
+                (npc.x - village_center_x) ** 2 + (npc.y - village_center_y) ** 2
+            ) ** 0.5
             npc_distances_from_center.append(distance)
 
-        avg_distance_from_center = sum(npc_distances_from_center) / len(npc_distances_from_center)
-        assert avg_distance_from_center <= 30.0, f"Village too spread out: {avg_distance_from_center:.1f}"
+        avg_distance_from_center = sum(npc_distances_from_center) / len(
+            npc_distances_from_center
+        )
+        assert (
+            avg_distance_from_center <= 30.0
+        ), f"Village too spread out: {avg_distance_from_center:.1f}"
 
         print(f"Average distance from village center: {avg_distance_from_center:.1f}")
         agent_tracker.print_debug_info()
 
     @pytest.mark.timeout(35)
-    async def test_mixed_agent_interactions(self, game_server, agent_clients, agent_tracker, behavior_metrics):
+    async def test_mixed_agent_interactions(
+        self, game_server, agent_clients, agent_tracker, behavior_metrics
+    ):
         """Test interactions between different agent types"""
         # Create mixed group of agents
         agents = []
@@ -197,7 +251,9 @@ class TestScenarios:
         if player:
             agents.append(("player", player))
 
-        assert len(agents) >= 3, f"Need at least 3 different agent types, got {len(agents)}"
+        assert (
+            len(agents) >= 3
+        ), f"Need at least 3 different agent types, got {len(agents)}"
 
         # Position them in same general area
         center_x, center_y = 25.0, 25.0
@@ -232,7 +288,9 @@ class TestScenarios:
                     type1, pos1 = agent_positions[id1]
                     type2, pos2 = agent_positions[id2]
 
-                    distance = ((pos1[0] - pos2[0])**2 + (pos1[1] - pos2[1])**2)**0.5
+                    distance = (
+                        (pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2
+                    ) ** 0.5
 
                     interaction_key = f"{type1}-{type2}"
                     if interaction_key not in interaction_matrix:
@@ -265,7 +323,9 @@ class TestScenarios:
 
     @pytest.mark.slow
     @pytest.mark.timeout(90)
-    async def test_scenario_performance_stress(self, game_server, test_scenario, behavior_metrics):
+    async def test_scenario_performance_stress(
+        self, game_server, test_scenario, behavior_metrics
+    ):
         """Stress test scenario performance with many agents"""
         # Load scenario with many agents
         scenario = await test_scenario("test_exploration")
@@ -304,7 +364,7 @@ class TestScenarios:
                 timestamp=time.time(),
                 cpu_usage=0.0,  # Would need real monitoring
                 memory_usage=0.0,  # Would need real monitoring
-                latency=tick_duration * 1000  # Convert to ms
+                latency=tick_duration * 1000,  # Convert to ms
             )
 
             sample_duration = time.time() - sample_start
@@ -325,8 +385,12 @@ class TestScenarios:
         print(f"  Test duration: {time.time() - start_time:.1f}s")
 
         # Performance assertions
-        assert avg_sample_time < 0.1, f"Average performance too slow: {avg_sample_time*1000:.1f}ms"
-        assert max_sample_time < 0.2, f"Peak performance too slow: {max_sample_time*1000:.1f}ms"
+        assert (
+            avg_sample_time < 0.1
+        ), f"Average performance too slow: {avg_sample_time*1000:.1f}ms"
+        assert (
+            max_sample_time < 0.2
+        ), f"Peak performance too slow: {max_sample_time*1000:.1f}ms"
 
         # Verify simulation remained stable
         AgentAssertions.assert_performance_acceptable(
@@ -334,7 +398,9 @@ class TestScenarios:
         )
 
     @pytest.mark.timeout(40)
-    async def test_scenario_network_synchronization(self, game_server, agent_clients, behavior_metrics):
+    async def test_scenario_network_synchronization(
+        self, game_server, agent_clients, behavior_metrics
+    ):
         """Test network synchronization in multi-agent scenarios"""
         # Create multiple clients to test network sync
         clients = []
@@ -346,7 +412,9 @@ class TestScenarios:
                 if client:
                     clients.append((client_type, client))
 
-        assert len(clients) >= 6, f"Need at least 6 clients for sync test, got {len(clients)}"
+        assert (
+            len(clients) >= 6
+        ), f"Need at least 6 clients for sync test, got {len(clients)}"
 
         print(f"Network sync test with {len(clients)} clients")
 
@@ -359,7 +427,9 @@ class TestScenarios:
             current_time = time.time()
 
             # Get server state
-            server_agents = {a.id: (a.x, a.y) for a in game_server.world.get_all_agents()}
+            server_agents = {
+                a.id: (a.x, a.y) for a in game_server.world.get_all_agents()
+            }
 
             # Compare with client states
             for client_type, client in clients:
@@ -368,18 +438,22 @@ class TestScenarios:
                     client_pos = (client.agent.x, client.agent.y)
 
                     # Calculate position difference
-                    pos_diff = ((server_pos[0] - client_pos[0])**2 +
-                               (server_pos[1] - client_pos[1])**2)**0.5
+                    pos_diff = (
+                        (server_pos[0] - client_pos[0]) ** 2
+                        + (server_pos[1] - client_pos[1]) ** 2
+                    ) ** 0.5
 
                     # Record for analysis
                     if client.agent_id not in position_history:
                         position_history[client.agent_id] = []
-                    position_history[client.agent_id].append({
-                        'time': current_time,
-                        'server_pos': server_pos,
-                        'client_pos': client_pos,
-                        'diff': pos_diff
-                    })
+                    position_history[client.agent_id].append(
+                        {
+                            "time": current_time,
+                            "server_pos": server_pos,
+                            "client_pos": client_pos,
+                            "diff": pos_diff,
+                        }
+                    )
 
                     # Check for significant desync
                     if pos_diff > 5.0:  # Significant difference
@@ -399,14 +473,18 @@ class TestScenarios:
         max_avg_diff = 0.0
         for agent_id, history in position_history.items():
             if history:
-                avg_diff = sum(h['diff'] for h in history) / len(history)
-                max_diff = max(h['diff'] for h in history)
+                avg_diff = sum(h["diff"] for h in history) / len(history)
+                max_diff = max(h["diff"] for h in history)
                 max_avg_diff = max(max_avg_diff, avg_diff)
 
-                print(f"  Agent {agent_id[:8]}: avg_diff={avg_diff:.2f}, max_diff={max_diff:.2f}")
+                print(
+                    f"  Agent {agent_id[:8]}: avg_diff={avg_diff:.2f}, max_diff={max_diff:.2f}"
+                )
 
         # Assertions for network sync
         assert sync_errors < len(clients) * 5, f"Too many sync errors: {sync_errors}"
-        assert max_avg_diff < 2.0, f"Average position difference too high: {max_avg_diff:.2f}"
+        assert (
+            max_avg_diff < 2.0
+        ), f"Average position difference too high: {max_avg_diff:.2f}"
 
         print(f"Network synchronization test passed with {len(clients)} clients")

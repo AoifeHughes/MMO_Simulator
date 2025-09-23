@@ -1,8 +1,10 @@
-from typing import List
-from .base import CompositeNode, BehaviorNode, NodeStatus
 import logging
+from typing import List
+
+from .base import BehaviorNode, CompositeNode, NodeStatus
 
 logger = logging.getLogger(__name__)
+
 
 class PrioritySelector(CompositeNode):
     """
@@ -22,10 +24,11 @@ class PrioritySelector(CompositeNode):
         self.execution_count += 1
 
         # If we have an active child and can't change intention, stick with it
-        if (self.active_child_index >= 0 and
-            hasattr(agent, 'can_change_intention') and
-            not agent.can_change_intention()):
-
+        if (
+            self.active_child_index >= 0
+            and hasattr(agent, "can_change_intention")
+            and not agent.can_change_intention()
+        ):
             # Continue executing the currently active child
             if self.active_child_index < len(self.children):
                 active_child = self.children[self.active_child_index]
@@ -45,8 +48,7 @@ class PrioritySelector(CompositeNode):
 
             if status == NodeStatus.SUCCESS:
                 # Child succeeded, track intention change if needed
-                if (i != self.active_child_index and
-                    hasattr(agent, 'set_intention')):
+                if i != self.active_child_index and hasattr(agent, "set_intention"):
                     agent.set_intention(child.name)
 
                 self.active_child_index = i
@@ -62,8 +64,7 @@ class PrioritySelector(CompositeNode):
 
             elif status == NodeStatus.RUNNING:
                 # Child is running, track intention change if needed
-                if (i != self.active_child_index and
-                    hasattr(agent, 'set_intention')):
+                if i != self.active_child_index and hasattr(agent, "set_intention"):
                     agent.set_intention(child.name)
 
                 self.active_child_index = i
@@ -142,7 +143,12 @@ class Parallel(CompositeNode):
     Returns RUNNING if still waiting for results.
     """
 
-    def __init__(self, name: str, children: List[BehaviorNode] = None, required_successes: int = 1):
+    def __init__(
+        self,
+        name: str,
+        children: List[BehaviorNode] = None,
+        required_successes: int = 1,
+    ):
         super().__init__(name, children)
         self.required_successes = min(required_successes, len(self.children))
 

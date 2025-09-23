@@ -1,12 +1,14 @@
-from typing import Dict, Any, List, Optional
-from client.agent import BaseAgent
-from client.behavior_tree.tree_configs import TreeFactory
+import logging
 import math
 import random
 import time
-import logging
+from typing import Any, Dict, List, Optional
+
+from client.agent import BaseAgent
+from client.behavior_tree.tree_configs import TreeFactory
 
 logger = logging.getLogger(__name__)
+
 
 class EnemyAgent(BaseAgent):
     def __init__(self, agent_id: str, x: float, y: float):
@@ -25,10 +27,7 @@ class EnemyAgent(BaseAgent):
     def _initialize_behavior_tree(self):
         """Initialize the behavior tree for this Enemy agent"""
         tree = TreeFactory.create_tree_for_agent_type(
-            "enemy",
-            self.x,
-            self.y,
-            patrol_radius=10.0
+            "enemy", self.x, self.y, patrol_radius=10.0
         )
         if tree:
             self.set_behavior_tree(tree)

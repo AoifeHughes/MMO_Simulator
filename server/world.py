@@ -1,12 +1,14 @@
-from typing import Dict, List, Tuple, Optional
-from world.map import WorldMap
-from world.vision import VisionSystem
-from world.tiles import TileType
-from shared.messages import AgentData
-from shared.constants import DEFAULT_VISION_RANGE, DEFAULT_VISION_ANGLE
-from shared.collision import CollisionDetector
-import uuid
 import time
+import uuid
+from typing import Dict, List, Optional, Tuple
+
+from shared.collision import CollisionDetector
+from shared.constants import DEFAULT_VISION_ANGLE, DEFAULT_VISION_RANGE
+from shared.messages import AgentData
+from world.map import WorldMap
+from world.tiles import TileType
+from world.vision import VisionSystem
+
 
 class ServerWorld:
     def __init__(self, width: int, height: int):
@@ -16,8 +18,9 @@ class ServerWorld:
         self.agents: Dict[str, AgentData] = {}
         self.last_update = time.time()
 
-    def spawn_agent(self, agent_type: str, x: Optional[float] = None,
-                   y: Optional[float] = None) -> str:
+    def spawn_agent(
+        self, agent_type: str, x: Optional[float] = None, y: Optional[float] = None
+    ) -> str:
         agent_id = str(uuid.uuid4())
 
         if x is None or y is None:
@@ -35,7 +38,7 @@ class ServerWorld:
             rotation=0.0,
             agent_type=agent_type,
             health=100.0,
-            vision_range=DEFAULT_VISION_RANGE
+            vision_range=DEFAULT_VISION_RANGE,
         )
 
         self.agents[agent_id] = agent
@@ -47,8 +50,15 @@ class ServerWorld:
             return True
         return False
 
-    def move_agent(self, agent_id: str, new_x: float, new_y: float,
-                  rotation: float, velocity_x: float = 0.0, velocity_y: float = 0.0) -> bool:
+    def move_agent(
+        self,
+        agent_id: str,
+        new_x: float,
+        new_y: float,
+        rotation: float,
+        velocity_x: float = 0.0,
+        velocity_y: float = 0.0,
+    ) -> bool:
         if agent_id not in self.agents:
             return False
 
@@ -81,16 +91,23 @@ class ServerWorld:
 
         return True
 
-    def get_visible_agents(self, agent_id: str, vision_range: float = DEFAULT_VISION_RANGE,
-                          vision_angle: float = DEFAULT_VISION_ANGLE) -> List[AgentData]:
+    def get_visible_agents(
+        self,
+        agent_id: str,
+        vision_range: float = DEFAULT_VISION_RANGE,
+        vision_angle: float = DEFAULT_VISION_ANGLE,
+    ) -> List[AgentData]:
         if agent_id not in self.agents:
             return []
 
         observer = self.agents[agent_id]
         origin = (observer.x, observer.y)
 
-        entities = [(aid, (a.x, a.y)) for aid, a in self.agents.items()
-                   if aid != agent_id and a.is_alive]
+        entities = [
+            (aid, (a.x, a.y))
+            for aid, a in self.agents.items()
+            if aid != agent_id and a.is_alive
+        ]
 
         visible_ids = self.vision_system.get_entities_in_vision(
             origin, observer.rotation, vision_angle, vision_range, entities
@@ -119,12 +136,12 @@ class ServerWorld:
 
     def get_world_state(self) -> Dict:
         return {
-            'agents': [agent.to_dict() for agent in self.agents.values()],
-            'map_info': {
-                'width': self.world_map.width,
-                'height': self.world_map.height
+            "agents": [agent.to_dict() for agent in self.agents.values()],
+            "map_info": {
+                "width": self.world_map.width,
+                "height": self.world_map.height,
             },
-            'timestamp': time.time()
+            "timestamp": time.time(),
         }
 
     def get_terrain_in_vision(self, agent_id: str) -> Dict[Tuple[int, int], TileType]:
@@ -139,13 +156,16 @@ class ServerWorld:
         vision_range = int(agent.vision_range) + 1
         center_x, center_y = int(agent.x), int(agent.y)
 
-        for y in range(max(0, center_y - vision_range),
-                      min(self.world_map.height, center_y + vision_range + 1)):
-            for x in range(max(0, center_x - vision_range),
-                          min(self.world_map.width, center_x + vision_range + 1)):
-
+        for y in range(
+            max(0, center_y - vision_range),
+            min(self.world_map.height, center_y + vision_range + 1),
+        ):
+            for x in range(
+                max(0, center_x - vision_range),
+                min(self.world_map.width, center_x + vision_range + 1),
+            ):
                 # Calculate distance from agent
-                distance = ((x - agent.x)**2 + (y - agent.y)**2)**0.5
+                distance = ((x - agent.x) ** 2 + (y - agent.y) ** 2) ** 0.5
 
                 if distance <= agent.vision_range:
                     tile_type = self.world_map.get_tile(x, y)

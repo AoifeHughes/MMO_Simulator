@@ -1,12 +1,14 @@
-from typing import Dict, Any, List, Optional
+import logging
+import math
+import random
+import time
+from typing import Any, Dict, List, Optional
+
 from client.agent import BaseAgent
 from client.behavior_tree.tree_configs import TreeFactory
-import random
-import math
-import time
-import logging
 
 logger = logging.getLogger(__name__)
+
 
 class NPCAgent(BaseAgent):
     def __init__(self, agent_id: str, x: float, y: float):
@@ -23,10 +25,7 @@ class NPCAgent(BaseAgent):
     def _initialize_behavior_tree(self):
         """Initialize the behavior tree for this NPC agent"""
         tree = TreeFactory.create_tree_for_agent_type(
-            "npc",
-            self.home_x,
-            self.home_y,
-            wander_radius=self.wander_radius
+            "npc", self.home_x, self.home_y, wander_radius=self.wander_radius
         )
         if tree:
             self.set_behavior_tree(tree)

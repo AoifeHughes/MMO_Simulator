@@ -1,15 +1,17 @@
 import asyncio
-import time
 import logging
-from typing import Dict, List, Any, Optional, Set
-from dataclasses import dataclass, asdict
+import time
 from collections import defaultdict
+from dataclasses import asdict, dataclass
+from typing import Any, Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
+
 
 @dataclass
 class AgentSnapshot:
     """Single snapshot of agent state at a point in time"""
+
     timestamp: float
     agent_id: str
     agent_type: str
@@ -26,9 +28,11 @@ class AgentSnapshot:
         if self.extra_data is None:
             self.extra_data = {}
 
+
 @dataclass
 class AgentPath:
     """Track an agent's movement over time"""
+
     agent_id: str
     agent_type: str
     snapshots: List[AgentSnapshot]
@@ -42,24 +46,24 @@ class AgentPath:
 
         total = 0.0
         for i in range(1, len(self.snapshots)):
-            prev = self.snapshots[i-1]
+            prev = self.snapshots[i - 1]
             curr = self.snapshots[i]
             dx = curr.x - prev.x
             dy = curr.y - prev.y
-            total += (dx*dx + dy*dy)**0.5
+            total += (dx * dx + dy * dy) ** 0.5
         return total
 
     def get_speed_over_time(self) -> List[float]:
         """Get speed at each timestamp"""
         speeds = []
         for i in range(1, len(self.snapshots)):
-            prev = self.snapshots[i-1]
+            prev = self.snapshots[i - 1]
             curr = self.snapshots[i]
             dt = curr.timestamp - prev.timestamp
             if dt > 0:
                 dx = curr.x - prev.x
                 dy = curr.y - prev.y
-                distance = (dx*dx + dy*dy)**0.5
+                distance = (dx * dx + dy * dy) ** 0.5
                 speed = distance / dt
                 speeds.append(speed)
             else:
@@ -74,6 +78,7 @@ class AgentPath:
             tile_y = int(snapshot.y / tile_size)
             tiles.add((tile_x, tile_y))
         return tiles
+
 
 class AgentTracker:
     """Tracks agent behavior and movement over time"""
@@ -150,7 +155,7 @@ class AgentTracker:
                 rotation=agent_data.rotation,
                 health=agent_data.health,
                 velocity=(0.0, 0.0),  # Would need client data for actual velocity
-                extra_data={}
+                extra_data={},
             )
 
             current_snapshots.append(snapshot)
@@ -161,7 +166,7 @@ class AgentTracker:
                     agent_id=agent_data.id,
                     agent_type=agent_data.agent_type,
                     snapshots=[],
-                    start_time=current_time
+                    start_time=current_time,
                 )
 
             self.agent_paths[agent_data.id].snapshots.append(snapshot)
@@ -174,8 +179,9 @@ class AgentTracker:
 
     def get_agents_by_type(self, agent_type: str) -> List[AgentPath]:
         """Get all agents of specific type"""
-        return [path for path in self.agent_paths.values()
-                if path.agent_type == agent_type]
+        return [
+            path for path in self.agent_paths.values() if path.agent_type == agent_type
+        ]
 
     def get_tracking_duration(self) -> float:
         """Get total tracking duration"""
@@ -190,15 +196,15 @@ class AgentTracker:
         duration = self.get_tracking_duration()
 
         report = {
-            'tracking_duration': duration,
-            'total_agents': len(self.agent_paths),
-            'agents_by_type': defaultdict(int),
-            'agent_stats': {}
+            "tracking_duration": duration,
+            "total_agents": len(self.agent_paths),
+            "agents_by_type": defaultdict(int),
+            "agent_stats": {},
         }
 
         for agent_id, path in self.agent_paths.items():
             agent_type = path.agent_type
-            report['agents_by_type'][agent_type] += 1
+            report["agents_by_type"][agent_type] += 1
 
             # Calculate stats for this agent
             total_distance = path.get_total_distance()
@@ -207,13 +213,13 @@ class AgentTracker:
             max_speed = max(speeds) if speeds else 0.0
             coverage = len(path.get_area_coverage())
 
-            report['agent_stats'][agent_id] = {
-                'type': agent_type,
-                'total_distance': total_distance,
-                'average_speed': avg_speed,
-                'max_speed': max_speed,
-                'area_coverage': coverage,
-                'snapshots_count': len(path.snapshots)
+            report["agent_stats"][agent_id] = {
+                "type": agent_type,
+                "total_distance": total_distance,
+                "average_speed": avg_speed,
+                "max_speed": max_speed,
+                "area_coverage": coverage,
+                "snapshots_count": len(path.snapshots),
             }
 
         return report
@@ -227,11 +233,11 @@ class AgentTracker:
         print(f"Total Agents: {report['total_agents']}")
 
         print(f"\nAgents by Type:")
-        for agent_type, count in report['agents_by_type'].items():
+        for agent_type, count in report["agents_by_type"].items():
             print(f"  {agent_type}: {count}")
 
         print(f"\nAgent Details:")
-        for agent_id, stats in report['agent_stats'].items():
+        for agent_id, stats in report["agent_stats"].items():
             print(f"  {agent_id[:8]}... ({stats['type']}):")
             print(f"    Distance: {stats['total_distance']:.2f}")
             print(f"    Avg Speed: {stats['average_speed']:.2f}")
@@ -245,8 +251,9 @@ class AgentTracker:
         assert path is not None, f"No tracking data for agent {agent_id}"
 
         distance = path.get_total_distance()
-        assert distance >= min_distance, \
-            f"Agent {agent_id} moved {distance:.2f}, expected >= {min_distance}"
+        assert (
+            distance >= min_distance
+        ), f"Agent {agent_id} moved {distance:.2f}, expected >= {min_distance}"
 
     def assert_agent_stayed_in_area(self, agent_id: str, center: tuple, radius: float):
         """Assert agent stayed within specified area"""
@@ -254,9 +261,12 @@ class AgentTracker:
         assert path is not None, f"No tracking data for agent {agent_id}"
 
         for snapshot in path.snapshots:
-            distance = ((snapshot.x - center[0])**2 + (snapshot.y - center[1])**2)**0.5
-            assert distance <= radius, \
-                f"Agent {agent_id} went {distance:.2f} from center {center}, max allowed: {radius}"
+            distance = (
+                (snapshot.x - center[0]) ** 2 + (snapshot.y - center[1]) ** 2
+            ) ** 0.5
+            assert (
+                distance <= radius
+            ), f"Agent {agent_id} went {distance:.2f} from center {center}, max allowed: {radius}"
 
     def assert_agent_explored_area(self, agent_id: str, min_tiles: int):
         """Assert agent explored minimum number of unique tiles"""
@@ -264,5 +274,6 @@ class AgentTracker:
         assert path is not None, f"No tracking data for agent {agent_id}"
 
         coverage = len(path.get_area_coverage())
-        assert coverage >= min_tiles, \
-            f"Agent {agent_id} explored {coverage} tiles, expected >= {min_tiles}"
+        assert (
+            coverage >= min_tiles
+        ), f"Agent {agent_id} explored {coverage} tiles, expected >= {min_tiles}"

@@ -1,21 +1,25 @@
-from typing import List, Tuple, Optional, Dict, Set
 import heapq
 import math
+from typing import Dict, List, Optional, Set, Tuple
+
 from client.agent_map import AgentMap
+
 
 class PathNode:
     """Node representing a position in the pathfinding graph"""
 
-    def __init__(self, x: int, y: int, cost: float = 0.0, parent: Optional['PathNode'] = None):
+    def __init__(
+        self, x: int, y: int, cost: float = 0.0, parent: Optional["PathNode"] = None
+    ):
         self.x = x
         self.y = y
         self.cost = cost  # Total cost from start to this node
         self.parent = parent
 
-    def __lt__(self, other: 'PathNode') -> bool:
+    def __lt__(self, other: "PathNode") -> bool:
         return self.cost < other.cost
 
-    def __eq__(self, other: 'PathNode') -> bool:
+    def __eq__(self, other: "PathNode") -> bool:
         return self.x == other.x and self.y == other.y
 
     def __hash__(self) -> int:
@@ -24,18 +28,25 @@ class PathNode:
     def get_position(self) -> Tuple[int, int]:
         return (self.x, self.y)
 
+
 class Pathfinder:
     """Dijkstra's algorithm implementation for agent pathfinding"""
 
     def __init__(self):
         self.directions = [
-            (-1, -1), (-1, 0), (-1, 1),  # Northwest, North, Northeast
-            (0, -1),           (0, 1),   # West, East
-            (1, -1),  (1, 0),  (1, 1)    # Southwest, South, Southeast
+            (-1, -1),
+            (-1, 0),
+            (-1, 1),  # Northwest, North, Northeast
+            (0, -1),
+            (0, 1),  # West, East
+            (1, -1),
+            (1, 0),
+            (1, 1),  # Southwest, South, Southeast
         ]
 
-    def find_path(self, agent_map: AgentMap, start: Tuple[float, float],
-                  goal: Tuple[float, float]) -> Optional[List[Tuple[float, float]]]:
+    def find_path(
+        self, agent_map: AgentMap, start: Tuple[float, float], goal: Tuple[float, float]
+    ) -> Optional[List[Tuple[float, float]]]:
         """
         Find optimal path from start to goal using Dijkstra's algorithm
         Returns list of waypoints as (x, y) coordinates, or None if no path exists
@@ -101,15 +112,18 @@ class Pathfinder:
 
                 # Calculate movement cost
                 movement_cost = agent_map.get_movement_cost(neighbor_x, neighbor_y)
-                if movement_cost == float('inf'):
+                if movement_cost == float("inf"):
                     continue
 
                 # Calculate distance cost (diagonal movement costs more)
-                distance_cost = math.sqrt(dx*dx + dy*dy)
+                distance_cost = math.sqrt(dx * dx + dy * dy)
                 new_cost = current.cost + (movement_cost * distance_cost)
 
                 # Check if this path to neighbor is better
-                if neighbor_pos not in cost_so_far or new_cost < cost_so_far[neighbor_pos]:
+                if (
+                    neighbor_pos not in cost_so_far
+                    or new_cost < cost_so_far[neighbor_pos]
+                ):
                     cost_so_far[neighbor_pos] = new_cost
                     neighbor_node = PathNode(neighbor_x, neighbor_y, new_cost, current)
                     heapq.heappush(open_set, neighbor_node)
@@ -117,8 +131,9 @@ class Pathfinder:
         # No path found
         return None
 
-    def _reconstruct_path(self, goal_node: PathNode, start: Tuple[float, float],
-                         goal: Tuple[float, float]) -> List[Tuple[float, float]]:
+    def _reconstruct_path(
+        self, goal_node: PathNode, start: Tuple[float, float], goal: Tuple[float, float]
+    ) -> List[Tuple[float, float]]:
         """Reconstruct path from goal node back to start"""
         path_tiles = []
         current = goal_node
@@ -146,8 +161,9 @@ class Pathfinder:
 
         return path
 
-    def find_path_to_nearest_frontier(self, agent_map: AgentMap,
-                                    start: Tuple[float, float]) -> Optional[List[Tuple[float, float]]]:
+    def find_path_to_nearest_frontier(
+        self, agent_map: AgentMap, start: Tuple[float, float]
+    ) -> Optional[List[Tuple[float, float]]]:
         """
         Find path to the nearest exploration frontier (unknown tile adjacent to known tiles)
         Useful for exploration agents
@@ -159,10 +175,12 @@ class Pathfinder:
         # Find the closest frontier tile
         start_tile = (int(start[0]), int(start[1]))
         best_frontier = None
-        best_distance = float('inf')
+        best_distance = float("inf")
 
         for frontier_x, frontier_y in frontiers:
-            distance = math.sqrt((frontier_x - start_tile[0])**2 + (frontier_y - start_tile[1])**2)
+            distance = math.sqrt(
+                (frontier_x - start_tile[0]) ** 2 + (frontier_y - start_tile[1]) ** 2
+            )
             if distance < best_distance:
                 best_distance = distance
                 best_frontier = (frontier_x, frontier_y)
@@ -180,9 +198,11 @@ class Pathfinder:
                 if dx == 0 and dy == 0:
                     continue
                 adj_x, adj_y = frontier_x + dx, frontier_y + dy
-                if (agent_map.is_valid_position(adj_x, adj_y) and
-                    agent_map.is_tile_known(adj_x, adj_y) and
-                    agent_map.is_walkable(adj_x, adj_y)):
+                if (
+                    agent_map.is_valid_position(adj_x, adj_y)
+                    and agent_map.is_tile_known(adj_x, adj_y)
+                    and agent_map.is_walkable(adj_x, adj_y)
+                ):
                     target_positions.append((adj_x + 0.5, adj_y + 0.5))
 
         # Try to find a path to one of the adjacent positions
@@ -193,7 +213,9 @@ class Pathfinder:
 
         return None
 
-    def simplify_path(self, path: List[Tuple[float, float]], max_waypoints: int = 10) -> List[Tuple[float, float]]:
+    def simplify_path(
+        self, path: List[Tuple[float, float]], max_waypoints: int = 10
+    ) -> List[Tuple[float, float]]:
         """
         Simplify path by reducing the number of waypoints while maintaining general direction
         Useful for smoother agent movement
@@ -217,9 +239,12 @@ class Pathfinder:
 
         return simplified
 
-    def get_next_waypoint(self, path: List[Tuple[float, float]],
-                         current_pos: Tuple[float, float],
-                         waypoint_threshold: float = 0.5) -> Optional[Tuple[float, float]]:
+    def get_next_waypoint(
+        self,
+        path: List[Tuple[float, float]],
+        current_pos: Tuple[float, float],
+        waypoint_threshold: float = 0.5,
+    ) -> Optional[Tuple[float, float]]:
         """
         Get the next waypoint from a path that the agent should move toward
         Returns None if path is complete
@@ -229,7 +254,10 @@ class Pathfinder:
 
         # Find the first waypoint that's far enough away
         for waypoint in path:
-            distance = math.sqrt((waypoint[0] - current_pos[0])**2 + (waypoint[1] - current_pos[1])**2)
+            distance = math.sqrt(
+                (waypoint[0] - current_pos[0]) ** 2
+                + (waypoint[1] - current_pos[1]) ** 2
+            )
             if distance > waypoint_threshold:
                 return waypoint
 

@@ -1,12 +1,14 @@
-from typing import Dict, Any, List, Optional, Set, Tuple
-from client.agent import BaseAgent
-from client.behavior_tree.tree_configs import TreeFactory
+import logging
 import math
 import random
 import time
-import logging
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+from client.agent import BaseAgent
+from client.behavior_tree.tree_configs import TreeFactory
 
 logger = logging.getLogger(__name__)
+
 
 class ExplorerAgent(BaseAgent):
     def __init__(self, agent_id: str, x: float, y: float):
@@ -30,13 +32,15 @@ class ExplorerAgent(BaseAgent):
             self.home_base[0],
             self.home_base[1],
             exploration_radius=self.exploration_radius,
-            exploration_mode=self.exploration_mode
+            exploration_mode=self.exploration_mode,
         )
         if tree:
             self.set_behavior_tree(tree)
             logger.info(f"Explorer {self.id[:8]} initialized with behavior tree")
         else:
-            raise Exception(f"Failed to create behavior tree for Explorer {self.id[:8]}")
+            raise Exception(
+                f"Failed to create behavior tree for Explorer {self.id[:8]}"
+            )
 
     def update(self, delta_time: float):
         # Use behavior tree system
@@ -48,8 +52,8 @@ class ExplorerAgent(BaseAgent):
 
         # Record visible tiles as explored
         for entity in visible_entities:
-            tile_x = int(entity.get('x', 0))
-            tile_y = int(entity.get('y', 0))
+            tile_x = int(entity.get("x", 0))
+            tile_y = int(entity.get("y", 0))
             self.explored_tiles.add((tile_x, tile_y))
 
     def decide(self) -> Optional[Dict[str, Any]]:
@@ -57,18 +61,20 @@ class ExplorerAgent(BaseAgent):
         # Report exploration progress periodically
         if len(self.explored_tiles) > 0 and len(self.explored_tiles) % 10 == 0:
             return {
-                'type': 'exploration_report',
-                'explored_count': len(self.explored_tiles),
-                'current_mode': self.exploration_mode,
-                'position': (self.x, self.y)
+                "type": "exploration_report",
+                "explored_count": len(self.explored_tiles),
+                "current_mode": self.exploration_mode,
+                "position": (self.x, self.y),
             }
         return None
 
     def get_exploration_stats(self) -> Dict[str, Any]:
         """Get exploration statistics"""
         return {
-            'tiles_explored': len(self.explored_tiles),
-            'exploration_mode': self.exploration_mode,
-            'coverage_percentage': (len(self.explored_tiles) /
-                                   (math.pi * self.exploration_radius**2)) * 100
+            "tiles_explored": len(self.explored_tiles),
+            "exploration_mode": self.exploration_mode,
+            "coverage_percentage": (
+                len(self.explored_tiles) / (math.pi * self.exploration_radius**2)
+            )
+            * 100,
         }

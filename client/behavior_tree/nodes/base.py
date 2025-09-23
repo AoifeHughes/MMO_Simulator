@@ -1,10 +1,11 @@
+import logging
+import time
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import List, Dict, Any, Optional
-import time
-import logging
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
 
 class NodeStatus(Enum):
     SUCCESS = "success"
@@ -12,12 +13,13 @@ class NodeStatus(Enum):
     RUNNING = "running"
     READY = "ready"
 
+
 class BehaviorNode(ABC):
     """Abstract base class for all behavior tree nodes"""
 
     def __init__(self, name: str):
         self.name = name
-        self.parent: Optional['BehaviorNode'] = None
+        self.parent: Optional["BehaviorNode"] = None
         self.status = NodeStatus.READY
         self.last_execution_time = 0
         self.execution_count = 0
@@ -33,11 +35,11 @@ class BehaviorNode(ABC):
         self.status = NodeStatus.READY
         self.start_time = 0
 
-    def set_parent(self, parent: 'BehaviorNode'):
+    def set_parent(self, parent: "BehaviorNode"):
         """Set the parent node"""
         self.parent = parent
 
-    def get_root(self) -> 'BehaviorNode':
+    def get_root(self) -> "BehaviorNode":
         """Get the root node of the tree"""
         if self.parent is None:
             return self
@@ -52,8 +54,15 @@ class BehaviorNode(ABC):
     def log_execution(self, agent, status: NodeStatus):
         """Log node execution for debugging"""
         # Log all important node executions for debugging
-        if status == NodeStatus.SUCCESS or status == NodeStatus.FAILURE or not hasattr(self, 'children'):
-            logger.info(f"[BT] Agent {agent.id[:8]} ({agent.agent_type}) - {self.get_path()}: {status.value}")
+        if (
+            status == NodeStatus.SUCCESS
+            or status == NodeStatus.FAILURE
+            or not hasattr(self, "children")
+        ):
+            logger.info(
+                f"[BT] Agent {agent.id[:8]} ({agent.agent_type}) - {self.get_path()}: {status.value}"
+            )
+
 
 class CompositeNode(BehaviorNode):
     """Base class for nodes that have multiple children"""
@@ -79,6 +88,7 @@ class CompositeNode(BehaviorNode):
         for child in self.children:
             child.reset()
 
+
 class DecoratorNode(BehaviorNode):
     """Base class for nodes that modify the behavior of a single child"""
 
@@ -92,6 +102,7 @@ class DecoratorNode(BehaviorNode):
         super().reset()
         if self.child:
             self.child.reset()
+
 
 class ConditionNode(BehaviorNode):
     """Base class for leaf nodes that check conditions"""
@@ -116,6 +127,7 @@ class ConditionNode(BehaviorNode):
 
         self.log_execution(agent, self.status)
         return self.status
+
 
 class ActionNode(BehaviorNode):
     """Base class for leaf nodes that perform actions"""

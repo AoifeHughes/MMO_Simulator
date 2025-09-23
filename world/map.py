@@ -1,7 +1,9 @@
 import random
-from typing import List, Tuple, Optional
-from world.tiles import TileType, TILE_PROPERTIES
-from shared.constants import WORLD_WIDTH, WORLD_HEIGHT
+from typing import List, Optional, Tuple
+
+from shared.constants import WORLD_HEIGHT, WORLD_WIDTH
+from world.tiles import TILE_PROPERTIES, TileType
+
 
 class WorldMap:
     def __init__(self, width: int = WORLD_WIDTH, height: int = WORLD_HEIGHT):
@@ -44,7 +46,7 @@ class WorldMap:
     def get_movement_cost(self, x: int, y: int) -> float:
         tile = self.get_tile(x, y)
         if tile is None:
-            return float('inf')
+            return float("inf")
         return TILE_PROPERTIES[tile].movement_cost
 
     def get_random_walkable_position(self) -> Tuple[int, int]:
@@ -56,13 +58,13 @@ class WorldMap:
 
     def to_dict(self) -> dict:
         return {
-            'width': self.width,
-            'height': self.height,
-            'tiles': [[tile.value for tile in row] for row in self.tiles]
+            "width": self.width,
+            "height": self.height,
+            "tiles": [[tile.value for tile in row] for row in self.tiles],
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> 'WorldMap':
-        world_map = cls(data['width'], data['height'])
-        world_map.tiles = [[TileType(value) for value in row] for row in data['tiles']]
+    def from_dict(cls, data: dict) -> "WorldMap":
+        world_map = cls(data["width"], data["height"])
+        world_map.tiles = [[TileType(value) for value in row] for row in data["tiles"]]
         return world_map

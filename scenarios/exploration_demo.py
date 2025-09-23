@@ -1,15 +1,17 @@
-from scenarios.base_scenario import BaseScenario
-from typing import List, Dict, Any
-import random
 import logging
+import random
+from typing import Any, Dict, List
+
+from scenarios.base_scenario import BaseScenario
 
 logger = logging.getLogger(__name__)
 
-class TestExploreScenario(BaseScenario):
+
+class ExplorationDemoScenario(BaseScenario):
     def __init__(self):
         super().__init__(
-            name="Test Exploration",
-            description="Spawns multiple explorer agents that map the world using different strategies"
+            name="Exploration Demo",
+            description="Demonstrates explorer agents mapping the world using different strategies",
         )
         self.num_explorers = 5
         self.num_npcs = 3
@@ -18,7 +20,9 @@ class TestExploreScenario(BaseScenario):
     async def setup(self, server):
         """Setup the exploration scenario"""
         self.server = server
-        logger.info(f"Setting up exploration scenario with {self.num_explorers} explorers")
+        logger.info(
+            f"Setting up exploration scenario with {self.num_explorers} explorers"
+        )
 
     async def spawn_agents(self) -> List[Dict[str, Any]]:
         """Spawn explorer agents with different strategies"""
@@ -32,27 +36,25 @@ class TestExploreScenario(BaseScenario):
             y = random.uniform(20, 80)
 
             agent_config = {
-                'type': 'explorer',
-                'position': (x, y),
-                'exploration_mode': exploration_modes[i % len(exploration_modes)],
-                'name': f"Explorer_{i+1}"
+                "type": "explorer",
+                "position": (x, y),
+                "exploration_mode": exploration_modes[i % len(exploration_modes)],
+                "name": f"Explorer_{i+1}",
             }
             agent_configs.append(agent_config)
 
             # Spawn on server
             agent_id = self.server.world.spawn_agent("explorer", x, y)
-            logger.info(f"Spawned explorer {agent_id} at ({x:.1f}, {y:.1f}) with {exploration_modes[i]} mode")
+            logger.info(
+                f"Spawned explorer {agent_id} at ({x:.1f}, {y:.1f}) with {exploration_modes[i]} mode"
+            )
 
         # Add some NPCs for variety
         for i in range(self.num_npcs):
             x = random.uniform(10, 90)
             y = random.uniform(10, 90)
 
-            agent_config = {
-                'type': 'npc',
-                'position': (x, y),
-                'name': f"NPC_{i+1}"
-            }
+            agent_config = {"type": "npc", "position": (x, y), "name": f"NPC_{i+1}"}
             agent_configs.append(agent_config)
 
             agent_id = self.server.world.spawn_agent("npc", x, y)
@@ -63,11 +65,7 @@ class TestExploreScenario(BaseScenario):
             x = random.uniform(10, 90)
             y = random.uniform(10, 90)
 
-            agent_config = {
-                'type': 'enemy',
-                'position': (x, y),
-                'name': f"Enemy_{i+1}"
-            }
+            agent_config = {"type": "enemy", "position": (x, y), "name": f"Enemy_{i+1}"}
             agent_configs.append(agent_config)
 
             agent_id = self.server.world.spawn_agent("enemy", x, y)

@@ -1,11 +1,14 @@
-from typing import Dict, List, Tuple, Optional, Set
-from enum import Enum
-from world.tiles import TileType, TILE_PROPERTIES
 import math
+from enum import Enum
+from typing import Dict, List, Optional, Set, Tuple
+
+from world.tiles import TILE_PROPERTIES, TileType
+
 
 class TileKnowledge(Enum):
     UNKNOWN = 0
     EXPLORED = 1
+
 
 class AgentMap:
     """Personal map system for agents to track discovered terrain"""
@@ -37,19 +40,28 @@ class AgentMap:
             self.knowledge[y][x] = TileKnowledge.EXPLORED
             self.terrain[y][x] = tile_type
 
-    def discover_area(self, center_x: float, center_y: float, radius: float, terrain_data: Dict[Tuple[int, int], TileType]):
+    def discover_area(
+        self,
+        center_x: float,
+        center_y: float,
+        radius: float,
+        terrain_data: Dict[Tuple[int, int], TileType],
+    ):
         """Discover multiple tiles within a radius based on vision"""
         center_tile_x = int(center_x)
         center_tile_y = int(center_y)
 
         # Check all tiles within the vision radius
-        for y in range(max(0, center_tile_y - int(radius) - 1),
-                      min(self.world_height, center_tile_y + int(radius) + 2)):
-            for x in range(max(0, center_tile_x - int(radius) - 1),
-                          min(self.world_width, center_tile_x + int(radius) + 2)):
-
+        for y in range(
+            max(0, center_tile_y - int(radius) - 1),
+            min(self.world_height, center_tile_y + int(radius) + 2),
+        ):
+            for x in range(
+                max(0, center_tile_x - int(radius) - 1),
+                min(self.world_width, center_tile_x + int(radius) + 2),
+            ):
                 # Calculate distance from center
-                distance = math.sqrt((x - center_x)**2 + (y - center_y)**2)
+                distance = math.sqrt((x - center_x) ** 2 + (y - center_y) ** 2)
 
                 if distance <= radius:
                     # If we have terrain data for this position, discover it
@@ -79,9 +91,9 @@ class AgentMap:
         """Get movement cost for a tile (infinite for unknown/unwalkable tiles)"""
         tile_type = self.get_tile_type(x, y)
         if tile_type is None:
-            return float('inf')  # Unknown tiles have infinite cost
+            return float("inf")  # Unknown tiles have infinite cost
         if not TILE_PROPERTIES[tile_type].walkable:
-            return float('inf')
+            return float("inf")
         return TILE_PROPERTIES[tile_type].movement_cost
 
     def get_known_tiles(self) -> Set[Tuple[int, int]]:
@@ -93,15 +105,18 @@ class AgentMap:
                     known_tiles.add((x, y))
         return known_tiles
 
-    def get_unknown_neighbors(self, x: int, y: int, radius: int = 1) -> List[Tuple[int, int]]:
+    def get_unknown_neighbors(
+        self, x: int, y: int, radius: int = 1
+    ) -> List[Tuple[int, int]]:
         """Get list of unknown tiles near a known position"""
         unknown_neighbors = []
 
         for dy in range(-radius, radius + 1):
             for dx in range(-radius, radius + 1):
                 new_x, new_y = x + dx, y + dy
-                if (self.is_valid_position(new_x, new_y) and
-                    not self.is_tile_known(new_x, new_y)):
+                if self.is_valid_position(new_x, new_y) and not self.is_tile_known(
+                    new_x, new_y
+                ):
                     unknown_neighbors.append((new_x, new_y))
 
         return unknown_neighbors
@@ -120,8 +135,9 @@ class AgentMap:
                             if dx == 0 and dy == 0:
                                 continue
                             neighbor_x, neighbor_y = x + dx, y + dy
-                            if (self.is_valid_position(neighbor_x, neighbor_y) and
-                                self.is_tile_known(neighbor_x, neighbor_y)):
+                            if self.is_valid_position(
+                                neighbor_x, neighbor_y
+                            ) and self.is_tile_known(neighbor_x, neighbor_y):
                                 is_frontier = True
                                 break
                         if is_frontier:
@@ -141,9 +157,9 @@ class AgentMap:
     def to_dict(self) -> Dict:
         """Convert map to dictionary for debugging/serialization"""
         return {
-            'world_width': self.world_width,
-            'world_height': self.world_height,
-            'known_tiles': len(self.get_known_tiles()),
-            'completion_percentage': self.get_map_completion_percentage(),
-            'frontiers': len(self.get_exploration_frontiers())
+            "world_width": self.world_width,
+            "world_height": self.world_height,
+            "known_tiles": len(self.get_known_tiles()),
+            "completion_percentage": self.get_map_completion_percentage(),
+            "frontiers": len(self.get_exploration_frontiers()),
         }

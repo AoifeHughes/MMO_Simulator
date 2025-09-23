@@ -1,9 +1,10 @@
-from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
 import asyncio
 import logging
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
 
 class BaseScenario(ABC):
     def __init__(self, name: str, description: str):
@@ -35,8 +36,8 @@ class BaseScenario(ABC):
     def get_info(self) -> Dict[str, Any]:
         """Get scenario information"""
         return {
-            'name': self.name,
-            'description': self.description,
-            'agent_count': len(self.agents),
-            'visualization': self.visualization_enabled
+            "name": self.name,
+            "description": self.description,
+            "agent_count": len(self.agents),
+            "visualization": self.visualization_enabled,
         }

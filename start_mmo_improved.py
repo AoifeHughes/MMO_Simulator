@@ -3,23 +3,24 @@
 Modified MMO Simulation Startup Script to use Improved Explorer
 """
 
-import asyncio
 import argparse
-import sys
-import os
-import time
-import subprocess
-import signal
+import asyncio
 import logging
-from typing import List, Optional, Dict, Any
+import os
+import signal
+import subprocess
+import sys
+import time
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 # Add current directory to path
-sys.path.append('.')
+sys.path.append(".")
 
 from config.config_loader import ConfigLoader
-from server.core.world_server import WorldServer
+
 from client.core.agent_client import AgentClient, AgentConfig
+from server.core.world_server import WorldServer
 from shared.math_utils import Vector2
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class StartupConfig:
     """Configuration for the startup process"""
+
     config_dir: str = "config"
     scenario: Optional[str] = None
     agent_count: Optional[int] = None
@@ -72,7 +74,8 @@ class MMOLauncher:
     async def start(self):
         """Start the complete MMO simulation"""
         try:
-            print("""
+            print(
+                """
     ╔══════════════════════════════════════════════════════════════╗
     ║                    MMO SIMULATION LAUNCHER                   ║
     ║                  (IMPROVED EXPLORER VERSION)                 ║
@@ -82,7 +85,8 @@ class MMOLauncher:
     ║  🔧 Initializing server and agents                          ║
     ║  🎮 Launching visualization                                  ║
     ╚══════════════════════════════════════════════════════════════╝
-            """)
+            """
+            )
 
             # Step 1: Start server (unless agents-only mode)
             if not self.config.agents_only:
@@ -118,7 +122,7 @@ class MMOLauncher:
 
         try:
             # Always run server as subprocess for stability
-            server_cmd = [sys.executable, 'run_server.py']
+            server_cmd = [sys.executable, "run_server.py"]
 
             logger.info("📊 Starting server (subprocess)")
 
@@ -127,7 +131,7 @@ class MMOLauncher:
                 server_cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                cwd=os.getcwd()
+                cwd=os.getcwd(),
             )
 
             # Wait for server to be ready
@@ -147,6 +151,7 @@ class MMOLauncher:
     async def _check_server_running(self):
         """Check if server is running on configured port"""
         import socket
+
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             result = sock.connect_ex((self.config.host, self.config.port))
@@ -172,7 +177,7 @@ class MMOLauncher:
             scenario = {
                 "agents": [
                     {"template": "warrior", "name": "Explorer", "count": 3},
-                    {"template": "mage", "name": "Scout", "count": 2}
+                    {"template": "mage", "name": "Scout", "count": 2},
                 ]
             }
 
@@ -182,7 +187,11 @@ class MMOLauncher:
             # All agents will use improved explorer
             scenario = {
                 "agents": [
-                    {"template": "explorer", "name": "Explorer", "count": total_requested}
+                    {
+                        "template": "explorer",
+                        "name": "Explorer",
+                        "count": total_requested,
+                    }
                 ]
             }
 
@@ -196,9 +205,7 @@ class MMOLauncher:
 
             for i in range(count):
                 agent_name = f"{base_name}_{i+1}"
-                task = asyncio.create_task(
-                    self._run_agent(agent_name)
-                )
+                task = asyncio.create_task(self._run_agent(agent_name))
                 agent_tasks.append(task)
                 total_agents += 1
 
@@ -214,10 +221,10 @@ class MMOLauncher:
 
         try:
             self.visualization_process = subprocess.Popen(
-                [sys.executable, 'visualization/live_monitor.py'],
+                [sys.executable, "visualization/live_monitor.py"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                cwd=os.getcwd()
+                cwd=os.getcwd(),
             )
             logger.info("✅ Visualization started")
 
@@ -264,7 +271,9 @@ class MMOLauncher:
 
                 # Periodic status update
                 if current_time - last_status_time >= 30:  # Every 30 seconds
-                    alive_agents = sum(1 for task in self.agent_tasks if not task.done())
+                    alive_agents = sum(
+                        1 for task in self.agent_tasks if not task.done()
+                    )
                     logger.info(f"📊 Status: {alive_agents} agents running")
                     last_status_time = current_time
 
@@ -324,69 +333,53 @@ Examples:
     python start_mmo_improved.py --agents 10      # Start 10 improved explorers
     python start_mmo_improved.py --no-visual      # Start without visualization
     python start_mmo_improved.py --auto-shutdown 60  # Auto-shutdown after 60 seconds
-        """
+        """,
     )
 
     parser.add_argument(
-        '--config-dir',
-        default='config',
-        help='Configuration directory path'
+        "--config-dir", default="config", help="Configuration directory path"
     )
 
     parser.add_argument(
-        '--scenario',
-        help='Test scenario to run (from agent_config.json)'
+        "--scenario", help="Test scenario to run (from agent_config.json)"
     )
 
     parser.add_argument(
-        '--agents',
+        "--agents",
         type=int,
-        dest='agent_count',
-        help='Override number of agents to spawn'
+        dest="agent_count",
+        help="Override number of agents to spawn",
     )
 
     parser.add_argument(
-        '--no-visual',
-        action='store_true',
-        help='Skip starting visualization'
+        "--no-visual", action="store_true", help="Skip starting visualization"
     )
 
     parser.add_argument(
-        '--server-only',
-        action='store_true',
-        help='Start only the server (no agents or visualization)'
+        "--server-only",
+        action="store_true",
+        help="Start only the server (no agents or visualization)",
     )
 
     parser.add_argument(
-        '--agents-only',
-        action='store_true',
-        help='Start only agents (server must be running separately)'
+        "--agents-only",
+        action="store_true",
+        help="Start only agents (server must be running separately)",
+    )
+
+    parser.add_argument("--host", default="127.0.0.1", help="Server host address")
+
+    parser.add_argument("--port", type=int, default=5555, help="Server port")
+
+    parser.add_argument(
+        "--log-level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        default="INFO",
+        help="Logging level",
     )
 
     parser.add_argument(
-        '--host',
-        default='127.0.0.1',
-        help='Server host address'
-    )
-
-    parser.add_argument(
-        '--port',
-        type=int,
-        default=5555,
-        help='Server port'
-    )
-
-    parser.add_argument(
-        '--log-level',
-        choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'],
-        default='INFO',
-        help='Logging level'
-    )
-
-    parser.add_argument(
-        '--auto-shutdown',
-        type=int,
-        help='Automatically shutdown after N seconds'
+        "--auto-shutdown", type=int, help="Automatically shutdown after N seconds"
     )
 
     args = parser.parse_args()
@@ -394,8 +387,8 @@ Examples:
     # Configure logging
     logging.basicConfig(
         level=getattr(logging, args.log_level),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%H:%M:%S'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%H:%M:%S",
     )
 
     # Create startup config
@@ -409,7 +402,7 @@ Examples:
         host=args.host,
         port=args.port,
         log_level=args.log_level,
-        auto_shutdown=args.auto_shutdown
+        auto_shutdown=args.auto_shutdown,
     )
 
     # Create and run launcher

@@ -1,8 +1,11 @@
-import pytest
 import asyncio
 import time
+
+import pytest
+
 from tests.utils.assertions import AgentAssertions, ExplorerAssertions
 from tests.utils.metrics import BehaviorMetrics
+
 
 @pytest.mark.asyncio
 @pytest.mark.agent
@@ -22,7 +25,9 @@ class TestExplorerAgents:
         agents = game_server.world.get_all_agents()
         explorer_agents = [a for a in agents if a.agent_type == "explorer"]
 
-        assert len(explorer_agents) >= 2, f"Expected at least 2 explorers, found {len(explorer_agents)}"
+        assert (
+            len(explorer_agents) >= 2
+        ), f"Expected at least 2 explorers, found {len(explorer_agents)}"
 
     @pytest.mark.timeout(15)
     async def test_explorer_movement(self, game_server, agent_clients, agent_tracker):
@@ -42,7 +47,9 @@ class TestExplorerAgents:
         agent_tracker.print_debug_info()
 
     @pytest.mark.timeout(20)
-    async def test_exploration_coverage(self, game_server, agent_clients, agent_tracker, behavior_metrics):
+    async def test_exploration_coverage(
+        self, game_server, agent_clients, agent_tracker, behavior_metrics
+    ):
         """Test that explorers cover significant area"""
         # Create multiple explorers
         explorers = []
@@ -52,8 +59,8 @@ class TestExplorerAgents:
             explorers.append(explorer)
 
             # Set different exploration modes if possible
-            if hasattr(explorer.agent, 'set_exploration_mode'):
-                modes = ['spiral', 'random', 'frontier']
+            if hasattr(explorer.agent, "set_exploration_mode"):
+                modes = ["spiral", "random", "frontier"]
                 explorer.agent.set_exploration_mode(modes[i % len(modes)])
 
         # Record positions over time
@@ -71,28 +78,36 @@ class TestExplorerAgents:
         # Check pathfinding integration
         for explorer in explorers:
             if explorer.agent and explorer.agent.agent_map:
-                map_completion = explorer.agent.agent_map.get_map_completion_percentage()
-                print(f"Explorer {explorer.agent_id} map completion: {map_completion:.1f}%")
+                map_completion = (
+                    explorer.agent.agent_map.get_map_completion_percentage()
+                )
+                print(
+                    f"Explorer {explorer.agent_id} map completion: {map_completion:.1f}%"
+                )
 
                 # Agent should have built up some map knowledge
                 assert map_completion > 0, f"Explorer should have discovered terrain"
 
                 # Check exploration state
                 state = explorer.agent.get_state()
-                if 'map_completion' in state:
-                    assert state['map_completion'] >= 0
+                if "map_completion" in state:
+                    assert state["map_completion"] >= 0
 
         # Analyze exploration behavior
         analysis = behavior_metrics.analyze_explorer_behavior()
         print(f"\nExploration Analysis: {analysis}")
 
         # Assertions
-        assert analysis['total_explorers'] >= 3, "Not all explorers were tracked"
+        assert analysis["total_explorers"] >= 3, "Not all explorers were tracked"
 
         for explorer in explorers:
             agent_id = explorer.agent_id
-            AgentAssertions.assert_agent_explored_area(agent_tracker, agent_id, min_tiles=10)
-            AgentAssertions.assert_exploration_efficiency(behavior_metrics, agent_id, min_efficiency=0.05)
+            AgentAssertions.assert_agent_explored_area(
+                agent_tracker, agent_id, min_tiles=10
+            )
+            AgentAssertions.assert_exploration_efficiency(
+                behavior_metrics, agent_id, min_efficiency=0.05
+            )
 
     @pytest.mark.timeout(25)
     async def test_explorer_separation(self, game_server, agent_clients, agent_tracker):
@@ -122,14 +137,16 @@ class TestExplorerAgents:
         agent_tracker.print_debug_info()
 
     @pytest.mark.timeout(30)
-    async def test_spiral_exploration_pattern(self, game_server, agent_clients, behavior_metrics):
+    async def test_spiral_exploration_pattern(
+        self, game_server, agent_clients, behavior_metrics
+    ):
         """Test spiral exploration pattern specifically"""
         # Create explorer and explicitly set spiral mode
         explorer = await agent_clients("explorer")
         assert explorer is not None
 
-        if hasattr(explorer.agent, 'set_exploration_mode'):
-            explorer.agent.set_exploration_mode('spiral')
+        if hasattr(explorer.agent, "set_exploration_mode"):
+            explorer.agent.set_exploration_mode("spiral")
 
         # Track movement pattern
         start_time = time.time()
@@ -154,14 +171,16 @@ class TestExplorerAgents:
             print(f"  {i*5}: ({pos[0]:.1f}, {pos[1]:.1f})")
 
     @pytest.mark.timeout(25)
-    async def test_random_exploration_pattern(self, game_server, agent_clients, behavior_metrics):
+    async def test_random_exploration_pattern(
+        self, game_server, agent_clients, behavior_metrics
+    ):
         """Test random exploration pattern"""
         # Create explorer and set random mode
         explorer = await agent_clients("explorer")
         assert explorer is not None
 
-        if hasattr(explorer.agent, 'set_exploration_mode'):
-            explorer.agent.set_exploration_mode('random')
+        if hasattr(explorer.agent, "set_exploration_mode"):
+            explorer.agent.set_exploration_mode("random")
 
         # Track movement for randomness analysis
         start_time = time.time()
@@ -184,7 +203,9 @@ class TestExplorerAgents:
         print(f"\nDirectional bias for {explorer.agent_id[:8]}: {directional_bias}")
 
     @pytest.mark.timeout(20)
-    async def test_explorer_stuck_recovery(self, game_server, agent_clients, agent_tracker):
+    async def test_explorer_stuck_recovery(
+        self, game_server, agent_clients, agent_tracker
+    ):
         """Test that explorers recover when stuck"""
         explorer = await agent_clients("explorer")
         assert explorer is not None
@@ -201,12 +222,18 @@ class TestExplorerAgents:
         # Should have moved away from the stuck position
         if explorer.agent:
             final_pos = (explorer.agent.x, explorer.agent.y)
-            distance_moved = ((final_pos[0] - original_pos[0])**2 +
-                            (final_pos[1] - original_pos[1])**2)**0.5
+            distance_moved = (
+                (final_pos[0] - original_pos[0]) ** 2
+                + (final_pos[1] - original_pos[1]) ** 2
+            ) ** 0.5
 
-            assert distance_moved > 2.0, f"Explorer stayed stuck: moved only {distance_moved:.2f}"
+            assert (
+                distance_moved > 2.0
+            ), f"Explorer stayed stuck: moved only {distance_moved:.2f}"
 
-    async def test_explorer_performance_impact(self, game_server, agent_clients, behavior_metrics):
+    async def test_explorer_performance_impact(
+        self, game_server, agent_clients, behavior_metrics
+    ):
         """Test performance with multiple explorers"""
         # Create many explorers
         explorers = []
@@ -227,7 +254,7 @@ class TestExplorerAgents:
             behavior_metrics.record_performance(
                 tick_rate=30.0,  # Assume target tick rate
                 agent_count=agent_count,
-                timestamp=time.time()
+                timestamp=time.time(),
             )
 
             tick_count += 1
@@ -238,19 +265,23 @@ class TestExplorerAgents:
             behavior_metrics, min_tick_rate=20.0, max_latency=50.0
         )
 
-        print(f"Performance test completed: {len(explorers)} explorers, {tick_count} ticks")
+        print(
+            f"Performance test completed: {len(explorers)} explorers, {tick_count} ticks"
+        )
 
     @pytest.mark.slow
     @pytest.mark.timeout(60)
-    async def test_long_term_exploration(self, game_server, agent_clients, agent_tracker, behavior_metrics):
+    async def test_long_term_exploration(
+        self, game_server, agent_clients, agent_tracker, behavior_metrics
+    ):
         """Test explorer behavior over extended period"""
         # Create explorers with different modes
         explorers = []
-        modes = ['spiral', 'random', 'frontier']
+        modes = ["spiral", "random", "frontier"]
 
         for i in range(3):
             explorer = await agent_clients("explorer")
-            if explorer and hasattr(explorer.agent, 'set_exploration_mode'):
+            if explorer and hasattr(explorer.agent, "set_exploration_mode"):
                 explorer.agent.set_exploration_mode(modes[i])
                 explorers.append(explorer)
 
@@ -284,17 +315,23 @@ class TestExplorerAgents:
         print(f"Coverage overlap: {analysis['coverage_overlap']:.3f}")
 
         # Print individual stats
-        for agent_id, stats in analysis['individual_stats'].items():
+        for agent_id, stats in analysis["individual_stats"].items():
             print(f"\nExplorer {agent_id[:8]}:")
             print(f"  Efficiency: {stats['efficiency']:.3f}")
             print(f"  Tiles explored: {stats['tiles_explored']}")
             print(f"  Total distance: {stats['total_distance']:.1f}")
 
         # Assertions for long-term behavior
-        assert analysis['average_efficiency'] > 0.05, "Overall exploration efficiency too low"
-        assert analysis['coverage_overlap'] < 0.8, "Too much overlap between explorers"
+        assert (
+            analysis["average_efficiency"] > 0.05
+        ), "Overall exploration efficiency too low"
+        assert analysis["coverage_overlap"] < 0.8, "Too much overlap between explorers"
 
         # Each explorer should have reasonable individual performance
-        for agent_id, stats in analysis['individual_stats'].items():
-            assert stats['tiles_explored'] >= 20, f"Explorer {agent_id[:8]} didn't explore enough"
-            assert stats['total_distance'] >= 30, f"Explorer {agent_id[:8]} didn't move enough"
+        for agent_id, stats in analysis["individual_stats"].items():
+            assert (
+                stats["tiles_explored"] >= 20
+            ), f"Explorer {agent_id[:8]} didn't explore enough"
+            assert (
+                stats["total_distance"] >= 30
+            ), f"Explorer {agent_id[:8]} didn't move enough"

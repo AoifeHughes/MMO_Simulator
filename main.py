@@ -1,23 +1,28 @@
 #!/usr/bin/env python3
-import asyncio
-import pygame
-from typing import Optional, List
-import sys
 import argparse
+import asyncio
+import logging
 import signal
-from server.server import GameServer
-from client.client import GameClient
+import sys
+from typing import List, Optional
+
+import pygame
+
 from client.agent_types.explorer import ExplorerAgent
+from client.client import GameClient
+from scenarios.scenario_manager import ScenarioManager
+from server.server import GameServer
 from visualizer.renderer import Renderer
 from world.map import WorldMap
-from scenarios.scenario_manager import ScenarioManager
-import logging
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+
 class SimulatorApp:
-    def __init__(self, mode: str = "both", visualize: bool = True, scenario: Optional[str] = None):
+    def __init__(
+        self, mode: str = "both", visualize: bool = True, scenario: Optional[str] = None
+    ):
         self.mode = mode
         self.visualize = visualize
         self.scenario_name = scenario
@@ -35,7 +40,9 @@ class SimulatorApp:
 
         # Load scenario if specified
         if self.scenario_name:
-            scenario = await self.scenario_manager.load_scenario(self.scenario_name, self.server)
+            scenario = await self.scenario_manager.load_scenario(
+                self.scenario_name, self.server
+            )
             if not scenario:
                 logger.error(f"Failed to load scenario: {self.scenario_name}")
                 self.running = False
@@ -77,7 +84,7 @@ class SimulatorApp:
         # Get agent configs from scenario
         for agent_data in self.server.world.get_all_agents():
             agent_type = agent_data.agent_type
-            if agent_type in ['explorer', 'npc', 'enemy', 'player', 'pathfinding_test']:
+            if agent_type in ["explorer", "npc", "enemy", "player", "pathfinding_test"]:
                 client = GameClient()
                 connected = await client.connect(agent_type=agent_type)
                 if connected:
@@ -138,11 +145,11 @@ class SimulatorApp:
             # Get world state from client or directly from server
             if self.client:
                 world_state = self.client.get_world_state()
-                agents = world_state.get('agents', [])
+                agents = world_state.get("agents", [])
             else:
                 # Observation mode - get state from server
                 world_state = self.server.world.get_world_state()
-                agents = world_state.get('agents', [])
+                agents = world_state.get("agents", [])
 
             if self.server:
                 world_map = self.server.world.world_map
@@ -185,7 +192,7 @@ class SimulatorApp:
                 if not task.done():
                     task.cancel()
 
-        if sys.platform != 'win32':
+        if sys.platform != "win32":
             for sig in [signal.SIGINT, signal.SIGTERM]:
                 asyncio.get_event_loop().add_signal_handler(sig, signal_handler)
 
@@ -217,7 +224,9 @@ class SimulatorApp:
             if tasks:
                 # Wait for tasks or until shutdown signal
                 try:
-                    done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_EXCEPTION)
+                    done, pending = await asyncio.wait(
+                        tasks, return_when=asyncio.FIRST_EXCEPTION
+                    )
 
                     # If we reach here due to shutdown, cancel remaining tasks
                     if not self.running:
@@ -226,7 +235,9 @@ class SimulatorApp:
 
                         # Wait briefly for cancellation
                         if pending:
-                            await asyncio.wait(pending, timeout=1.0, return_when=asyncio.ALL_COMPLETED)
+                            await asyncio.wait(
+                                pending, timeout=1.0, return_when=asyncio.ALL_COMPLETED
+                            )
 
                 except asyncio.CancelledError:
                     logger.info("Tasks cancelled")
@@ -258,6 +269,7 @@ class SimulatorApp:
 
         logger.info("Cleanup complete")
 
+
 async def demo_multiple_clients():
     server = GameServer(100, 100)
     server_task = asyncio.create_task(server.start())
@@ -288,23 +300,33 @@ async def demo_multiple_clients():
             await client.disconnect()
         server.stop()
 
+
 async def update_client_loop(client: GameClient):
     while True:
         await client.update()
         await asyncio.sleep(0.016)
 
+
 def main():
-    parser = argparse.ArgumentParser(description='MMO Simulator')
-    parser.add_argument('--mode', choices=['server', 'client', 'both', 'demo', 'scenario'],
-                       default='both', help='Run mode')
-    parser.add_argument('--scenario', type=str,
-                       help='Scenario to run (e.g., test_explore, basic_combat, peaceful_village)')
-    parser.add_argument('--list-scenarios', action='store_true',
-                       help='List available scenarios')
-    parser.add_argument('--no-viz', action='store_true',
-                       help='Disable visualization')
-    parser.add_argument('--host', default='127.0.0.1',
-                       help='Server host (for client mode)')
+    parser = argparse.ArgumentParser(description="MMO Simulator")
+    parser.add_argument(
+        "--mode",
+        choices=["server", "client", "both", "demo", "scenario"],
+        default="both",
+        help="Run mode",
+    )
+    parser.add_argument(
+        "--scenario",
+        type=str,
+        help="Scenario to run (e.g., test_explore, basic_combat, peaceful_village)",
+    )
+    parser.add_argument(
+        "--list-scenarios", action="store_true", help="List available scenarios"
+    )
+    parser.add_argument("--no-viz", action="store_true", help="Disable visualization")
+    parser.add_argument(
+        "--host", default="127.0.0.1", help="Server host (for client mode)"
+    )
 
     args = parser.parse_args()
 
@@ -316,17 +338,18 @@ def main():
             print(f"  {name}: {scenario.description}")
         return
 
-    if args.mode == 'demo':
+    if args.mode == "demo":
         asyncio.run(demo_multiple_clients())
     else:
         # If scenario is specified, use scenario mode
         if args.scenario:
-            mode = 'scenario'
+            mode = "scenario"
         else:
             mode = args.mode
 
         app = SimulatorApp(mode=mode, visualize=not args.no_viz, scenario=args.scenario)
         asyncio.run(app.run())
+
 
 if __name__ == "__main__":
     main()

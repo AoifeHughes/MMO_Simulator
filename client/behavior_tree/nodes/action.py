@@ -1,11 +1,13 @@
-import math
-import time
-import random
-from typing import List, Tuple, Optional, Dict, Any
-from .base import ActionNode, NodeStatus
 import logging
+import math
+import random
+import time
+from typing import Any, Dict, List, Optional, Tuple
+
+from .base import ActionNode, NodeStatus
 
 logger = logging.getLogger(__name__)
+
 
 class MoveToTarget(ActionNode):
     """Move directly to a target position"""
@@ -16,10 +18,14 @@ class MoveToTarget(ActionNode):
         self.target_y = target_y
         self.threshold = threshold
         self.last_movement_update = 0
-        self.movement_update_interval = 0.2  # Update movement every 200ms to reduce jittering
+        self.movement_update_interval = (
+            0.2  # Update movement every 200ms to reduce jittering
+        )
 
     def start_action(self, agent) -> bool:
-        logger.debug(f"Starting MoveToTarget to ({self.target_x}, {self.target_y}) for agent {agent.id[:8]}")
+        logger.debug(
+            f"Starting MoveToTarget to ({self.target_x}, {self.target_y}) for agent {agent.id[:8]}"
+        )
         return True
 
     def update_action(self, agent, delta_time: float) -> NodeStatus:
@@ -61,7 +67,9 @@ class MoveToEntity(ActionNode):
         self.threshold = threshold
         self.target_entity: Optional[Dict[str, Any]] = None
         self.last_movement_update = 0
-        self.movement_update_interval = 0.2  # Update movement every 200ms to reduce jittering
+        self.movement_update_interval = (
+            0.2  # Update movement every 200ms to reduce jittering
+        )
 
     def start_action(self, agent) -> bool:
         self.target_entity = self._find_entity(agent)
@@ -75,8 +83,8 @@ class MoveToEntity(ActionNode):
         if not self.target_entity:
             return NodeStatus.FAILURE
 
-        target_x = self.target_entity['x']
-        target_y = self.target_entity['y']
+        target_x = self.target_entity["x"]
+        target_y = self.target_entity["y"]
 
         dx = target_x - agent.x
         dy = target_y - agent.y
@@ -101,8 +109,8 @@ class MoveToEntity(ActionNode):
 
     def _find_entity(self, agent) -> Optional[Dict[str, Any]]:
         """Find the target entity in visible entities"""
-        for entity in getattr(agent, 'visible_entities', []):
-            if entity.get('id') == self.entity_id:
+        for entity in getattr(agent, "visible_entities", []):
+            if entity.get("id") == self.entity_id:
                 return entity
         return None
 
@@ -147,7 +155,9 @@ class Patrol(ActionNode):
             target = self.waypoints[self.current_waypoint_index]
             self.move_action.update_target(target[0], target[1])
 
-        return NodeStatus.RUNNING if status != NodeStatus.FAILURE else NodeStatus.FAILURE
+        return (
+            NodeStatus.RUNNING if status != NodeStatus.FAILURE else NodeStatus.FAILURE
+        )
 
     def stop_action(self, agent):
         if self.move_action:
@@ -174,10 +184,11 @@ class Wander(ActionNode):
         current_time = time.time()
 
         # Check if we need a new target
-        if (not self.move_action or
-            current_time - self.last_target_time > self.target_duration or
-            self.move_action.update_action(agent, delta_time) == NodeStatus.SUCCESS):
-
+        if (
+            not self.move_action
+            or current_time - self.last_target_time > self.target_duration
+            or self.move_action.update_action(agent, delta_time) == NodeStatus.SUCCESS
+        ):
             self._choose_new_target(agent)
 
         # Continue moving toward current target
@@ -217,8 +228,8 @@ class Attack(ActionNode):
             return False
 
         # Check if target is in range
-        dx = target['x'] - agent.x
-        dy = target['y'] - agent.y
+        dx = target["x"] - agent.x
+        dy = target["y"] - agent.y
         distance = math.sqrt(dx * dx + dy * dy)
 
         return distance <= self.attack_range
@@ -235,8 +246,8 @@ class Attack(ActionNode):
             return NodeStatus.FAILURE
 
         # Check if still in range
-        dx = target['x'] - agent.x
-        dy = target['y'] - agent.y
+        dx = target["x"] - agent.x
+        dy = target["y"] - agent.y
         distance = math.sqrt(dx * dx + dy * dy)
 
         if distance > self.attack_range:
@@ -244,26 +255,28 @@ class Attack(ActionNode):
 
         # Perform attack
         self.last_attack_time = current_time
-        setattr(agent, 'last_attack_time', current_time)
+        setattr(agent, "last_attack_time", current_time)
 
-        logger.info(f"[ATTACK] Agent {agent.id[:8]} ({agent.agent_type}) attacking {self.target_id[:8]} for {self.damage} damage")
+        logger.info(
+            f"[ATTACK] Agent {agent.id[:8]} ({agent.agent_type}) attacking {self.target_id[:8]} for {self.damage} damage"
+        )
 
         # Send damage action to server
         damage_action = {
-            'type': 'damage',
-            'target_id': self.target_id,
-            'damage': self.damage,
-            'attacker_id': agent.id,
-            'position': {'x': agent.x, 'y': agent.y}
+            "type": "damage",
+            "target_id": self.target_id,
+            "damage": self.damage,
+            "attacker_id": agent.id,
+            "position": {"x": agent.x, "y": agent.y},
         }
 
         # Queue the damage action to be sent to server
-        if not hasattr(agent, 'pending_actions'):
+        if not hasattr(agent, "pending_actions"):
             agent.pending_actions = []
         agent.pending_actions.append(damage_action)
 
         # Set attack action time for tracking
-        setattr(agent, 'last_attack_action_time', current_time)
+        setattr(agent, "last_attack_action_time", current_time)
 
         return NodeStatus.SUCCESS
 
@@ -272,8 +285,8 @@ class Attack(ActionNode):
 
     def _find_target(self, agent) -> Optional[Dict[str, Any]]:
         """Find the target entity"""
-        for entity in getattr(agent, 'visible_entities', []):
-            if entity.get('id') == self.target_id:
+        for entity in getattr(agent, "visible_entities", []):
+            if entity.get("id") == self.target_id:
                 return entity
         return None
 
@@ -319,8 +332,8 @@ class Flee(ActionNode):
             return False
 
         # Calculate flee target (opposite direction from threat)
-        dx = agent.x - threat['x']
-        dy = agent.y - threat['y']
+        dx = agent.x - threat["x"]
+        dy = agent.y - threat["y"]
         distance = math.sqrt(dx * dx + dy * dy)
 
         if distance > 0:
@@ -339,8 +352,8 @@ class Flee(ActionNode):
         # Check if we're far enough from threat
         threat = self._find_threat(agent)
         if threat:
-            dx = agent.x - threat['x']
-            dy = agent.y - threat['y']
+            dx = agent.x - threat["x"]
+            dy = agent.y - threat["y"]
             distance = math.sqrt(dx * dx + dy * dy)
 
             if distance >= self.flee_distance:
@@ -354,8 +367,8 @@ class Flee(ActionNode):
 
     def _find_threat(self, agent) -> Optional[Dict[str, Any]]:
         """Find the threat entity"""
-        for entity in getattr(agent, 'visible_entities', []):
-            if entity.get('id') == self.threat_id:
+        for entity in getattr(agent, "visible_entities", []):
+            if entity.get("id") == self.threat_id:
                 return entity
         return None
 
@@ -389,7 +402,9 @@ class Explore(ActionNode):
             # Choose new exploration target
             self._choose_exploration_target(agent)
 
-        return NodeStatus.RUNNING if status != NodeStatus.FAILURE else NodeStatus.FAILURE
+        return (
+            NodeStatus.RUNNING if status != NodeStatus.FAILURE else NodeStatus.FAILURE
+        )
 
     def stop_action(self, agent):
         if self.move_action:

@@ -1,16 +1,22 @@
-from abc import ABC, abstractmethod
-from typing import Tuple, List, Dict, Any, Optional
-from shared.constants import DEFAULT_AGENT_SPEED, DEFAULT_VISION_RANGE, DEFAULT_VISION_ANGLE
-from shared.math_utils import clamp, normalize_angle
-from shared.collision import CollisionDetector
-from shared.pathfinding import Pathfinder
-from client.agent_map import AgentMap
-from world.tiles import TileType
-import time
-import math
 import logging
+import math
+import time
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional, Tuple
+
+from client.agent_map import AgentMap
+from shared.collision import CollisionDetector
+from shared.constants import (
+    DEFAULT_AGENT_SPEED,
+    DEFAULT_VISION_ANGLE,
+    DEFAULT_VISION_RANGE,
+)
+from shared.math_utils import normalize_angle
+from shared.pathfinding import Pathfinder
+from world.tiles import TileType
 
 logger = logging.getLogger(__name__)
+
 
 class BaseAgent(ABC):
     def __init__(self, agent_id: str, x: float, y: float, agent_type: str):
@@ -36,7 +42,9 @@ class BaseAgent(ABC):
 
         # Intention change cooldown system
         self.current_intention: Optional[str] = None
-        self.last_intention_change: float = time.time() - 3.0  # Allow immediate first intention change
+        self.last_intention_change: float = (
+            time.time() - 3.0
+        )  # Allow immediate first intention change
         self.intention_cooldown: float = 3.0  # 3 seconds between intention changes
 
         # Collision detection (will be set when world bounds are known)
@@ -51,7 +59,7 @@ class BaseAgent(ABC):
         self.waypoint_threshold = 0.5
 
         # Behavior tree system
-        self.behavior_tree: Optional['BehaviorTree'] = None
+        self.behavior_tree = None
         self.use_behavior_tree = False
         self.last_position = (x, y)
         self.last_position_time = time.time()
@@ -118,8 +126,12 @@ class BaseAgent(ABC):
         # Check cooldown unless forced
         if not force and not self.can_change_intention():
             # Still on cooldown, keep current intention
-            remaining = self.intention_cooldown - (current_time - self.last_intention_change)
-            logger.debug(f"Agent {self.id[:8]} intention change blocked - {remaining:.1f}s remaining on cooldown")
+            remaining = self.intention_cooldown - (
+                current_time - self.last_intention_change
+            )
+            logger.debug(
+                f"Agent {self.id[:8]} intention change blocked - {remaining:.1f}s remaining on cooldown"
+            )
             return False
 
         # Allow intention change
@@ -128,7 +140,9 @@ class BaseAgent(ABC):
         self.last_intention_change = current_time
 
         if old_intention != new_intention:
-            logger.debug(f"Agent {self.id[:8]} intention changed: {old_intention} → {new_intention}")
+            logger.debug(
+                f"Agent {self.id[:8]} intention changed: {old_intention} → {new_intention}"
+            )
 
         return True
 
@@ -162,9 +176,7 @@ class BaseAgent(ABC):
             return False
 
         path = self.pathfinder.find_path(
-            self.agent_map,
-            (self.x, self.y),
-            (target_x, target_y)
+            self.agent_map, (self.x, self.y), (target_x, target_y)
         )
 
         if path:
@@ -182,8 +194,7 @@ class BaseAgent(ABC):
             return False
 
         path = self.pathfinder.find_path_to_nearest_frontier(
-            self.agent_map,
-            (self.x, self.y)
+            self.agent_map, (self.x, self.y)
         )
 
         if path:
@@ -203,8 +214,8 @@ class BaseAgent(ABC):
         # Check if we've reached the current waypoint
         current_pos = (self.x, self.y)
         distance_to_waypoint = math.sqrt(
-            (self.current_waypoint[0] - current_pos[0])**2 +
-            (self.current_waypoint[1] - current_pos[1])**2
+            (self.current_waypoint[0] - current_pos[0]) ** 2
+            + (self.current_waypoint[1] - current_pos[1]) ** 2
         )
 
         if distance_to_waypoint <= self.waypoint_threshold:
@@ -249,52 +260,56 @@ class BaseAgent(ABC):
         self.current_path = None
         self.current_waypoint = None
 
-    def discover_terrain_from_vision(self, terrain_data: Dict[Tuple[int, int], TileType]):
+    def discover_terrain_from_vision(
+        self, terrain_data: Dict[Tuple[int, int], TileType]
+    ):
         """Update agent map with terrain discovered through vision"""
         if not self.agent_map:
             return
 
         # Discover terrain within vision range
-        self.agent_map.discover_area(
-            self.x, self.y, self.vision_range, terrain_data
-        )
+        self.agent_map.discover_area(self.x, self.y, self.vision_range, terrain_data)
 
     def get_state(self) -> Dict[str, Any]:
         state = {
-            'id': self.id,
-            'x': self.x,
-            'y': self.y,
-            'rotation': self.rotation,
-            'type': self.agent_type,
-            'health': self.health,
-            'velocity_x': self.velocity_x,
-            'velocity_y': self.velocity_y
+            "id": self.id,
+            "x": self.x,
+            "y": self.y,
+            "rotation": self.rotation,
+            "type": self.agent_type,
+            "health": self.health,
+            "velocity_x": self.velocity_x,
+            "velocity_y": self.velocity_y,
         }
 
         # Add pathfinding information if available
         if self.agent_map:
-            state.update({
-                'map_completion': self.agent_map.get_map_completion_percentage(),
-                'has_path': self.current_path is not None,
-                'current_waypoint': self.current_waypoint
-            })
+            state.update(
+                {
+                    "map_completion": self.agent_map.get_map_completion_percentage(),
+                    "has_path": self.current_path is not None,
+                    "current_waypoint": self.current_waypoint,
+                }
+            )
 
         return state
 
     def update_from_state(self, state: Dict[str, Any]):
-        self.x = state.get('x', self.x)
-        self.y = state.get('y', self.y)
-        self.rotation = state.get('rotation', self.rotation)
-        self.health = state.get('health', self.health)
-        self.velocity_x = state.get('velocity_x', 0)
-        self.velocity_y = state.get('velocity_y', 0)
+        self.x = state.get("x", self.x)
+        self.y = state.get("y", self.y)
+        self.rotation = state.get("rotation", self.rotation)
+        self.health = state.get("health", self.health)
+        self.velocity_x = state.get("velocity_x", 0)
+        self.velocity_y = state.get("velocity_y", 0)
 
     # Behavior Tree Support Methods
-    def set_behavior_tree(self, behavior_tree: 'BehaviorTree'):
+    def set_behavior_tree(self, behavior_tree):
         """Set the behavior tree for this agent and enable behavior tree mode"""
         self.behavior_tree = behavior_tree
         self.use_behavior_tree = True
-        logger.debug(f"Agent {self.id[:8]} set to use behavior tree: {behavior_tree.name}")
+        logger.debug(
+            f"Agent {self.id[:8]} set to use behavior tree: {behavior_tree.name}"
+        )
 
     def disable_behavior_tree(self):
         """Disable behavior tree mode and revert to legacy behavior"""
@@ -352,7 +367,9 @@ class BaseAgent(ABC):
         dy = self.current_target[1] - self.y
         return math.sqrt(dx * dx + dy * dy)
 
-    def move_towards_target(self, target_x: float, target_y: float, speed_multiplier: float = 1.0):
+    def move_towards_target(
+        self, target_x: float, target_y: float, speed_multiplier: float = 1.0
+    ):
         """Move towards a target position with optional speed multiplier"""
         dx = target_x - self.x
         dy = target_y - self.y
@@ -364,17 +381,10 @@ class BaseAgent(ABC):
             self.velocity_y = (dy / distance) * speed
             self.rotation = math.degrees(math.atan2(dy, dx))
 
-    def stop_movement(self):
-        """Stop all movement and clear current path"""
-        self.velocity_x = 0
-        self.velocity_y = 0
-        self.current_path = None
-        self.current_waypoint = None
-
     def find_entity_by_id(self, entity_id: str) -> Optional[Dict[str, Any]]:
         """Find an entity by ID in the visible entities list"""
         for entity in self.visible_entities:
-            if entity.get('id') == entity_id:
+            if entity.get("id") == entity_id:
                 return entity
         return None
 
@@ -382,18 +392,23 @@ class BaseAgent(ABC):
         """Find all entities of specified types in the visible entities list"""
         matching_entities = []
         for entity in self.visible_entities:
-            if entity.get('type') in entity_types or entity.get('agent_type') in entity_types:
+            if (
+                entity.get("type") in entity_types
+                or entity.get("agent_type") in entity_types
+            ):
                 matching_entities.append(entity)
         return matching_entities
 
-    def get_nearest_entity_of_type(self, entity_types: List[str]) -> Optional[Dict[str, Any]]:
+    def get_nearest_entity_of_type(
+        self, entity_types: List[str]
+    ) -> Optional[Dict[str, Any]]:
         """Get the nearest entity of the specified types"""
         nearest_entity = None
-        nearest_distance = float('inf')
+        nearest_distance = float("inf")
 
         for entity in self.find_entities_by_type(entity_types):
-            dx = entity['x'] - self.x
-            dy = entity['y'] - self.y
+            dx = entity["x"] - self.x
+            dy = entity["y"] - self.y
             distance = math.sqrt(dx * dx + dy * dy)
 
             if distance < nearest_distance:

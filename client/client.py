@@ -1,20 +1,22 @@
 import asyncio
 import json
+import logging
 import socket
 import time
-from typing import Optional, Dict, Any
-from shared.messages import Message, MessageType
-from shared.constants import SERVER_PORT, UDP_PORT
+from typing import Any, Dict, Optional
+
 from client.agent import BaseAgent
-from client.agent_types.player import PlayerAgent
-from client.agent_types.npc import NPCAgent
 from client.agent_types.enemy import EnemyAgent
 from client.agent_types.explorer import ExplorerAgent
+from client.agent_types.npc import NPCAgent
 from client.agent_types.pathfinding_test import PathfindingTestAgent
-import logging
+from client.agent_types.player import PlayerAgent
+from shared.constants import SERVER_PORT, UDP_PORT
+from shared.messages import Message, MessageType
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 class GameClient:
     def __init__(self):
@@ -28,7 +30,7 @@ class GameClient:
         self.world_state = {}
         self.visible_entities = []
 
-    async def connect(self, host: str = '127.0.0.1', agent_type: str = 'player'):
+    async def connect(self, host: str = "127.0.0.1", agent_type: str = "player"):
         try:
             self.tcp_reader, self.tcp_writer = await asyncio.open_connection(
                 host, SERVER_PORT
@@ -39,18 +41,20 @@ class GameClient:
 
             connect_msg = Message(
                 type=MessageType.CONNECT,
-                payload={'agent_type': agent_type},
-                timestamp=time.time()
+                payload={"agent_type": agent_type},
+                timestamp=time.time(),
             )
             await self.send_tcp_message(connect_msg)
 
             response = await self.receive_tcp_message()
             if response and response.type == MessageType.SPAWN_AGENT:
-                self.agent_id = response.payload['agent_id']
-                self.client_id = response.payload.get('client_id', self.agent_id)  # Get client_id from server
-                spawn_x = response.payload.get('x', 50)
-                spawn_y = response.payload.get('y', 50)
-                spawn_rotation = response.payload.get('rotation', 0)
+                self.agent_id = response.payload["agent_id"]
+                self.client_id = response.payload.get(
+                    "client_id", self.agent_id
+                )  # Get client_id from server
+                spawn_x = response.payload.get("x", 50)
+                spawn_y = response.payload.get("y", 50)
+                spawn_rotation = response.payload.get("rotation", 0)
                 self.connected = True
                 logger.info(f"Connected as agent {self.agent_id}")
 
@@ -62,18 +66,27 @@ class GameClient:
             logger.error(f"Connection failed: {e}")
             return False
 
-    def create_agent(self, agent_type: str, x: float = 50, y: float = 50, rotation: float = 0):
-        if agent_type == 'player':
+    def create_agent(
+        self, agent_type: str, x: float = 50, y: float = 50, rotation: float = 0
+    ):
+        if agent_type == "player":
             self.agent = PlayerAgent(self.agent_id, x, y)
-        elif agent_type == 'npc':
+        elif agent_type == "npc":
             self.agent = NPCAgent(self.agent_id, x, y)
-        elif agent_type == 'enemy':
+        elif agent_type == "enemy":
             self.agent = EnemyAgent(self.agent_id, x, y)
-        elif agent_type == 'explorer':
+        elif agent_type == "explorer":
             self.agent = ExplorerAgent(self.agent_id, x, y)
-        elif agent_type == 'pathfinding_test':
+        elif agent_type == "pathfinding_test":
             # For pathfinding test, use the test agent with predefined waypoints
-            test_waypoints = [(10, 10), (90, 10), (90, 90), (10, 90), (50, 50), (10, 10)]
+            test_waypoints = [
+                (10, 10),
+                (90, 10),
+                (90, 90),
+                (10, 90),
+                (50, 50),
+                (10, 10),
+            ]
             self.agent = PathfindingTestAgent(self.agent_id, x, y, test_waypoints)
             # Ensure agent uses the actual spawn position
             self.agent.x = x
@@ -87,7 +100,7 @@ class GameClient:
 
     async def send_tcp_message(self, message: Message):
         if self.tcp_writer:
-            data = message.to_json() + '\n'
+            data = message.to_json() + "\n"
             self.tcp_writer.write(data.encode())
             await self.tcp_writer.drain()
 
@@ -101,9 +114,9 @@ class GameClient:
                 logger.error(f"Failed to receive message: {e}")
         return None
 
-    def send_udp_message(self, data: dict, host: str = '127.0.0.1'):
+    def send_udp_message(self, data: dict, host: str = "127.0.0.1"):
         if self.udp_socket and self.client_id:
-            data['client_id'] = self.client_id
+            data["client_id"] = self.client_id
             message = json.dumps(data).encode()
             self.udp_socket.sendto(message, (host, UDP_PORT))
 
@@ -129,16 +142,17 @@ class GameClient:
                 self.update_agent_from_world_state()
 
             elif message.type == MessageType.VISIBLE_ENTITIES_UPDATE:
-                self.visible_entities = message.payload.get('entities', [])
-                terrain_dict = message.payload.get('terrain', {})
+                self.visible_entities = message.payload.get("entities", [])
+                terrain_dict = message.payload.get("terrain", {})
 
                 # Convert terrain data back to usable format
                 terrain_data = {}
                 for coord_str, tile_value in terrain_dict.items():
-                    x_str, y_str = coord_str.split(',')
+                    x_str, y_str = coord_str.split(",")
                     x, y = int(x_str), int(y_str)
                     # Import TileType here to avoid circular imports
                     from world.tiles import TileType
+
                     tile_type = TileType(tile_value)
                     terrain_data[(x, y)] = tile_type
 
@@ -148,18 +162,20 @@ class GameClient:
                     self.agent.perceive(self.visible_entities)
 
             elif message.type == MessageType.DAMAGE_DEALT:
-                attacker_id = message.payload.get('attacker_id')
-                target_id = message.payload.get('target_id')
-                damage = message.payload.get('damage')
-                new_health = message.payload.get('new_health')
+                attacker_id = message.payload.get("attacker_id")
+                target_id = message.payload.get("target_id")
+                damage = message.payload.get("damage")
+                new_health = message.payload.get("new_health")
 
                 if self.agent and target_id == self.agent_id:
                     self.agent.health = new_health
-                    logger.info(f"[DAMAGE RECEIVED] Agent {self.agent_id[:8]} took {damage} damage, health now {new_health}")
+                    logger.info(
+                        f"[DAMAGE RECEIVED] Agent {self.agent_id[:8]} took {damage} damage, health now {new_health}"
+                    )
 
             elif message.type == MessageType.AGENT_DEATH:
-                dead_agent_id = message.payload.get('dead_agent_id')
-                killer_id = message.payload.get('killer_id')
+                dead_agent_id = message.payload.get("dead_agent_id")
+                killer_id = message.payload.get("killer_id")
 
                 if self.agent and dead_agent_id == self.agent_id:
                     self.agent.health = 0
@@ -167,32 +183,34 @@ class GameClient:
                     logger.info(f"[DEATH] Agent {self.agent_id[:8]} has died")
 
             elif message.type == MessageType.AGENT_RESPAWN:
-                agent_id = message.payload.get('agent_id')
-                respawn_x = message.payload.get('x')
-                respawn_y = message.payload.get('y')
+                agent_id = message.payload.get("agent_id")
+                respawn_x = message.payload.get("x")
+                respawn_y = message.payload.get("y")
 
                 if self.agent and agent_id == self.agent_id:
                     self.agent.x = respawn_x
                     self.agent.y = respawn_y
-                    self.agent.health = getattr(self.agent, 'max_health', 100)
+                    self.agent.health = getattr(self.agent, "max_health", 100)
                     self.agent.is_alive = True
-                    logger.info(f"[RESPAWN] Agent {self.agent_id[:8]} respawned at ({respawn_x:.1f}, {respawn_y:.1f})")
+                    logger.info(
+                        f"[RESPAWN] Agent {self.agent_id[:8]} respawned at ({respawn_x:.1f}, {respawn_y:.1f})"
+                    )
 
     def update_agent_from_world_state(self):
         if not self.agent or not self.agent_id:
             return
 
         # Set world bounds if available
-        map_info = self.world_state.get('map_info')
+        map_info = self.world_state.get("map_info")
         if map_info and not self.agent.world_bounds:
-            width = map_info.get('width')
-            height = map_info.get('height')
+            width = map_info.get("width")
+            height = map_info.get("height")
             if width and height:
                 self.agent.set_world_bounds(width, height)
 
-        agents = self.world_state.get('agents', [])
+        agents = self.world_state.get("agents", [])
         for agent_data in agents:
-            if agent_data.get('id') == self.agent_id:
+            if agent_data.get("id") == self.agent_id:
                 self.agent.update_from_state(agent_data)
                 break
 
@@ -208,44 +226,42 @@ class GameClient:
             await self.send_action(action)
 
         # Send any pending actions (like damage)
-        if hasattr(self.agent, 'pending_actions') and self.agent.pending_actions:
+        if hasattr(self.agent, "pending_actions") and self.agent.pending_actions:
             for pending_action in self.agent.pending_actions:
                 await self.send_action(pending_action)
             self.agent.pending_actions.clear()
 
         if abs(self.agent.velocity_x) > 0.01 or abs(self.agent.velocity_y) > 0.01:
-            self.send_udp_message({
-                'type': 'move',
-                'x': self.agent.x,
-                'y': self.agent.y,
-                'rotation': self.agent.rotation
-            })
+            self.send_udp_message(
+                {
+                    "type": "move",
+                    "x": self.agent.x,
+                    "y": self.agent.y,
+                    "rotation": self.agent.rotation,
+                }
+            )
 
     async def send_action(self, action: Dict[str, Any]):
         message = Message(
-            type=MessageType.AGENT_ACTION,
-            payload=action,
-            timestamp=time.time()
+            type=MessageType.AGENT_ACTION, payload=action, timestamp=time.time()
         )
         await self.send_tcp_message(message)
 
     async def move_to(self, x: float, y: float):
         if self.agent and isinstance(self.agent, PlayerAgent):
-            self.agent.handle_input('move_to', {'x': x, 'y': y})
+            self.agent.handle_input("move_to", {"x": x, "y": y})
 
             message = Message(
                 type=MessageType.MOVE_COMMAND,
-                payload={'x': x, 'y': y, 'rotation': self.agent.rotation},
-                timestamp=time.time()
+                payload={"x": x, "y": y, "rotation": self.agent.rotation},
+                timestamp=time.time(),
             )
             await self.send_tcp_message(message)
 
     async def disconnect(self):
         if self.connected:
             disconnect_msg = Message(
-                type=MessageType.DISCONNECT,
-                payload={},
-                timestamp=time.time()
+                type=MessageType.DISCONNECT, payload={}, timestamp=time.time()
             )
             await self.send_tcp_message(disconnect_msg)
 

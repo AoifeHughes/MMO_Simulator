@@ -1,9 +1,11 @@
-import time
-from typing import Optional, Dict, Any, List
-from .nodes.base import BehaviorNode, NodeStatus
 import logging
+import time
+from typing import Any, Dict, List, Optional
+
+from .nodes.base import BehaviorNode, NodeStatus
 
 logger = logging.getLogger(__name__)
+
 
 class BehaviorTree:
     """
@@ -19,10 +21,10 @@ class BehaviorTree:
         self.execution_count = 0
         self.last_status = NodeStatus.READY
         self.performance_stats = {
-            'total_executions': 0,
-            'avg_execution_time': 0,
-            'last_execution_time': 0,
-            'status_history': []
+            "total_executions": 0,
+            "avg_execution_time": 0,
+            "last_execution_time": 0,
+            "status_history": [],
         }
 
     def update(self, agent, delta_time: float) -> NodeStatus:
@@ -61,7 +63,9 @@ class BehaviorTree:
                 self.root_node.reset()
 
         except Exception as e:
-            logger.error(f"Error executing behavior tree {self.name} for agent {agent.id[:8]}: {e}")
+            logger.error(
+                f"Error executing behavior tree {self.name} for agent {agent.id[:8]}: {e}"
+            )
             status = NodeStatus.FAILURE
             self.last_status = status
 
@@ -93,13 +97,13 @@ class BehaviorTree:
         """Recursively find the path of currently executing nodes"""
         if node.status == NodeStatus.RUNNING:
             # Check children for running nodes
-            if hasattr(node, 'children'):
+            if hasattr(node, "children"):
                 for child in node.children:
                     child_path = self._get_executing_path(child)
                     if child_path:
                         return f"{node.name}/{child_path}"
 
-            if hasattr(node, 'child') and node.child:
+            if hasattr(node, "child") and node.child:
                 child_path = self._get_executing_path(node.child)
                 if child_path:
                     return f"{node.name}/{child_path}"
@@ -113,20 +117,22 @@ class BehaviorTree:
         """Update performance tracking statistics"""
         stats = self.performance_stats
 
-        stats['total_executions'] += 1
-        stats['last_execution_time'] = execution_time
+        stats["total_executions"] += 1
+        stats["last_execution_time"] = execution_time
 
         # Update average execution time
-        if stats['avg_execution_time'] == 0:
-            stats['avg_execution_time'] = execution_time
+        if stats["avg_execution_time"] == 0:
+            stats["avg_execution_time"] = execution_time
         else:
             # Rolling average
-            stats['avg_execution_time'] = (stats['avg_execution_time'] * 0.9) + (execution_time * 0.1)
+            stats["avg_execution_time"] = (stats["avg_execution_time"] * 0.9) + (
+                execution_time * 0.1
+            )
 
         # Keep limited status history
-        stats['status_history'].append((time.time(), status))
-        if len(stats['status_history']) > 100:
-            stats['status_history'].pop(0)
+        stats["status_history"].append((time.time(), status))
+        if len(stats["status_history"]) > 100:
+            stats["status_history"].pop(0)
 
     def get_performance_stats(self) -> Dict[str, Any]:
         """Get performance statistics for debugging/optimization"""
@@ -135,15 +141,15 @@ class BehaviorTree:
     def get_debug_info(self, agent) -> Dict[str, Any]:
         """Get comprehensive debug information about tree state"""
         return {
-            'tree_name': self.name,
-            'agent_id': agent.id[:8],
-            'last_status': self.last_status.value,
-            'execution_count': self.execution_count,
-            'update_interval': self.update_interval,
-            'current_action_path': self.get_current_action_path(),
-            'performance': self.get_performance_stats(),
-            'root_node_status': self.root_node.status.value,
-            'time_since_last_update': time.time() - self.last_update_time
+            "tree_name": self.name,
+            "agent_id": agent.id[:8],
+            "last_status": self.last_status.value,
+            "execution_count": self.execution_count,
+            "update_interval": self.update_interval,
+            "current_action_path": self.get_current_action_path(),
+            "performance": self.get_performance_stats(),
+            "root_node_status": self.root_node.status.value,
+            "time_since_last_update": time.time() - self.last_update_time,
         }
 
 
@@ -159,6 +165,7 @@ class BehaviorTreeBuilder:
     def priority_selector(self, name: str = "PrioritySelector"):
         """Add a priority selector node"""
         from .nodes import PrioritySelector
+
         node = PrioritySelector(name)
         self._add_node(node)
         return self
@@ -166,6 +173,7 @@ class BehaviorTreeBuilder:
     def sequence(self, name: str = "Sequence"):
         """Add a sequence node"""
         from .nodes import Sequence
+
         node = Sequence(name)
         self._add_node(node)
         return self
@@ -173,6 +181,7 @@ class BehaviorTreeBuilder:
     def parallel(self, name: str = "Parallel", required_successes: int = 1):
         """Add a parallel node"""
         from .nodes import Parallel
+
         node = Parallel(name, required_successes=required_successes)
         self._add_node(node)
         return self
@@ -180,6 +189,7 @@ class BehaviorTreeBuilder:
     def cooldown(self, duration: float, name: str = None):
         """Add a cooldown decorator"""
         from .nodes import CooldownDecorator
+
         if not name:
             name = f"Cooldown_{duration}"
 
@@ -192,6 +202,7 @@ class BehaviorTreeBuilder:
     def timer(self, duration: float, name: str = None):
         """Add a timer decorator"""
         from .nodes import TimerDecorator
+
         if not name:
             name = f"Timer_{duration}"
 
@@ -229,7 +240,7 @@ class BehaviorTreeBuilder:
         """Add a node to the current level"""
         if self.stack:
             current = self.stack[-1]
-            if hasattr(current, 'add_child'):
+            if hasattr(current, "add_child"):
                 current.add_child(node)
             else:
                 raise ValueError(f"Cannot add child to {type(current).__name__}")

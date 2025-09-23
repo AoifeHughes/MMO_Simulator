@@ -1,7 +1,8 @@
 import json
+from dataclasses import asdict, dataclass
 from enum import Enum
-from typing import Dict, List, Tuple, Optional, Any
-from dataclasses import dataclass, asdict
+from typing import Any, Dict, List, Optional, Tuple
+
 
 class MessageType(Enum):
     CONNECT = "connect"
@@ -19,6 +20,7 @@ class MessageType(Enum):
     PONG = "pong"
     ERROR = "error"
 
+
 @dataclass
 class Message:
     type: MessageType
@@ -26,20 +28,23 @@ class Message:
     timestamp: float
 
     def to_json(self) -> str:
-        return json.dumps({
-            'type': self.type.value,
-            'payload': self.payload,
-            'timestamp': self.timestamp
-        })
+        return json.dumps(
+            {
+                "type": self.type.value,
+                "payload": self.payload,
+                "timestamp": self.timestamp,
+            }
+        )
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'Message':
+    def from_json(cls, json_str: str) -> "Message":
         data = json.loads(json_str)
         return cls(
-            type=MessageType(data['type']),
-            payload=data['payload'],
-            timestamp=data['timestamp']
+            type=MessageType(data["type"]),
+            payload=data["payload"],
+            timestamp=data["timestamp"],
         )
+
 
 @dataclass
 class AgentData:
@@ -60,6 +65,7 @@ class AgentData:
     def to_dict(self) -> Dict:
         return asdict(self)
 
+
 @dataclass
 class WorldState:
     agents: List[AgentData]
@@ -67,6 +73,6 @@ class WorldState:
 
     def to_dict(self) -> Dict:
         return {
-            'agents': [agent.to_dict() for agent in self.agents],
-            'timestamp': self.timestamp
+            "agents": [agent.to_dict() for agent in self.agents],
+            "timestamp": self.timestamp,
         }

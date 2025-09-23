@@ -2,18 +2,22 @@
 Combat-specific action nodes that work with behavior trees
 """
 
+import logging
 import math
 import time
-import logging
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
 from .base import ActionNode, NodeStatus
 
 logger = logging.getLogger(__name__)
 
+
 class AttackNearestEnemy(ActionNode):
     """Attack the nearest visible enemy"""
 
-    def __init__(self, damage: float = 10.0, attack_range: float = 3.0, enemy_types: list = None):
+    def __init__(
+        self, damage: float = 10.0, attack_range: float = 3.0, enemy_types: list = None
+    ):
         super().__init__("AttackNearestEnemy")
         self.damage = damage
         self.attack_range = attack_range
@@ -28,8 +32,8 @@ class AttackNearestEnemy(ActionNode):
             return False
 
         # Check if target is in range
-        dx = self.current_target['x'] - agent.x
-        dy = self.current_target['y'] - agent.y
+        dx = self.current_target["x"] - agent.x
+        dy = self.current_target["y"] - agent.y
         distance = math.sqrt(dx * dx + dy * dy)
 
         return distance <= self.attack_range
@@ -47,8 +51,8 @@ class AttackNearestEnemy(ActionNode):
             return NodeStatus.FAILURE
 
         # Check if still in range
-        dx = self.current_target['x'] - agent.x
-        dy = self.current_target['y'] - agent.y
+        dx = self.current_target["x"] - agent.x
+        dy = self.current_target["y"] - agent.y
         distance = math.sqrt(dx * dx + dy * dy)
 
         if distance > self.attack_range:
@@ -56,26 +60,28 @@ class AttackNearestEnemy(ActionNode):
 
         # Perform attack
         self.last_attack_time = current_time
-        setattr(agent, 'last_attack_time', current_time)
+        setattr(agent, "last_attack_time", current_time)
 
-        logger.info(f"[ATTACK] Agent {agent.id[:8]} ({agent.agent_type}) attacking {self.current_target['id'][:8]} for {self.damage} damage")
+        logger.info(
+            f"[ATTACK] Agent {agent.id[:8]} ({agent.agent_type}) attacking {self.current_target['id'][:8]} for {self.damage} damage"
+        )
 
         # Send damage action to server
         damage_action = {
-            'type': 'damage',
-            'target_id': self.current_target['id'],
-            'damage': self.damage,
-            'attacker_id': agent.id,
-            'position': {'x': agent.x, 'y': agent.y}
+            "type": "damage",
+            "target_id": self.current_target["id"],
+            "damage": self.damage,
+            "attacker_id": agent.id,
+            "position": {"x": agent.x, "y": agent.y},
         }
 
         # Queue the damage action to be sent to server
-        if not hasattr(agent, 'pending_actions'):
+        if not hasattr(agent, "pending_actions"):
             agent.pending_actions = []
         agent.pending_actions.append(damage_action)
 
         # Set attack action time for tracking
-        setattr(agent, 'last_attack_action_time', current_time)
+        setattr(agent, "last_attack_action_time", current_time)
 
         return NodeStatus.SUCCESS
 
@@ -85,15 +91,16 @@ class AttackNearestEnemy(ActionNode):
     def _find_nearest_enemy(self, agent) -> Optional[Dict[str, Any]]:
         """Find the nearest enemy in visible entities"""
         nearest_enemy = None
-        nearest_distance = float('inf')
+        nearest_distance = float("inf")
 
-        for entity in getattr(agent, 'visible_entities', []):
+        for entity in getattr(agent, "visible_entities", []):
             # Check if entity is an enemy type and not the agent itself
-            if (entity.get('agent_type') in self.enemy_types and
-                entity.get('id') != agent.id):
-
-                dx = entity['x'] - agent.x
-                dy = entity['y'] - agent.y
+            if (
+                entity.get("agent_type") in self.enemy_types
+                and entity.get("id") != agent.id
+            ):
+                dx = entity["x"] - agent.x
+                dy = entity["y"] - agent.y
                 distance = math.sqrt(dx * dx + dy * dy)
 
                 if distance < nearest_distance:
@@ -112,7 +119,9 @@ class ChaseNearestEnemy(ActionNode):
         self.chase_range = chase_range
         self.current_target: Optional[Dict[str, Any]] = None
         self.last_movement_update = 0
-        self.movement_update_interval = 0.3  # Update movement every 300ms to reduce jittering
+        self.movement_update_interval = (
+            0.3  # Update movement every 300ms to reduce jittering
+        )
 
     def start_action(self, agent) -> bool:
         self.current_target = self._find_nearest_enemy(agent)
@@ -126,8 +135,8 @@ class ChaseNearestEnemy(ActionNode):
         if not self.current_target:
             return NodeStatus.FAILURE
 
-        target_x = self.current_target['x']
-        target_y = self.current_target['y']
+        target_x = self.current_target["x"]
+        target_y = self.current_target["y"]
 
         # Check if target is too far (give up chase)
         dx = target_x - agent.x
@@ -144,7 +153,9 @@ class ChaseNearestEnemy(ActionNode):
                 agent.velocity_y = (dy / distance) * agent.speed
                 agent.rotation = math.degrees(math.atan2(dy, dx))
                 self.last_movement_update = current_time
-                logger.debug(f"[CHASE] Agent {agent.id[:8]} updated chase velocity toward {self.current_target['id'][:8]}")
+                logger.debug(
+                    f"[CHASE] Agent {agent.id[:8]} updated chase velocity toward {self.current_target['id'][:8]}"
+                )
 
         # Success when close enough for attack
         if distance <= 3.0:  # Close enough to attack
@@ -160,15 +171,16 @@ class ChaseNearestEnemy(ActionNode):
     def _find_nearest_enemy(self, agent) -> Optional[Dict[str, Any]]:
         """Find the nearest enemy in visible entities"""
         nearest_enemy = None
-        nearest_distance = float('inf')
+        nearest_distance = float("inf")
 
-        for entity in getattr(agent, 'visible_entities', []):
+        for entity in getattr(agent, "visible_entities", []):
             # Check if entity is an enemy type and not the agent itself
-            if (entity.get('agent_type') in self.enemy_types and
-                entity.get('id') != agent.id):
-
-                dx = entity['x'] - agent.x
-                dy = entity['y'] - agent.y
+            if (
+                entity.get("agent_type") in self.enemy_types
+                and entity.get("id") != agent.id
+            ):
+                dx = entity["x"] - agent.x
+                dy = entity["y"] - agent.y
                 distance = math.sqrt(dx * dx + dy * dy)
 
                 if distance < nearest_distance:

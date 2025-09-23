@@ -1,14 +1,21 @@
 import math
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
+
 from shared.math_utils import distance, point_in_cone
 from world.map import WorldMap
+
 
 class VisionSystem:
     def __init__(self, world_map: WorldMap):
         self.world_map = world_map
 
-    def get_visible_positions(self, origin: Tuple[float, float], direction: float,
-                              cone_angle: float, vision_range: float) -> List[Tuple[int, int]]:
+    def get_visible_positions(
+        self,
+        origin: Tuple[float, float],
+        direction: float,
+        cone_angle: float,
+        vision_range: float,
+    ) -> List[Tuple[int, int]]:
         visible_positions = []
         origin_tile = (int(origin[0]), int(origin[1]))
 
@@ -24,7 +31,9 @@ class VisionSystem:
 
                 tile_center = (tile_x + 0.5, tile_y + 0.5)
 
-                if not point_in_cone(origin, direction, cone_angle, vision_range, tile_center):
+                if not point_in_cone(
+                    origin, direction, cone_angle, vision_range, tile_center
+                ):
                     continue
 
                 if self.has_line_of_sight(origin, tile_center):
@@ -32,8 +41,9 @@ class VisionSystem:
 
         return visible_positions
 
-    def has_line_of_sight(self, start: Tuple[float, float],
-                         end: Tuple[float, float]) -> bool:
+    def has_line_of_sight(
+        self, start: Tuple[float, float], end: Tuple[float, float]
+    ) -> bool:
         x1, y1 = start
         x2, y2 = end
 
@@ -59,9 +69,14 @@ class VisionSystem:
 
         return True
 
-    def get_entities_in_vision(self, origin: Tuple[float, float], direction: float,
-                              cone_angle: float, vision_range: float,
-                              entities: List[Tuple[str, Tuple[float, float]]]) -> List[str]:
+    def get_entities_in_vision(
+        self,
+        origin: Tuple[float, float],
+        direction: float,
+        cone_angle: float,
+        vision_range: float,
+        entities: List[Tuple[str, Tuple[float, float]]],
+    ) -> List[str]:
         visible_entities = []
 
         for entity_id, entity_pos in entities:

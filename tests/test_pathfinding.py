@@ -1,13 +1,16 @@
-import pytest
-import pytest_asyncio
 import asyncio
 import time
-from typing import List, Dict, Any
+from typing import Any, Dict, List
+
+import pytest
+import pytest_asyncio
+
 from client.agent_map import AgentMap
+from client.client import GameClient
+from server.server import GameServer
 from shared.pathfinding import Pathfinder
 from world.tiles import TileType
-from server.server import GameServer
-from client.client import GameClient
+
 
 class TestPathfinding:
     """Test pathfinding functionality"""
@@ -28,7 +31,7 @@ class TestPathfinding:
         terrain_data = {
             (5, 5): TileType.GRASS,
             (5, 6): TileType.STONE,
-            (6, 5): TileType.WATER
+            (6, 5): TileType.WATER,
         }
 
         agent_map.discover_area(5, 5, 2.0, terrain_data)
@@ -98,7 +101,7 @@ class TestPathfinding:
             (5, 5): TileType.GRASS,
             (5, 6): TileType.GRASS,
             (6, 5): TileType.GRASS,
-            (6, 6): TileType.GRASS
+            (6, 6): TileType.GRASS,
         }
         agent_map.discover_area(5.5, 5.5, 2, terrain_data)
 
@@ -124,6 +127,7 @@ class TestPathfinding:
                 if has_known_neighbor:
                     break
             assert has_known_neighbor
+
 
 @pytest.mark.asyncio
 class TestPathfindingIntegration:
@@ -174,27 +178,32 @@ class TestPathfindingIntegration:
         final_pos = (explorer.agent.x, explorer.agent.y)
 
         # Agent should have moved
-        distance_moved = ((final_pos[0] - initial_pos[0])**2 +
-                         (final_pos[1] - initial_pos[1])**2)**0.5
+        distance_moved = (
+            (final_pos[0] - initial_pos[0]) ** 2 + (final_pos[1] - initial_pos[1]) ** 2
+        ) ** 0.5
         # Agent should have moved at least some distance
-        print(f"Agent moved {distance_moved:.2f} units from {initial_pos} to {final_pos}")
+        print(
+            f"Agent moved {distance_moved:.2f} units from {initial_pos} to {final_pos}"
+        )
 
         # Check pathfinding state exists (more important than exact movement distance)
         state = explorer.agent.get_state()
-        assert 'map_completion' in state, "Agent should have map completion data"
-        assert state['map_completion'] >= 0, "Map completion should be non-negative"
+        assert "map_completion" in state, "Agent should have map completion data"
+        assert state["map_completion"] >= 0, "Map completion should be non-negative"
 
         # Verify agent has mapping capabilities
         assert explorer.agent.agent_map is not None, "Agent should have a personal map"
-        assert explorer.agent.pathfinder is not None, "Agent should have pathfinding capability"
+        assert (
+            explorer.agent.pathfinder is not None
+        ), "Agent should have pathfinding capability"
 
     async def test_explorer_frontier_pathfinding(self, pathfinding_setup):
         """Test that explorers use pathfinding to reach frontiers"""
         explorer = pathfinding_setup
 
         # Set exploration mode to frontier
-        if hasattr(explorer.agent, 'set_exploration_mode'):
-            explorer.agent.set_exploration_mode('frontier')
+        if hasattr(explorer.agent, "set_exploration_mode"):
+            explorer.agent.set_exploration_mode("frontier")
 
         # Let agent explore
         await asyncio.sleep(8)
@@ -202,11 +211,14 @@ class TestPathfindingIntegration:
         # Agent should have built up a map
         if explorer.agent.agent_map:
             completion = explorer.agent.agent_map.get_map_completion_percentage()
-            assert completion > 2, f"Explorer should have explored some terrain, got {completion:.1f}%"
+            assert (
+                completion > 2
+            ), f"Explorer should have explored some terrain, got {completion:.1f}%"
 
             # Should have some frontiers identified
             frontiers = explorer.agent.agent_map.get_exploration_frontiers()
             print(f"Explorer found {len(frontiers)} frontier tiles")
+
 
 @pytest.mark.slow
 class TestPathfindingPerformance:
@@ -246,4 +258,6 @@ class TestPathfindingPerformance:
 
         # Should complete quickly and find most paths
         assert end_time - start_time < 2.0, "Pathfinding should be fast"
-        assert successful_paths >= 8, f"Should find most paths, found {successful_paths}/10"
+        assert (
+            successful_paths >= 8
+        ), f"Should find most paths, found {successful_paths}/10"

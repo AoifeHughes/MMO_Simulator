@@ -1,8 +1,9 @@
 import asyncio
+import logging
 import time
 from typing import TYPE_CHECKING
+
 from shared.constants import SERVER_TICK_RATE
-import logging
 
 if TYPE_CHECKING:
     from server.server import GameServer
@@ -10,8 +11,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 class GameLoop:
-    def __init__(self, world: 'ServerWorld', server: 'GameServer'):
+    def __init__(self, world: "ServerWorld", server: "GameServer"):
         self.world = world
         self.server = server
         self.running = False
@@ -35,7 +37,9 @@ class GameLoop:
             if sleep_time > 0:
                 await asyncio.sleep(sleep_time)
             else:
-                logger.warning(f"Tick took {elapsed:.3f}s, longer than interval {self.tick_interval:.3f}s")
+                logger.warning(
+                    f"Tick took {elapsed:.3f}s, longer than interval {self.tick_interval:.3f}s"
+                )
 
     async def tick(self):
         current_time = time.time()
@@ -74,14 +78,20 @@ class GameLoop:
                     agent.rotation = math.degrees(angle)
 
         elif agent.agent_type == "enemy":
-            players = [a for a in self.world.get_all_agents() if a.agent_type == "player"]
+            players = [
+                a for a in self.world.get_all_agents() if a.agent_type == "player"
+            ]
             if players:
-                closest_player = min(players, key=lambda p:
-                    math.sqrt((p.x - agent.x)**2 + (p.y - agent.y)**2))
+                closest_player = min(
+                    players,
+                    key=lambda p: math.sqrt(
+                        (p.x - agent.x) ** 2 + (p.y - agent.y) ** 2
+                    ),
+                )
 
                 dx = closest_player.x - agent.x
                 dy = closest_player.y - agent.y
-                distance = math.sqrt(dx*dx + dy*dy)
+                distance = math.sqrt(dx * dx + dy * dy)
 
                 if distance < 20 and distance > 2:
                     move_speed = 3.0 * delta_time

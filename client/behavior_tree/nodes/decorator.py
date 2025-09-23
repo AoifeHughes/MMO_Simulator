@@ -1,9 +1,11 @@
-import time
-import random
-from .base import DecoratorNode, BehaviorNode, NodeStatus
 import logging
+import random
+import time
+
+from .base import BehaviorNode, DecoratorNode, NodeStatus
 
 logger = logging.getLogger(__name__)
+
 
 class CooldownDecorator(DecoratorNode):
     """

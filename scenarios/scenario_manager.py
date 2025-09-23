@@ -1,13 +1,15 @@
-from typing import Dict, Optional, List, Any
-from scenarios.base_scenario import BaseScenario
-from scenarios.test_explore import TestExploreScenario
-from scenarios.basic_combat import BasicCombatScenario
-from scenarios.peaceful_village import PeacefulVillageScenario
-from scenarios.pathfinding_test import PathfindingTestScenario
-from scenarios.simple_duel import SimpleDuelScenario
 import logging
+from typing import Any, Dict, List, Optional
+
+from scenarios.base_scenario import BaseScenario
+from scenarios.basic_combat import BasicCombatScenario
+from scenarios.exploration_demo import ExplorationDemoScenario
+from scenarios.pathfinding_demo import PathfindingDemoScenario
+from scenarios.peaceful_village import PeacefulVillageScenario
+from scenarios.simple_duel import SimpleDuelScenario
 
 logger = logging.getLogger(__name__)
+
 
 class ScenarioManager:
     def __init__(self):
@@ -18,11 +20,11 @@ class ScenarioManager:
     def register_scenarios(self):
         """Register all available scenarios"""
         scenarios = [
-            TestExploreScenario(),
+            ExplorationDemoScenario(),
             BasicCombatScenario(),
             PeacefulVillageScenario(),
-            PathfindingTestScenario(),
-            SimpleDuelScenario()
+            PathfindingDemoScenario(),
+            SimpleDuelScenario(),
         ]
 
         for scenario in scenarios:

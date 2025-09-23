@@ -2,15 +2,16 @@
 Integrated visualizer that runs in the same process as the server
 """
 
-import pygame
 import asyncio
+import logging
+import math
 import threading
 import time
-import math
-import logging
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-from queue import Queue, Empty
+from queue import Empty, Queue
+from typing import Any, Dict, List, Optional
+
+import pygame
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class VisualizationData:
     """Data packet for visualization updates"""
+
     tick: int
     entities: Dict[str, Dict[str, Any]]
     active_players: int
@@ -44,17 +46,17 @@ class IntegratedVisualizer:
 
         # Colors
         self.colors = {
-            'background': (20, 20, 30),
-            'world_bg': (40, 40, 50),
-            'grid': (60, 60, 70),
-            'agent_active': (0, 255, 0),
-            'agent_inactive': (128, 128, 128),
-            'npc': (0, 150, 255),
-            'enemy': (255, 50, 50),
-            'object': (200, 200, 100),
-            'text': (255, 255, 255),
-            'ui_bg': (50, 50, 60),
-            'border': (100, 100, 120)
+            "background": (20, 20, 30),
+            "world_bg": (40, 40, 50),
+            "grid": (60, 60, 70),
+            "agent_active": (0, 255, 0),
+            "agent_inactive": (128, 128, 128),
+            "npc": (0, 150, 255),
+            "enemy": (255, 50, 50),
+            "object": (200, 200, 100),
+            "text": (255, 255, 255),
+            "ui_bg": (50, 50, 60),
+            "border": (100, 100, 120),
         }
 
         # Layout areas (will be initialized after pygame)
@@ -88,7 +90,9 @@ class IntegratedVisualizer:
             return
 
         self.running = True
-        self.visualization_thread = threading.Thread(target=self._run_visualization, daemon=True)
+        self.visualization_thread = threading.Thread(
+            target=self._run_visualization, daemon=True
+        )
         self.visualization_thread.start()
         logger.info("Integrated visualizer started")
 
@@ -177,19 +181,25 @@ class IntegratedVisualizer:
             self.current_data = latest_data
             # Update performance history
             if latest_data.performance_metrics:
-                self.performance_history.append({
-                    'timestamp': latest_data.timestamp,
-                    'fps': latest_data.performance_metrics.get('fps', 0),
-                    'memory': latest_data.performance_metrics.get('memory_usage_mb', 0),
-                    'connections': latest_data.performance_metrics.get('active_connections', 0)
-                })
+                self.performance_history.append(
+                    {
+                        "timestamp": latest_data.timestamp,
+                        "fps": latest_data.performance_metrics.get("fps", 0),
+                        "memory": latest_data.performance_metrics.get(
+                            "memory_usage_mb", 0
+                        ),
+                        "connections": latest_data.performance_metrics.get(
+                            "active_connections", 0
+                        ),
+                    }
+                )
                 if len(self.performance_history) > self.max_history_length:
                     self.performance_history.pop(0)
 
     def _render_frame(self):
         """Render a single frame"""
         # Clear screen
-        self.screen.fill(self.colors['background'])
+        self.screen.fill(self.colors["background"])
 
         # Draw main areas
         self._draw_world()
@@ -202,14 +212,16 @@ class IntegratedVisualizer:
 
     def _draw_world(self):
         """Draw the world view"""
-        pygame.draw.rect(self.screen, self.colors['world_bg'], self.world_area)
-        pygame.draw.rect(self.screen, self.colors['border'], self.world_area, 2)
+        pygame.draw.rect(self.screen, self.colors["world_bg"], self.world_area)
+        pygame.draw.rect(self.screen, self.colors["border"], self.world_area, 2)
 
         # Draw grid
         self._draw_grid()
 
         if not self.current_data:
-            text = self.font.render("Waiting for server data...", True, self.colors['text'])
+            text = self.font.render(
+                "Waiting for server data...", True, self.colors["text"]
+            )
             text_rect = text.get_rect(center=self.world_area.center)
             self.screen.blit(text, text_rect)
             return
@@ -224,7 +236,9 @@ class IntegratedVisualizer:
 
         # Draw selection
         if self.selected_entity and self.selected_entity in self.current_data.entities:
-            self._draw_entity_selection(self.current_data.entities[self.selected_entity])
+            self._draw_entity_selection(
+                self.current_data.entities[self.selected_entity]
+            )
 
         # Draw legend
         self._draw_legend()
@@ -240,25 +254,37 @@ class IntegratedVisualizer:
         start_world_x = -self.pan_x
         start_world_y = -self.pan_y
 
-        grid_offset_x = (start_world_x % world_grid_size) * self.world_scale * self.zoom_factor
-        grid_offset_y = (start_world_y % world_grid_size) * self.world_scale * self.zoom_factor
+        grid_offset_x = (
+            (start_world_x % world_grid_size) * self.world_scale * self.zoom_factor
+        )
+        grid_offset_y = (
+            (start_world_y % world_grid_size) * self.world_scale * self.zoom_factor
+        )
 
         # Vertical lines
         x = self.world_area.x - grid_offset_x
         while x < self.world_area.x + self.world_area.width:
             if x >= self.world_area.x:
-                pygame.draw.line(self.screen, self.colors['grid'],
-                               (int(x), self.world_area.y),
-                               (int(x), self.world_area.y + self.world_area.height), 1)
+                pygame.draw.line(
+                    self.screen,
+                    self.colors["grid"],
+                    (int(x), self.world_area.y),
+                    (int(x), self.world_area.y + self.world_area.height),
+                    1,
+                )
             x += screen_grid_size
 
         # Horizontal lines
         y = self.world_area.y - grid_offset_y
         while y < self.world_area.y + self.world_area.height:
             if y >= self.world_area.y:
-                pygame.draw.line(self.screen, self.colors['grid'],
-                               (self.world_area.x, int(y)),
-                               (self.world_area.x + self.world_area.width, int(y)), 1)
+                pygame.draw.line(
+                    self.screen,
+                    self.colors["grid"],
+                    (self.world_area.x, int(y)),
+                    (self.world_area.x + self.world_area.width, int(y)),
+                    1,
+                )
             y += screen_grid_size
 
     def _world_to_screen(self, world_pos: tuple) -> tuple:
@@ -272,41 +298,48 @@ class IntegratedVisualizer:
 
     def _draw_entity(self, entity_id: str, entity_data: Dict[str, Any]):
         """Draw a single entity"""
-        screen_pos = self._world_to_screen(entity_data['position'])
+        screen_pos = self._world_to_screen(entity_data["position"])
 
         if not self.world_area.collidepoint(screen_pos):
             return
 
         # Choose color and size based on entity type
-        entity_type = entity_data.get('entity_type', 'object')
-        is_active = entity_data.get('is_active', True)
+        entity_type = entity_data.get("entity_type", "object")
+        is_active = entity_data.get("is_active", True)
 
         if entity_type == "agent":
-            color = self.colors['agent_active'] if is_active else self.colors['agent_inactive']
+            color = (
+                self.colors["agent_active"]
+                if is_active
+                else self.colors["agent_inactive"]
+            )
             size = 8
         elif entity_type == "npc":
-            color = self.colors['npc']
+            color = self.colors["npc"]
             size = 6
         elif entity_type == "enemy":
-            color = self.colors['enemy']
+            color = self.colors["enemy"]
             size = 5
         else:
-            color = self.colors['object']
+            color = self.colors["object"]
             size = 4
 
         # Draw entity circle
         pygame.draw.circle(self.screen, color, screen_pos, size)
 
         # Draw health bar if damaged
-        health_pct = entity_data.get('health_percentage', 100)
-        if entity_type in ['agent', 'enemy'] and health_pct < 100:
+        health_pct = entity_data.get("health_percentage", 100)
+        if entity_type in ["agent", "enemy"] and health_pct < 100:
             self._draw_health_bar(screen_pos, health_pct, size)
 
         # Draw name for agents
         if entity_type == "agent" and self.show_agent_names:
-            name = entity_data.get('name', 'Unknown')
-            name_text = self.small_font.render(name, True, self.colors['text'])
-            name_pos = (screen_pos[0] - name_text.get_width() // 2, screen_pos[1] - size - 15)
+            name = entity_data.get("name", "Unknown")
+            name_text = self.small_font.render(name, True, self.colors["text"])
+            name_pos = (
+                screen_pos[0] - name_text.get_width() // 2,
+                screen_pos[1] - size - 15,
+            )
             self.screen.blit(name_text, name_pos)
 
         # Update entity trail
@@ -314,7 +347,7 @@ class IntegratedVisualizer:
             if entity_id not in self.entity_history:
                 self.entity_history[entity_id] = []
             history = self.entity_history[entity_id]
-            history.append((entity_data['position'], time.time()))
+            history.append((entity_data["position"], time.time()))
             if len(history) > 50:
                 history.pop(0)
 
@@ -326,8 +359,9 @@ class IntegratedVisualizer:
         bar_y = pos[1] - entity_size - 8
 
         # Background
-        pygame.draw.rect(self.screen, (50, 50, 50),
-                        (bar_x, bar_y, bar_width, bar_height))
+        pygame.draw.rect(
+            self.screen, (50, 50, 50), (bar_x, bar_y, bar_width, bar_height)
+        )
 
         # Health
         health_width = int(bar_width * health_pct / 100)
@@ -338,8 +372,9 @@ class IntegratedVisualizer:
                 color = (255, 255, 0)
             else:
                 color = (0, 255, 0)
-            pygame.draw.rect(self.screen, color,
-                           (bar_x, bar_y, health_width, bar_height))
+            pygame.draw.rect(
+                self.screen, color, (bar_x, bar_y, health_width, bar_height)
+            )
 
     def _draw_entity_trails(self):
         """Draw movement trails"""
@@ -350,8 +385,7 @@ class IntegratedVisualizer:
                 continue
 
             # Filter recent positions
-            recent_history = [(pos, t) for pos, t in history
-                            if current_time - t < 30]
+            recent_history = [(pos, t) for pos, t in history if current_time - t < 30]
 
             if len(recent_history) < 2:
                 continue
@@ -367,12 +401,13 @@ class IntegratedVisualizer:
                 for i in range(len(points) - 1):
                     alpha = int(255 * (i / len(points)) * 0.5)
                     if alpha > 10:
-                        pygame.draw.line(self.screen, (0, 255, 255),
-                                       points[i], points[i + 1], 1)
+                        pygame.draw.line(
+                            self.screen, (0, 255, 255), points[i], points[i + 1], 1
+                        )
 
     def _draw_entity_selection(self, entity_data: Dict[str, Any]):
         """Draw selection highlight"""
-        screen_pos = self._world_to_screen(entity_data['position'])
+        screen_pos = self._world_to_screen(entity_data["position"])
 
         if not self.world_area.collidepoint(screen_pos):
             return
@@ -387,14 +422,27 @@ class IntegratedVisualizer:
         text_y = screen_pos[1] - 30
 
         # Background
-        pygame.draw.rect(self.screen, (0, 0, 0),
-                        (text_x - 5, text_y - 2,
-                         text_surface.get_width() + 10,
-                         text_surface.get_height() + 4))
-        pygame.draw.rect(self.screen, (255, 255, 0),
-                        (text_x - 5, text_y - 2,
-                         text_surface.get_width() + 10,
-                         text_surface.get_height() + 4), 1)
+        pygame.draw.rect(
+            self.screen,
+            (0, 0, 0),
+            (
+                text_x - 5,
+                text_y - 2,
+                text_surface.get_width() + 10,
+                text_surface.get_height() + 4,
+            ),
+        )
+        pygame.draw.rect(
+            self.screen,
+            (255, 255, 0),
+            (
+                text_x - 5,
+                text_y - 2,
+                text_surface.get_width() + 10,
+                text_surface.get_height() + 4,
+            ),
+            1,
+        )
 
         self.screen.blit(text_surface, (text_x, text_y))
 
@@ -404,22 +452,22 @@ class IntegratedVisualizer:
         legend_y = self.world_area.y + self.world_area.height - 100
 
         legend_items = [
-            ("Active Player", self.colors['agent_active']),
-            ("Inactive Player", self.colors['agent_inactive']),
-            ("NPC", self.colors['npc']),
-            ("Enemy", self.colors['enemy'])
+            ("Active Player", self.colors["agent_active"]),
+            ("Inactive Player", self.colors["agent_inactive"]),
+            ("NPC", self.colors["npc"]),
+            ("Enemy", self.colors["enemy"]),
         ]
 
         for i, (label, color) in enumerate(legend_items):
             y = legend_y + i * 20
             pygame.draw.circle(self.screen, color, (legend_x + 10, y + 8), 5)
-            text = self.small_font.render(label, True, self.colors['text'])
+            text = self.small_font.render(label, True, self.colors["text"])
             self.screen.blit(text, (legend_x + 25, y))
 
     def _draw_info_panel(self):
         """Draw information panel"""
-        pygame.draw.rect(self.screen, self.colors['ui_bg'], self.info_area)
-        pygame.draw.rect(self.screen, self.colors['border'], self.info_area, 2)
+        pygame.draw.rect(self.screen, self.colors["ui_bg"], self.info_area)
+        pygame.draw.rect(self.screen, self.colors["border"], self.info_area, 2)
 
         if not self.current_data:
             return
@@ -432,17 +480,30 @@ class IntegratedVisualizer:
         y += line_height
 
         # Connection status (always direct now)
-        self._draw_text_color("Connection: DIRECT (Integrated)",
-                            self.info_area.x + 10, y, (100, 255, 100))
+        self._draw_text_color(
+            "Connection: DIRECT (Integrated)", self.info_area.x + 10, y, (100, 255, 100)
+        )
         y += line_height
 
         self._draw_text(f"Tick: {self.current_data.tick}", self.info_area.x + 10, y)
         y += line_height
-        self._draw_text(f"Active Players: {self.current_data.active_players}", self.info_area.x + 10, y)
+        self._draw_text(
+            f"Active Players: {self.current_data.active_players}",
+            self.info_area.x + 10,
+            y,
+        )
         y += line_height
-        self._draw_text(f"Inactive Players: {self.current_data.inactive_players}", self.info_area.x + 10, y)
+        self._draw_text(
+            f"Inactive Players: {self.current_data.inactive_players}",
+            self.info_area.x + 10,
+            y,
+        )
         y += line_height
-        self._draw_text(f"Total Entities: {len(self.current_data.entities)}", self.info_area.x + 10, y)
+        self._draw_text(
+            f"Total Entities: {len(self.current_data.entities)}",
+            self.info_area.x + 10,
+            y,
+        )
         y += line_height * 2
 
         # View controls
@@ -450,12 +511,14 @@ class IntegratedVisualizer:
         y += line_height
         self._draw_text(f"Zoom: {self.zoom_factor:.1f}x", self.info_area.x + 10, y)
         y += line_height
-        self._draw_text(f"Pan: ({self.pan_x:.0f}, {self.pan_y:.0f})", self.info_area.x + 10, y)
+        self._draw_text(
+            f"Pan: ({self.pan_x:.0f}, {self.pan_y:.0f})", self.info_area.x + 10, y
+        )
 
     def _draw_stats_panel(self):
         """Draw statistics panel"""
-        pygame.draw.rect(self.screen, self.colors['ui_bg'], self.stats_area)
-        pygame.draw.rect(self.screen, self.colors['border'], self.stats_area, 2)
+        pygame.draw.rect(self.screen, self.colors["ui_bg"], self.stats_area)
+        pygame.draw.rect(self.screen, self.colors["border"], self.stats_area, 2)
 
         if not self.current_data:
             return
@@ -467,7 +530,7 @@ class IntegratedVisualizer:
         y += line_height
 
         for key, value in self.current_data.server_stats.items():
-            display_key = key.replace('_', ' ').title()
+            display_key = key.replace("_", " ").title()
             self._draw_text(f"{display_key}: {value}", self.stats_area.x + 10, y)
             y += line_height
             if y > self.stats_area.y + self.stats_area.height - 30:
@@ -485,14 +548,16 @@ class IntegratedVisualizer:
 
     def _draw_performance_panel(self):
         """Draw performance metrics panel"""
-        pygame.draw.rect(self.screen, self.colors['ui_bg'], self.performance_area)
-        pygame.draw.rect(self.screen, self.colors['border'], self.performance_area, 2)
+        pygame.draw.rect(self.screen, self.colors["ui_bg"], self.performance_area)
+        pygame.draw.rect(self.screen, self.colors["border"], self.performance_area, 2)
 
         if not self.current_data:
             return
 
         y = self.performance_area.y + 10
-        self._draw_text("PERFORMANCE METRICS", self.performance_area.x + 10, y, bold=True)
+        self._draw_text(
+            "PERFORMANCE METRICS", self.performance_area.x + 10, y, bold=True
+        )
 
         # Current metrics
         metrics = self.current_data.performance_metrics
@@ -501,9 +566,10 @@ class IntegratedVisualizer:
             if i % 4 == 0 and i > 0:
                 y += 25
                 x_offset = 10
-            display_key = key.replace('_', ' ').title()
-            self._draw_text(f"{display_key}: {value}",
-                          self.performance_area.x + x_offset, y + 25)
+            display_key = key.replace("_", " ").title()
+            self._draw_text(
+                f"{display_key}: {value}", self.performance_area.x + x_offset, y + 25
+            )
             x_offset += 250
 
         # Draw performance chart if we have history
@@ -512,7 +578,7 @@ class IntegratedVisualizer:
                 self.performance_area.x + 10,
                 self.performance_area.y + 100,
                 self.performance_area.width - 20,
-                150
+                150,
             )
             self._draw_performance_chart(chart_area)
 
@@ -522,10 +588,10 @@ class IntegratedVisualizer:
             return
 
         pygame.draw.rect(self.screen, (30, 30, 40), area)
-        pygame.draw.rect(self.screen, self.colors['border'], area, 1)
+        pygame.draw.rect(self.screen, self.colors["border"], area, 1)
 
         # Draw FPS line
-        fps_values = [entry['fps'] for entry in self.performance_history]
+        fps_values = [entry["fps"] for entry in self.performance_history]
         if fps_values and max(fps_values) > 0:
             max_fps = max(fps_values)
             min_fps = min(fps_values)
@@ -542,15 +608,21 @@ class IntegratedVisualizer:
 
             # Draw 60 FPS target line
             if max_fps > 60 and min_fps < 60:
-                target_y = area.y + area.height - ((60 - min_fps) / fps_range) * area.height
-                pygame.draw.line(self.screen, (255, 255, 0),
-                               (area.x, int(target_y)),
-                               (area.x + area.width, int(target_y)), 1)
+                target_y = (
+                    area.y + area.height - ((60 - min_fps) / fps_range) * area.height
+                )
+                pygame.draw.line(
+                    self.screen,
+                    (255, 255, 0),
+                    (area.x, int(target_y)),
+                    (area.x + area.width, int(target_y)),
+                    1,
+                )
 
     def _draw_text(self, text: str, x: int, y: int, bold: bool = False):
         """Draw text on screen"""
         font = self.font if bold else self.small_font
-        color = (255, 255, 100) if bold else self.colors['text']
+        color = (255, 255, 100) if bold else self.colors["text"]
         text_surface = font.render(text, True, color)
         self.screen.blit(text_surface, (x, y))
 
@@ -615,8 +687,12 @@ class IntegratedVisualizer:
             return
 
         # Convert screen to world coordinates
-        rel_x = (mouse_pos[0] - self.world_area.x) / (self.world_scale * self.zoom_factor)
-        rel_y = (mouse_pos[1] - self.world_area.y) / (self.world_scale * self.zoom_factor)
+        rel_x = (mouse_pos[0] - self.world_area.x) / (
+            self.world_scale * self.zoom_factor
+        )
+        rel_y = (mouse_pos[1] - self.world_area.y) / (
+            self.world_scale * self.zoom_factor
+        )
         world_x = rel_x - self.pan_x
         world_y = rel_y - self.pan_y
 
@@ -625,8 +701,8 @@ class IntegratedVisualizer:
         selected = None
 
         for entity_id, entity_data in self.current_data.entities.items():
-            ex, ey = entity_data['position']
-            distance = math.sqrt((ex - world_x)**2 + (ey - world_y)**2)
+            ex, ey = entity_data["position"]
+            distance = math.sqrt((ex - world_x) ** 2 + (ey - world_y) ** 2)
             if distance < min_distance:
                 min_distance = distance
                 selected = entity_id
