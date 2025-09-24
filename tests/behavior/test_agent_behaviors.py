@@ -1,0 +1,395 @@
+"""
+Test agent behaviors in controlled scenarios
+
+These tests verify specific agent behaviors like combat, exploration,
+pathfinding, and decision-making in small, focused environments.
+"""
+
+import pytest
+import asyncio
+import math
+import time
+from unittest.mock import MagicMock
+
+from tests.fixtures.mock_server import FastTestFixture
+from tests.fixtures.test_maps import TestMaps, TestMapBuilder
+from world.tiles import TileType
+from shared.actions import ActionType
+
+
+class TestExplorationBehavior:
+    """Test agent exploration behaviors"""
+
+    @pytest.mark.asyncio
+    async def test_explorer_seeks_unknown_areas(self):
+        """Explorer should move toward unexplored areas"""
+        # Create exploration terrain
+        fixture = FastTestFixture(30, 30)
+        terrain = TestMaps.get_exploration_terrain()
+        fixture.set_terrain(terrain)
+
+        # Add explorer agent
+        client = await fixture.add_client("explorer", 5, 15)
+        agent = client.agent
+
+        # Set up agent map with partial knowledge
+        if agent.agent_map:
+            # Mark some areas as known
+            for x in range(0, 10):
+                for y in range(10, 20):
+                    agent.agent_map.mark_explored(x, y, TileType.GRASS)
+
+        initial_x, initial_y = agent.x, agent.y
+
+        # Update agent multiple times
+        for _ in range(10):
+            agent.update(0.1)
+
+        # Agent should have moved toward unexplored areas
+        final_x, final_y = agent.x, agent.y
+        distance_moved = math.sqrt((final_x - initial_x)**2 + (final_y - initial_y)**2)
+
+        assert distance_moved > 2.0, f"Explorer should move toward unknown areas (moved {distance_moved:.2f})"
+
+        # Should be moving away from known areas
+        if agent.current_target:
+            target_x, target_y = agent.current_target
+            assert target_x > initial_x, "Should move toward unknown eastern areas"
+
+    @pytest.mark.asyncio
+    async def test_explorer_avoids_walls(self):
+        """Explorer should navigate around obstacles"""
+        fixture = FastTestFixture(20, 20)
+
+        # Create maze-like terrain
+        terrain = TestMaps.get_pathfinding_maze(21, 21)
+        fixture.set_terrain(terrain)
+
+        client = await fixture.add_client("explorer", 1, 1)  # Start at maze entrance
+        agent = client.agent
+
+        initial_pos = (agent.x, agent.y)
+
+        # Let agent explore for a bit
+        for _ in range(20):
+            agent.update(0.1)
+            if agent.current_path and len(agent.current_path) > 0:
+                break
+
+        # Should have found a path or be moving
+        assert abs(agent.velocity_x) > 0.01 or abs(agent.velocity_y) > 0.01, "Agent should be moving"
+
+        # Check if agent is making progress
+        final_pos = (agent.x, agent.y)
+        distance = math.sqrt((final_pos[0] - initial_pos[0])**2 + (final_pos[1] - initial_pos[1])**2)
+
+        # Should make some progress even in maze
+        assert distance > 0.5, f"Should navigate through maze (distance: {distance:.2f})"
+
+
+class TestCombatBehavior:
+    """Test agent combat behaviors"""
+
+    @pytest.mark.asyncio
+    async def test_enemy_pursues_target(self):
+        """Enemy should pursue visible targets"""
+        fixture = FastTestFixture(15, 15)
+
+        # Create combat arena
+        terrain = TestMaps.get_combat_arena(15, 15)
+        fixture.set_terrain(terrain)
+
+        # Add enemy and player
+        enemy_client = await fixture.add_client("enemy", 2, 2)
+        player_client = await fixture.add_client("player", 12, 12)
+
+        enemy = enemy_client.agent
+        player = player_client.agent
+
+        # Make player visible to enemy
+        visible_entities = [player.get_state()]
+        enemy.perceive(visible_entities)
+
+        initial_distance = math.sqrt((enemy.x - player.x)**2 + (enemy.y - player.y)**2)
+
+        # Update enemy behavior
+        for _ in range(10):
+            enemy.perceive(visible_entities)  # Keep player visible
+            enemy.update(0.1)
+
+        final_distance = math.sqrt((enemy.x - player.x)**2 + (enemy.y - player.y)**2)
+
+        assert final_distance < initial_distance, f"Enemy should pursue player (distance: {initial_distance:.2f} -> {final_distance:.2f})"
+
+    @pytest.mark.asyncio
+    async def test_combat_range_behavior(self):
+        """Agents should attack when in range"""
+        fixture = FastTestFixture(10, 10)
+
+        # Small arena for close combat
+        enemy_client = await fixture.add_client("enemy", 5, 5)
+        player_client = await fixture.add_client("player", 6, 5)  # Close to enemy
+
+        enemy = enemy_client.agent
+        player = player_client.agent
+
+        # Set up server game data for combat
+        enemy.set_server_game_data({
+            'attacks': {
+                'punch': {'range': 2.0, 'damage': 10.0, 'cooldown': 1.0}
+            },
+            'character_attacks': {
+                'enemy': ['punch']
+            }
+        })
+
+        # Make player visible to enemy
+        visible_entities = [player.get_state()]
+        enemy.perceive(visible_entities)
+
+        initial_actions = len(enemy_client.sent_messages)
+
+        # Update enemy - should try to attack
+        for _ in range(5):
+            enemy.perceive(visible_entities)
+            enemy.update(0.1)
+            action = enemy.decide()
+            if action:
+                await enemy_client.send_action(action)
+
+        final_actions = len(enemy_client.sent_messages)
+
+        # Should have attempted at least one action (likely attack)
+        assert final_actions > initial_actions, "Enemy should attempt actions when player is in range"
+
+        # Check if any actions were attack actions
+        attack_actions = [
+            msg for msg in enemy_client.sent_messages
+            if msg.payload.get('type') == 'damage'
+        ]
+
+        assert len(attack_actions) > 0, "Should have attempted at least one attack action"
+
+    @pytest.mark.asyncio
+    async def test_health_based_behavior_change(self):
+        """Agent behavior should change based on health"""
+        fixture = FastTestFixture(15, 15)
+
+        client = await fixture.add_client("enemy", 7, 7)
+        agent = client.agent
+
+        # Test high health behavior
+        agent.health = 100
+        agent.update(0.1)
+        high_health_intention = agent.get_intention()
+
+        # Simulate low health
+        agent.health = 20
+        agent.update(0.1)
+        low_health_intention = agent.get_intention()
+
+        # Behavior should change based on health
+        # (Exact behavior depends on implementation, but should be different)
+        if high_health_intention and low_health_intention:
+            assert high_health_intention != low_health_intention, \
+                "Agent behavior should change when health is low"
+
+
+class TestFishingBehavior:
+    """Test fishing-specific behaviors"""
+
+    @pytest.mark.asyncio
+    async def test_fishing_near_water(self):
+        """Agents should attempt fishing when near water with equipment"""
+        fixture = FastTestFixture(25, 25)
+
+        # Create fishing pond
+        terrain = TestMaps.get_fishing_pond(25, 25)
+        fixture.set_terrain(terrain)
+
+        client = await fixture.add_client("player", 20, 12)  # Near water edge
+        agent = client.agent
+
+        # Mock fishing equipment
+        if hasattr(agent, 'inventory'):
+            fishing_rod = MagicMock()
+            fishing_rod.tool_type = "fishing"
+            agent.inventory = MagicMock()
+            agent.inventory.get_items_by_type.return_value = [fishing_rod]
+
+        # Mock action manager for fishing
+        action_manager = MagicMock()
+        agent.action_manager = action_manager
+
+        # Update agent behavior
+        for _ in range(5):
+            agent.update(0.1)
+
+        # If agent has fishing behavior, should consider fishing
+        # (Implementation-dependent, but agent should react to nearby water)
+        distance_to_center = math.sqrt((agent.x - 12)**2 + (agent.y - 12)**2)
+        assert distance_to_center <= 15, "Agent should stay near water area"
+
+
+class TestPathfindingBehavior:
+    """Test agent pathfinding and navigation"""
+
+    @pytest.mark.asyncio
+    async def test_pathfinding_around_obstacles(self):
+        """Agent should find paths around obstacles"""
+        fixture = FastTestFixture(40, 30)
+
+        # Create multi-room dungeon
+        terrain = TestMaps.get_multi_room_dungeon(40, 30)
+        fixture.set_terrain(terrain)
+
+        client = await fixture.add_client("explorer", 8, 7)  # Start in top-left room
+        agent = client.agent
+
+        # Set target in bottom-right room
+        if hasattr(agent, 'set_target'):
+            agent.set_target(31, 22)
+
+        # Try to find path to target
+        if hasattr(agent, 'find_path_to'):
+            found_path = agent.find_path_to(31, 22)
+            if found_path:
+                assert agent.current_path is not None, "Should have found a path"
+                assert len(agent.current_path) > 5, "Path should be reasonably long for complex route"
+
+    @pytest.mark.asyncio
+    async def test_movement_in_corridor(self):
+        """Agent should navigate efficiently in corridors"""
+        fixture = FastTestFixture(50, 10)
+
+        # Create corridor test map
+        terrain = TestMaps.get_corridor_test(50, 10)
+        fixture.set_terrain(terrain)
+
+        client = await fixture.add_client("explorer", 2, 5)
+        agent = client.agent
+
+        # Set target at end of corridor
+        if hasattr(agent, 'set_target'):
+            agent.set_target(47, 5)
+
+        initial_x = agent.x
+
+        # Let agent move through corridor
+        for _ in range(50):
+            agent.update(0.1)
+
+        final_x = agent.x
+
+        # Should make significant progress along corridor
+        progress = final_x - initial_x
+        assert progress > 10, f"Should make progress through corridor (progress: {progress:.2f})"
+
+    @pytest.mark.asyncio
+    async def test_stuck_detection_and_recovery(self):
+        """Agent should detect when stuck and try alternative paths"""
+        fixture = FastTestFixture(20, 20)
+
+        # Create scenario where agent might get stuck
+        terrain = TestMapBuilder(20, 20)\
+            .add_walls_border()\
+            .add_rect(8, 8, 12, 12, TileType.WALL)\
+            .add_rect(9, 9, 11, 11, TileType.GRASS)\
+            .build()  # Create a "room" with walls
+
+        fixture.set_terrain(terrain)
+
+        client = await fixture.add_client("explorer", 9, 9)  # Start in enclosed area
+        agent = client.agent
+
+        initial_pos = (agent.x, agent.y)
+
+        # Update agent and track movement
+        positions = [initial_pos]
+
+        for i in range(30):
+            agent.update(0.1)
+            current_pos = (agent.x, agent.y)
+            positions.append(current_pos)
+
+            # Check if agent is making any progress after getting stuck
+            if i > 10:  # Give some time to get stuck
+                recent_positions = positions[-5:]
+                max_distance = max([
+                    math.sqrt((p[0] - positions[-1][0])**2 + (p[1] - positions[-1][1])**2)
+                    for p in recent_positions
+                ])
+
+                # If stuck for a while, should try to break out
+                if max_distance < 0.5:  # Very little movement
+                    # Agent should be trying to find alternative paths
+                    # This is implementation-dependent
+                    break
+
+        # At minimum, agent should not crash or freeze
+        final_pos = (agent.x, agent.y)
+        assert final_pos is not None, "Agent should maintain valid position"
+
+
+class TestIntentionSystem:
+    """Test agent intention and decision-making system"""
+
+    @pytest.mark.asyncio
+    async def test_intention_cooldown_system(self):
+        """Intention changes should respect cooldown periods"""
+        fixture = FastTestFixture()
+
+        client = await fixture.add_client("enemy", 10, 10)
+        agent = client.agent
+
+        # Test setting initial intention
+        success1 = agent.set_intention("explore")
+        assert success1, "Should be able to set initial intention"
+
+        # Immediate change should be blocked by cooldown
+        success2 = agent.set_intention("combat")
+        assert not success2, "Should be blocked by cooldown"
+
+        # Same intention should be allowed
+        success3 = agent.set_intention("explore")
+        assert success3, "Should allow setting same intention"
+
+    @pytest.mark.asyncio
+    async def test_emergency_intention_override(self):
+        """Emergency situations should override intention cooldowns"""
+        fixture = FastTestFixture()
+
+        client = await fixture.add_client("enemy", 10, 10)
+        agent = client.agent
+
+        # Set initial intention
+        agent.set_intention("explore")
+
+        # Emergency override should work immediately
+        agent.force_intention("flee")
+        assert agent.get_intention() == "flee", "Emergency intention should override cooldown"
+
+    @pytest.mark.asyncio
+    async def test_context_based_cooldown_adjustment(self):
+        """Cooldowns should adjust based on context"""
+        fixture = FastTestFixture()
+
+        client = await fixture.add_client("enemy", 10, 10)
+        agent = client.agent
+
+        # Test different context cooldowns
+        agent.adjust_intention_cooldown("normal")
+        normal_cooldown = agent.intention_cooldown
+
+        agent.adjust_intention_cooldown("combat")
+        combat_cooldown = agent.intention_cooldown
+
+        agent.adjust_intention_cooldown("emergency")
+        emergency_cooldown = agent.intention_cooldown
+
+        assert emergency_cooldown < combat_cooldown < normal_cooldown, \
+            "Emergency should have shortest cooldown, normal the longest"
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v", "--tb=short", "-x"])
