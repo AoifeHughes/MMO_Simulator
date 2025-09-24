@@ -38,7 +38,7 @@ class AttackNearestEnemy(ActionNode):
             agent,
             agent.visible_entities,
             self.enemy_types,
-            max_range=self.attack_range * 1.5  # Allow targets slightly outside immediate range
+            max_range=self.attack_range * 1.2  # Allow targets slightly outside immediate range
         )
 
         if not self.current_target:
@@ -64,7 +64,7 @@ class AttackNearestEnemy(ActionNode):
             agent,
             agent.visible_entities,
             self.enemy_types,
-            max_range=self.attack_range * 1.5
+            max_range=self.attack_range * 1.2
         )
 
         if not self.current_target:
@@ -75,10 +75,26 @@ class AttackNearestEnemy(ActionNode):
         dy = self.current_target["y"] - agent.y
         distance = math.sqrt(dx * dx + dy * dy)
 
+        # If target is slightly outside attack range but within expanded range,
+        # make small movement to get into attack position
         if distance > self.attack_range:
-            return NodeStatus.FAILURE
+            if distance <= self.attack_range * 1.2:  # Within expanded range
+                # Make small movement toward target to get into attack range
+                direction_x = dx / distance if distance > 0 else 0
+                direction_y = dy / distance if distance > 0 else 0
 
-        # Stop movement and face target during attack
+                # Small movement speed for positioning
+                positioning_speed = 0.5
+                agent.velocity_x = direction_x * positioning_speed
+                agent.velocity_y = direction_y * positioning_speed
+
+                logger.debug(f"Agent {agent.id[:8]} making positioning movement, distance: {distance:.2f}")
+                return NodeStatus.RUNNING
+            else:
+                # Too far, let chase behavior handle it
+                return NodeStatus.FAILURE
+
+        # In attack range - stop movement and face target during attack
         agent.velocity_x = 0
         agent.velocity_y = 0
 
@@ -155,6 +171,7 @@ class ChaseNearestEnemy(ActionNode):
     def update_action(self, agent, delta_time: float) -> NodeStatus:
         current_time = time.time()
 
+
         # Use target manager to maintain target consistency
         target_manager = agent.get_target_manager()
         self.current_target = target_manager.update_target_selection(
@@ -188,12 +205,16 @@ class ChaseNearestEnemy(ActionNode):
             for attack_name in ['sword_slash', 'claw', 'punch']:
                 attack_data = agent.get_attack_data(attack_name)
                 if attack_data:
-                    optimal_range = min(optimal_range, attack_data.get('max_range', 2.0) * 0.8)
+                    # Use 75% of max range to ensure we get close enough for attacks
+                    # This accounts for movement imprecision and hysteresis
+                    optimal_range = min(optimal_range, attack_data.get('max_range', 2.0) * 0.75)
                     break
 
         # Check if we've reached the target
         if distance <= optimal_range:
             self._clear_pathfinding_state()
+            if agent.agent_type == "enemy":
+                logger.info(f"[CHASE] Agent {agent.id[:8]} reached target at distance {distance:.2f} <= {optimal_range:.2f}")
             return NodeStatus.SUCCESS
 
         # Determine if we need pathfinding by checking for obstacles
@@ -221,6 +242,8 @@ class ChaseNearestEnemy(ActionNode):
                     delattr(self, 'fallback_start_time')
         else:
             # Use direct movement for simple cases
+            if agent.agent_type == "enemy":
+                logger.info(f"[CHASE] Agent {agent.id[:8]} using direct movement to ({target_x:.1f}, {target_y:.1f}), distance: {distance:.2f}")
             self._update_direct_movement(agent, target_x, target_y, optimal_range)
 
         return NodeStatus.RUNNING

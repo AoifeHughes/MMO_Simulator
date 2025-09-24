@@ -335,13 +335,9 @@ def create_enemy_tree(
                                 ),
 
                                 # State 2: Aggressive pursuit
-                                CooldownDecorator(
-                                    "AggressivePursuit",
-                                    ChaseNearestEnemy(
-                                        enemy_types=["player"],
-                                        chase_range=18.0  # Extended chase range
-                                    ),
-                                    cooldown_duration=0.2,  # Very responsive chasing
+                                ChaseNearestEnemy(
+                                    enemy_types=["player"],
+                                    chase_range=18.0  # Extended chase range
                                 ),
                             ],
                         ),
