@@ -10,6 +10,9 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
+from shared.inventory import Inventory
+from shared.items import create_item
+
 
 @dataclass
 class ServerAgentState:
@@ -44,10 +47,12 @@ class ServerAgentState:
         }
     )
 
-    # Future expansion slots
-    inventory_slots: int = 20
-    money: float = 0.0
+    # Inventory system
+    inventory: Inventory = field(default_factory=lambda: Inventory(max_weight=100.0))
     experience: float = 0.0
+
+    # Special modes for different behaviors
+    exploration_mode: str = "frontier"
 
     def update_position(self, x: float, y: float, rotation: float = None):
         """Update agent position and track distance traveled"""
@@ -103,6 +108,24 @@ class ServerAgentState:
             self.stats["exploration_percent"], percent
         )
 
+    def add_starting_items(self):
+        """Add default starting items based on agent type"""
+        if self.agent_type == "player":
+            # Players start with a sword
+            sword = create_item("iron_sword")
+            if sword:
+                self.inventory.add_item(sword, 1)
+                self.inventory.equip_item(sword.item_id)
+
+        elif self.agent_type == "explorer":
+            # Explorers start with fishing rod
+            fishing_rod = create_item("fishing_rod")
+            if fishing_rod:
+                self.inventory.add_item(fishing_rod, 1)
+
+        # All agents start with some gold
+        self.inventory.add_gold(100)
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization"""
         return {
@@ -115,6 +138,7 @@ class ServerAgentState:
             "rotation": self.rotation,
             "is_alive": self.is_alive,
             "stats": self.stats.copy(),
+            "inventory": self.inventory.to_dict(),
             "last_update_time": self.last_update_time,
         }
 
@@ -136,6 +160,9 @@ class AgentRegistry:
         agent_state = ServerAgentState(
             agent_id=agent_id, agent_type=agent_type, position=(x, y)
         )
+
+        # Add starting items
+        agent_state.add_starting_items()
 
         self.agents[agent_id] = agent_state
         return agent_state

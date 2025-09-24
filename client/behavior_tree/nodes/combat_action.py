@@ -32,11 +32,19 @@ class AttackNearestEnemy(ActionNode):
         self.current_target: Optional[Dict[str, Any]] = None
 
     def start_action(self, agent) -> bool:
-        self.current_target = self._find_nearest_enemy(agent)
+        # Use unified target manager for consistent target selection
+        target_manager = agent.get_target_manager()
+        self.current_target = target_manager.update_target_selection(
+            agent,
+            agent.visible_entities,
+            self.enemy_types,
+            max_range=self.attack_range * 1.5  # Allow targets slightly outside immediate range
+        )
+
         if not self.current_target:
             return False
 
-        # Check if target is in range
+        # Check if target is in attack range
         dx = self.current_target["x"] - agent.x
         dy = self.current_target["y"] - agent.y
         distance = math.sqrt(dx * dx + dy * dy)
@@ -50,21 +58,15 @@ class AttackNearestEnemy(ActionNode):
         if current_time - self.last_attack_time < self.attack_cooldown:
             return NodeStatus.RUNNING
 
-        # Validate current target is still alive and visible
-        if self.current_target:
-            target_still_valid = False
-            for entity in getattr(agent, "visible_entities", []):
-                if entity.get("id") == self.current_target["id"] and entity.get(
-                    "is_alive", True
-                ):
-                    target_still_valid = True
-                    break
+        # Use target manager to get current target (with persistence)
+        target_manager = agent.get_target_manager()
+        self.current_target = target_manager.update_target_selection(
+            agent,
+            agent.visible_entities,
+            self.enemy_types,
+            max_range=self.attack_range * 1.5
+        )
 
-            if not target_still_valid:
-                self.current_target = None
-
-        # Find current target
-        self.current_target = self._find_nearest_enemy(agent)
         if not self.current_target:
             return NodeStatus.FAILURE
 
@@ -118,29 +120,7 @@ class AttackNearestEnemy(ActionNode):
         agent.velocity_y = 0
         self.current_target = None
 
-    def _find_nearest_enemy(self, agent) -> Optional[Dict[str, Any]]:
-        """Find the nearest enemy in visible entities"""
-        nearest_enemy = None
-        nearest_distance = float("inf")
-
-        for entity in getattr(agent, "visible_entities", []):
-            # Check if entity is an enemy type, alive, and not the agent itself
-            if (
-                entity.get("agent_type") in self.enemy_types
-                and entity.get("id") != agent.id
-                and entity.get(
-                    "is_alive", True
-                )  # Default to True for legacy compatibility
-            ):
-                dx = entity["x"] - agent.x
-                dy = entity["y"] - agent.y
-                distance = math.sqrt(dx * dx + dy * dy)
-
-                if distance < nearest_distance:
-                    nearest_distance = distance
-                    nearest_enemy = entity
-
-        return nearest_enemy
+    # Removed _find_nearest_enemy - now using unified TargetManager
 
 
 class ChaseNearestEnemy(ActionNode):
@@ -157,27 +137,28 @@ class ChaseNearestEnemy(ActionNode):
         )
 
     def start_action(self, agent) -> bool:
-        self.current_target = self._find_nearest_enemy(agent)
+        # Use unified target manager for consistent target selection
+        target_manager = agent.get_target_manager()
+        self.current_target = target_manager.update_target_selection(
+            agent,
+            agent.visible_entities,
+            self.enemy_types,
+            max_range=self.chase_range
+        )
         return self.current_target is not None
 
     def update_action(self, agent, delta_time: float) -> NodeStatus:
         current_time = time.time()
 
-        # Validate current target is still alive and visible
-        if self.current_target:
-            target_still_valid = False
-            for entity in getattr(agent, "visible_entities", []):
-                if entity.get("id") == self.current_target["id"] and entity.get(
-                    "is_alive", True
-                ):
-                    target_still_valid = True
-                    break
+        # Use target manager to maintain target consistency
+        target_manager = agent.get_target_manager()
+        self.current_target = target_manager.update_target_selection(
+            agent,
+            agent.visible_entities,
+            self.enemy_types,
+            max_range=self.chase_range
+        )
 
-            if not target_still_valid:
-                self.current_target = None
-
-        # Update target (enemies might move)
-        self.current_target = self._find_nearest_enemy(agent)
         if not self.current_target:
             return NodeStatus.FAILURE
 
@@ -192,52 +173,39 @@ class ChaseNearestEnemy(ActionNode):
         if distance > self.chase_range:
             return NodeStatus.FAILURE
 
-        # Only update movement periodically to reduce jitter
-        if current_time - self.last_movement_update >= self.movement_update_interval:
-            if distance > 0:
-                agent.velocity_x = (dx / distance) * agent.speed
-                agent.velocity_y = (dy / distance) * agent.speed
-                agent.rotation = math.degrees(math.atan2(dy, dx))
-                self.last_movement_update = current_time
-                logger.debug(
-                    f"[CHASE] Agent {agent.id[:8]} updated chase velocity toward {self.current_target['id'][:8]}"
-                )
+        # Get optimal attack range from server data if available
+        optimal_range = 2.0  # Default safe attack range
+        if hasattr(agent, 'get_attack_data'):
+            # Try to get the best available attack range
+            for attack_name in ['sword_slash', 'claw', 'punch']:
+                attack_data = agent.get_attack_data(attack_name)
+                if attack_data:
+                    optimal_range = min(optimal_range, attack_data.get('max_range', 2.0) * 0.8)
+                    break
 
-        # Success when close enough for attack - get within 90% of smallest attack range
-        # This ensures all agent types can attack when chase completes
-        min_attack_range = 1.5  # Conservative minimum that works for most attacks
-        if distance <= min_attack_range:
-            agent.velocity_x = 0
-            agent.velocity_y = 0
+        # Use movement manager for smooth chasing
+        movement_manager = agent.get_movement_manager()
+        target_pos = (target_x, target_y)
+
+        # Import here to avoid circular import
+        from client.behavior_tree.movement_manager import MovementMode
+
+        arrived = movement_manager.update_movement(
+            agent,
+            target_pos,
+            mode=MovementMode.CHASE,
+            arrival_threshold=optimal_range
+        )
+
+        if arrived or distance <= optimal_range:
             return NodeStatus.SUCCESS
 
         return NodeStatus.RUNNING
 
     def stop_action(self, agent):
-        agent.velocity_x = 0
-        agent.velocity_y = 0
+        # Use movement manager to stop smoothly
+        movement_manager = agent.get_movement_manager()
+        movement_manager.stop_movement(agent)
         self.current_target = None
 
-    def _find_nearest_enemy(self, agent) -> Optional[Dict[str, Any]]:
-        """Find the nearest enemy in visible entities"""
-        nearest_enemy = None
-        nearest_distance = float("inf")
-
-        for entity in getattr(agent, "visible_entities", []):
-            # Check if entity is an enemy type, alive, and not the agent itself
-            if (
-                entity.get("agent_type") in self.enemy_types
-                and entity.get("id") != agent.id
-                and entity.get(
-                    "is_alive", True
-                )  # Default to True for legacy compatibility
-            ):
-                dx = entity["x"] - agent.x
-                dy = entity["y"] - agent.y
-                distance = math.sqrt(dx * dx + dy * dy)
-
-                if distance < nearest_distance:
-                    nearest_distance = distance
-                    nearest_enemy = entity
-
-        return nearest_enemy
+    # Removed _find_nearest_enemy - now using unified TargetManager

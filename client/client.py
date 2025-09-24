@@ -34,6 +34,13 @@ class GameClient:
         # Server game data (received from server)
         self.server_game_data = None
 
+        # Behavior tree provider for dependency injection
+        self.behavior_tree_provider: Optional["BehaviorTreeProvider"] = None
+
+    def set_behavior_tree_provider(self, provider: Optional["BehaviorTreeProvider"]):
+        """Set behavior tree provider for agent dependency injection."""
+        self.behavior_tree_provider = provider
+
     async def connect(self, host: str = "127.0.0.1", agent_type: str = "player"):
         try:
             self.tcp_reader, self.tcp_writer = await asyncio.open_connection(
@@ -62,6 +69,7 @@ class GameClient:
 
                 # Store server game data for agent decision-making
                 self.server_game_data = response.payload.get("attack_data", {})
+                self.exploration_mode = response.payload.get("exploration_mode", "frontier")
                 logger.info(f"[CLIENT] Received game data: {len(self.server_game_data.get('attacks', {}))} attacks")
 
                 self.connected = True
@@ -87,6 +95,10 @@ class GameClient:
             self.agent = EnemyAgent(self.agent_id, x, y)
         elif agent_type == "explorer":
             self.agent = ExplorerAgent(self.agent_id, x, y)
+            # Pass exploration mode if available
+            if hasattr(self, 'exploration_mode'):
+                self.agent.exploration_mode = self.exploration_mode
+                # Defer behavior tree initialization until after provider injection
         elif agent_type == "pathfinding_test":
             # For pathfinding test, use the test agent with predefined waypoints
             test_waypoints = [
@@ -107,11 +119,22 @@ class GameClient:
         if self.agent:
             self.agent.rotation = rotation
 
+            # Inject behavior tree provider before anything else
+            if self.behavior_tree_provider:
+                self.agent.set_behavior_tree_provider(self.behavior_tree_provider)
+                logger.info(f"[CLIENT] Injected behavior tree provider into agent {self.agent_id[:8]}")
+
             # Provide server game data to agent
             if self.server_game_data:
                 if hasattr(self.agent, 'set_server_game_data'):
                     self.agent.set_server_game_data(self.server_game_data)
                     logger.info(f"[CLIENT] Provided server game data to agent {self.agent_id[:8]}")
+
+            # Initialize behavior tree now that provider is injected (for agents that deferred initialization)
+            if hasattr(self.agent, 'behavior_tree_initialized') and not self.agent.behavior_tree_initialized:
+                if hasattr(self.agent, '_initialize_behavior_tree'):
+                    self.agent._initialize_behavior_tree()
+                    logger.info(f"[CLIENT] Manually initialized behavior tree for agent {self.agent_id[:8]} after provider injection")
 
             # Set default world bounds immediately so pathfinding can work
             # These will be updated with actual bounds when world state arrives
@@ -172,13 +195,11 @@ class GameClient:
                 self.visible_entities = message.payload.get("entities", [])
                 terrain_dict = message.payload.get("terrain", {})
 
-                # Debug: Log received visibility data
-                logger.info(f"[CLIENT DEBUG] Agent {self.agent_id[:8]} received {len(self.visible_entities)} visible entities")
-                for entity in self.visible_entities:
-                    entity_type = entity.get("agent_type", "unknown")
-                    entity_id = entity.get("id", "unknown")
-                    pos = f"({entity.get('x', 0):.1f}, {entity.get('y', 0):.1f})"
-                    logger.info(f"[CLIENT DEBUG] - Received entity: {entity_id[:8]} ({entity_type}) at {pos}")
+                # Debug: Log received visibility data (reduced verbosity)
+                logger.debug(f"[VISIBILITY] Agent {self.agent_id[:8]} received {len(self.visible_entities)} visible entities")
+                if len(self.visible_entities) > 0:
+                    enemy_count = sum(1 for e in self.visible_entities if e.get("agent_type") != getattr(self.agent, 'agent_type', ''))
+                    logger.debug(f"[VISIBILITY] - Including {enemy_count} potential targets")
 
                 # Convert terrain data back to usable format
                 terrain_data = {}

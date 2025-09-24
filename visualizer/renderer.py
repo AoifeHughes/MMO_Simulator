@@ -131,8 +131,11 @@ class Renderer:
 
     def render_vision_cones(self, agents: List[Dict]):
         for agent in agents:
-            if agent.get("agent_type") == "player":
-                x, y = self.world_to_screen(agent["x"], agent["y"])
+            agent_type = agent.get("agent_type")
+            x, y = self.world_to_screen(agent["x"], agent["y"])
+
+            if agent_type == "player":
+                # Cone vision for players
                 rotation = agent.get("rotation", 0)
                 vision_range = 10 * TILE_SIZE * self.zoom
                 vision_angle = 90
@@ -153,6 +156,16 @@ class Renderer:
                     )
                     pygame.draw.polygon(vision_surface, (255, 255, 100, 30), points)
                     self.screen.blit(vision_surface, (0, 0))
+
+            elif agent_type == "explorer":
+                # Circle vision for explorers
+                vision_range = 10 * TILE_SIZE * self.zoom
+                vision_surface = pygame.Surface(
+                    (self.screen_width, self.screen_height), pygame.SRCALPHA
+                )
+                pygame.draw.circle(vision_surface, (255, 165, 0, 40), (int(x), int(y)), int(vision_range))
+                pygame.draw.circle(self.screen, (255, 165, 0, 100), (int(x), int(y)), int(vision_range), 2)
+                self.screen.blit(vision_surface, (0, 0))
 
     def render_minimap(self, world_map, agents: List[Dict]):
         minimap_size = 200

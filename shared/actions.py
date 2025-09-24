@@ -39,6 +39,15 @@ class ActionType(Enum):
     PICK_UP_ITEM = "pick_up_item"         # Collect item from ground
     CRAFT_ITEM = "craft_item"             # Create item from resources
 
+    # Inventory Actions
+    QUERY_INVENTORY = "query_inventory"   # Get inventory state
+    EQUIP_ITEM = "equip_item"            # Equip item from inventory
+    UNEQUIP_ITEM = "unequip_item"        # Unequip item to inventory
+    DROP_ITEM = "drop_item"              # Drop item from inventory
+
+    # Special Actions
+    FISH = "fish"                        # Use fishing rod at water
+
     # System Actions
     PING = "ping"                         # Network latency test
     HEARTBEAT = "heartbeat"               # Keep connection alive
@@ -264,3 +273,33 @@ def chat_message_params(message: str, channel: str = "general") -> Dict[str, Any
         "message": message,
         "channel": channel,
     }
+
+
+def equip_item_params(item_id: str) -> Dict[str, Any]:
+    """Parameters for EQUIP_ITEM action"""
+    return {
+        "item_id": item_id,
+    }
+
+
+def unequip_item_params(slot: str) -> Dict[str, Any]:
+    """Parameters for UNEQUIP_ITEM action"""
+    return {
+        "slot": slot,  # e.g., "main_hand", "off_hand"
+    }
+
+
+def drop_item_params(item_id: str, quantity: int = 1) -> Dict[str, Any]:
+    """Parameters for DROP_ITEM action"""
+    return {
+        "item_id": item_id,
+        "quantity": quantity,
+    }
+
+
+def fish_params(x: float = None, y: float = None) -> Dict[str, Any]:
+    """Parameters for FISH action"""
+    params = {}
+    if x is not None and y is not None:
+        params.update({"target_x": x, "target_y": y})
+    return params

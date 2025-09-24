@@ -16,17 +16,31 @@ class NPCAgent(BaseAgent):
         self.home_x = x
         self.home_y = y
 
-        # Initialize behavior tree
-        self._initialize_behavior_tree()
+        # Don't initialize behavior tree yet - wait for provider injection
+        self.behavior_tree_initialized = False
 
     def _initialize_behavior_tree(self):
         """Initialize the behavior tree for this NPC agent"""
+        # Try provider-based initialization first
+        if self.behavior_tree_provider:
+            success = self.initialize_behavior_tree_from_provider(
+                wander_radius=self.wander_radius
+            )
+            if success:
+                logger.info(f"NPC {self.id[:8]} initialized with custom scenario behavior tree")
+                self.behavior_tree_initialized = True
+                return
+            else:
+                logger.warning(f"NPC {self.id[:8]} provider failed, falling back to TreeFactory")
+
+        # Fallback to TreeFactory
         tree = TreeFactory.create_tree_for_agent_type(
             "npc", self.home_x, self.home_y, wander_radius=self.wander_radius
         )
         if tree:
             self.set_behavior_tree(tree)
-            logger.info(f"NPC {self.id[:8]} initialized with behavior tree")
+            logger.info(f"NPC {self.id[:8]} initialized with TreeFactory behavior tree")
+            self.behavior_tree_initialized = True
         else:
             raise Exception(f"Failed to create behavior tree for NPC {self.id[:8]}")
 

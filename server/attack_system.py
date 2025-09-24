@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, List, Optional
 
+from shared.items import Weapon, WeaponType
+
 
 class AttackType(Enum):
     MELEE = "melee"
@@ -104,11 +106,37 @@ class AttackSystem:
             description="Thrown blade",
         )
 
-        # Character type attack assignments
+        # Character type attack assignments (for legacy support)
         self.character_attacks["player"] = ["punch", "sword_slash", "bow_shot"]
         self.character_attacks["enemy"] = ["claw", "throwing_knife"]
         self.character_attacks["npc"] = ["punch"]  # NPCs are peaceful mostly
         self.character_attacks["explorer"] = ["punch", "magic_bolt"]
+
+    def get_weapon_attack_name(self, weapon: Weapon) -> str:
+        """Get the appropriate attack name for a weapon"""
+        return weapon.get_attack_name()
+
+    def can_use_weapon(self, character_type: str, weapon: Weapon) -> bool:
+        """Check if a character type can use a specific weapon"""
+        # For now, all characters can use all weapons they possess
+        # This can be expanded for class restrictions later
+        return True
+
+    def get_best_weapon_for_distance(
+        self, weapons: List[Weapon], distance: float
+    ) -> Optional[Weapon]:
+        """Get the best weapon for attacking at a given distance"""
+        usable_weapons = []
+
+        for weapon in weapons:
+            if weapon.min_range <= distance <= weapon.max_range:
+                usable_weapons.append(weapon)
+
+        if not usable_weapons:
+            return None
+
+        # Prefer higher damage weapons
+        return max(usable_weapons, key=lambda w: w.damage)
 
     def get_character_attacks(self, character_type: str) -> List[AttackDefinition]:
         """Get all available attacks for a character type"""
@@ -122,6 +150,40 @@ class AttackSystem:
     def get_attack_definition(self, attack_name: str) -> Optional[AttackDefinition]:
         """Get a specific attack definition"""
         return self.attack_definitions.get(attack_name)
+
+    def validate_attack_with_weapon(
+        self,
+        attacker_id: str,
+        weapon: Weapon,
+        target_id: str,
+        attacker_pos: tuple,
+        target_pos: tuple,
+        last_attack_time: float = 0,
+    ) -> tuple:
+        """
+        Validate if an attack is legal using a weapon
+
+        Returns: (is_valid: bool, reason: str)
+        """
+        # Check cooldown based on weapon attack speed
+        current_time = time.time()
+        cooldown = 1.0 / weapon.attack_speed if weapon.attack_speed > 0 else 1.0
+        if current_time - last_attack_time < cooldown:
+            remaining = cooldown - (current_time - last_attack_time)
+            return False, f"Attack on cooldown ({remaining:.1f}s remaining)"
+
+        # Check range
+        dx = target_pos[0] - attacker_pos[0]
+        dy = target_pos[1] - attacker_pos[1]
+        distance = (dx * dx + dy * dy) ** 0.5
+
+        if distance < weapon.min_range:
+            return False, f"Target too close ({distance:.1f} < {weapon.min_range})"
+
+        if distance > weapon.max_range:
+            return False, f"Target too far ({distance:.1f} > {weapon.max_range})"
+
+        return True, "Valid attack"
 
     def validate_attack(
         self,

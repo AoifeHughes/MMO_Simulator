@@ -419,10 +419,11 @@ class GameServer:
         # Get visible agents for this client
         visible_agents = self.world.get_visible_agents(client.agent_id)
 
-        # Debug: Log visibility data being sent to client
-        logger.info(f"[SERVER DEBUG] Client {client_id} (agent {client.agent_id[:8]}) can see {len(visible_agents)} entities")
-        for agent in visible_agents:
-            logger.info(f"[SERVER DEBUG] - Sending entity: {agent.id[:8]} ({agent.agent_type}) at ({agent.x:.1f}, {agent.y:.1f})")
+        # Debug: Log visibility data being sent to client (reduced verbosity)
+        logger.debug(f"[VISIBILITY] Client {client_id} (agent {client.agent_id[:8]}) can see {len(visible_agents)} entities")
+        if len(visible_agents) > 0:
+            enemy_count = sum(1 for a in visible_agents if a.agent_type != getattr(self.world.get_agent(client.agent_id), 'agent_type', ''))
+            logger.debug(f"[VISIBILITY] - Including {enemy_count} potential targets")
 
         # Get terrain data within vision range
         terrain_data = self.world.get_terrain_in_vision(client.agent_id)
@@ -545,6 +546,9 @@ class ClientConnection:
             # Get attack system data for this character type
             attack_data = self.server.attack_system.get_all_attacks_for_client()
 
+            # Get agent state for additional data
+            agent_state = self.server.agent_registry.get_agent(self.agent_id)
+
             response = Message(
                 type=MessageType.SPAWN_AGENT,
                 payload={
@@ -554,6 +558,7 @@ class ClientConnection:
                     "y": agent.y,
                     "rotation": agent.rotation,
                     "attack_data": attack_data,
+                    "exploration_mode": agent_state.exploration_mode if agent_state else "frontier",
                 },
                 timestamp=time.time(),
             )

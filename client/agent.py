@@ -45,8 +45,10 @@ class BaseAgent(ABC):
         self.last_intention_change: float = (
             time.time() - 3.0
         )  # Allow immediate first intention change
-        self.intention_cooldown: float = 0.5  # 0.5 seconds between intention changes (was 3.0)
-        self.base_intention_cooldown: float = 0.5  # Original cooldown for recovery (was 3.0)
+        self.intention_cooldown: float = 2.0  # Increased to 2 seconds for better commitment
+        self.base_intention_cooldown: float = 2.0  # Base cooldown for normal situations
+        self.combat_intention_cooldown: float = 1.5  # Shorter cooldown in combat for responsiveness
+        self.emergency_intention_cooldown: float = 0.8  # Even shorter for emergencies
 
         # Collision detection (will be set when world bounds are known)
         self.collision_detector: Optional[CollisionDetector] = None
@@ -73,6 +75,15 @@ class BaseAgent(ABC):
 
         # Action manager for new request-response system (will be set by client)
         self.action_manager: Optional["ActionManager"] = None
+
+        # Behavior tree provider for dependency injection (will be set by client/scenario)
+        self.behavior_tree_provider: Optional["BehaviorTreeProvider"] = None
+
+        # Target management system for consistent target selection
+        self.target_manager: Optional["TargetManager"] = None
+
+        # Movement management system for smooth movement
+        self.movement_manager: Optional["MovementManager"] = None
 
     @abstractmethod
     def update(self, delta_time: float):
@@ -179,6 +190,24 @@ class BaseAgent(ABC):
     def force_intention(self, new_intention: str):
         """Force an intention change bypassing cooldown (for emergencies)"""
         self.set_intention(new_intention, force=True)
+
+    def adjust_intention_cooldown(self, context: str = "normal"):
+        """
+        Adjust intention cooldown based on current context.
+
+        Args:
+            context: "normal", "combat", "emergency", or "patrol"
+        """
+        if context == "emergency":
+            self.intention_cooldown = self.emergency_intention_cooldown
+        elif context == "combat":
+            self.intention_cooldown = self.combat_intention_cooldown
+        elif context == "patrol":
+            self.intention_cooldown = self.base_intention_cooldown * 1.5  # Longer for stable patrolling
+        else:
+            self.intention_cooldown = self.base_intention_cooldown
+
+        logger.debug(f"Agent {self.id[:8]} intention cooldown adjusted to {self.intention_cooldown}s for context: {context}")
 
     def check_health_recovery(self):
         """Check if health has recovered and restore normal intention cooldown"""
@@ -342,9 +371,55 @@ class BaseAgent(ABC):
         """Set the behavior tree for this agent and enable behavior tree mode"""
         self.behavior_tree = behavior_tree
         self.use_behavior_tree = True
+
+        # Initialize target manager when behavior tree is set
+        self._initialize_target_manager()
+
+        # Initialize movement manager when behavior tree is set
+        self._initialize_movement_manager()
+
         logger.debug(
             f"Agent {self.id[:8]} set to use behavior tree: {behavior_tree.name}"
         )
+
+    def set_behavior_tree_provider(self, provider: Optional["BehaviorTreeProvider"]):
+        """
+        Set the behavior tree provider for this agent.
+
+        Args:
+            provider: Provider that can create behavior trees for this agent
+        """
+        from client.behavior_tree.provider import BehaviorTreeProvider
+        self.behavior_tree_provider = provider
+        logger.debug(f"Agent {self.id[:8]} behavior tree provider set: {provider is not None}")
+
+    def initialize_behavior_tree_from_provider(self, **kwargs) -> bool:
+        """
+        Initialize behavior tree using the current provider.
+
+        Args:
+            **kwargs: Additional parameters for tree creation
+
+        Returns:
+            True if tree was successfully initialized, False otherwise
+        """
+        if not self.behavior_tree_provider:
+            logger.warning(f"Agent {self.id[:8]} has no behavior tree provider")
+            return False
+
+        try:
+            tree = self.behavior_tree_provider.get_behavior_tree(
+                self.agent_type, self.x, self.y, **kwargs
+            )
+            if tree:
+                self.set_behavior_tree(tree)
+                return True
+            else:
+                logger.warning(f"Provider returned no behavior tree for {self.agent_type}")
+                return False
+        except Exception as e:
+            logger.error(f"Error initializing behavior tree from provider for agent {self.id[:8]}: {e}")
+            return False
 
     def disable_behavior_tree(self):
         """Disable behavior tree mode and revert to legacy behavior"""
@@ -454,3 +529,29 @@ class BaseAgent(ABC):
                 nearest_entity = entity
 
         return nearest_entity
+
+    def _initialize_target_manager(self):
+        """Initialize the target management system for this agent"""
+        if not self.target_manager:
+            from client.behavior_tree.target_manager import TargetManager
+            self.target_manager = TargetManager(self.id)
+            logger.debug(f"Agent {self.id[:8]} initialized target manager")
+
+    def get_target_manager(self):
+        """Get the target manager, initializing if needed"""
+        if not self.target_manager:
+            self._initialize_target_manager()
+        return self.target_manager
+
+    def _initialize_movement_manager(self):
+        """Initialize the movement management system for this agent"""
+        if not self.movement_manager:
+            from client.behavior_tree.movement_manager import MovementManager
+            self.movement_manager = MovementManager(self.id)
+            logger.debug(f"Agent {self.id[:8]} initialized movement manager")
+
+    def get_movement_manager(self):
+        """Get the movement manager, initializing if needed"""
+        if not self.movement_manager:
+            self._initialize_movement_manager()
+        return self.movement_manager

@@ -52,14 +52,21 @@ class BehaviorNode(ABC):
         return f"{self.parent.get_path()}/{self.name}"
 
     def log_execution(self, agent, status: NodeStatus):
-        """Log node execution for debugging"""
-        # Log all important node executions for debugging
-        if (
-            status == NodeStatus.SUCCESS
-            or status == NodeStatus.FAILURE
-            or not hasattr(self, "children")
-        ):
+        """Log node execution for debugging (reduced verbosity)"""
+        # Only log significant state changes or leaf node successes/failures
+        should_log = (
+            status == NodeStatus.SUCCESS and not hasattr(self, "children")  # Leaf node success
+            or (status == NodeStatus.FAILURE and "Enemy" in self.get_path())  # Combat failures
+            or (status == NodeStatus.SUCCESS and "Attack" in self.name)  # Combat successes
+            or (status == NodeStatus.SUCCESS and "Fish" in self.name)  # Fishing successes
+        )
+
+        if should_log:
             logger.info(
+                f"[BT] Agent {agent.id[:8]} ({agent.agent_type}) - {self.get_path()}: {status.value}"
+            )
+        else:
+            logger.debug(
                 f"[BT] Agent {agent.id[:8]} ({agent.agent_type}) - {self.get_path()}: {status.value}"
             )
 

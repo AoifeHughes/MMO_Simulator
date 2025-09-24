@@ -22,6 +22,19 @@ from .base import (
 )
 from .combat_action import AttackNearestEnemy, ChaseNearestEnemy
 from .composite import Parallel, PrioritySelector, Sequence
+from .fishing_action import (
+    FishAtWater,
+    HasFishingRod,
+    MoveToFishingSpot,
+    WaterNearby,
+    WaterDiscoveredButNotNearby,
+)
+from .weapon_selection import (
+    AttackWithBestWeapon,
+    HasWeaponForRange,
+    IsInWeaponRange,
+    SelectBestWeapon,
+)
 from .condition import (
     CustomCondition,
     DistanceToTarget,
@@ -99,4 +112,15 @@ __all__ = [
     "Explore",
     "AttackNearestEnemy",
     "ChaseNearestEnemy",
+    # Fishing nodes
+    "FishAtWater",
+    "HasFishingRod",
+    "MoveToFishingSpot",
+    "WaterNearby",
+    "WaterDiscoveredButNotNearby",
+    # Weapon selection nodes
+    "AttackWithBestWeapon",
+    "HasWeaponForRange",
+    "IsInWeaponRange",
+    "SelectBestWeapon",
 ]

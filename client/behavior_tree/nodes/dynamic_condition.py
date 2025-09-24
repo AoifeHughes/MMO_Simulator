@@ -24,6 +24,10 @@ class DynamicEnemyInRange(ConditionNode):
         self.enemy_types = enemy_types or ["enemy", "player"]  # Default enemy types
         self.detected_enemy: Optional[Dict[str, Any]] = None
 
+        # Hysteresis to prevent oscillation at range boundaries
+        self.hysteresis_factor = 0.15  # 15% hysteresis
+        self.last_result = False
+
     def check_condition(self, agent) -> bool:
         self.detected_enemy = None
 
@@ -33,20 +37,30 @@ class DynamicEnemyInRange(ConditionNode):
             logger.warning(f"[DYNAMIC] Agent {agent.id[:8]} has no server data for attack '{self.attack_name}'")
             return False
 
-        attack_range = attack_data.get('max_range', 1.0)
+        base_attack_range = attack_data.get('max_range', 1.0)
+
+        # Apply hysteresis to prevent oscillation
+        if self.last_result:
+            # Currently True, use expanded range to stay True
+            attack_range = base_attack_range * (1 + self.hysteresis_factor)
+        else:
+            # Currently False, use normal range to become True
+            attack_range = base_attack_range
 
         visible_entities = getattr(agent, "visible_entities", [])
         visible_count = len(visible_entities)
 
-        # Always log visibility info for debugging
-        logger.debug(
-            f"[DYNAMIC] Agent {agent.id[:8]} ({agent.agent_type}) checking {self.attack_name} range {attack_range:.1f} with {visible_count} visible entities"
+        # Always log visibility info for debugging - TEMPORARILY FORCE INFO LEVEL
+        logger.info(
+            f"[DYNAMIC] Agent {agent.id[:8]} ({agent.agent_type}) at ({agent.x:.1f},{agent.y:.1f}) checking {self.attack_name} range {attack_range:.1f} with {visible_count} visible entities"
         )
 
         if visible_count == 0:
-            logger.debug(
+            logger.info(
                 f"[DYNAMIC] Agent {agent.id[:8]} ({agent.agent_type}) cannot see ANY entities"
             )
+            self.last_result = False
+            return False
 
         for entity in getattr(agent, "visible_entities", []):
             entity_type = entity.get("agent_type")
@@ -69,11 +83,13 @@ class DynamicEnemyInRange(ConditionNode):
 
                 if distance <= attack_range:
                     self.detected_enemy = entity
+                    self.last_result = True
                     logger.info(
                         f"[DYNAMIC] Agent {agent.id[:8]} ({agent.agent_type}) can attack {entity_type} {entity_id[:8]} with {self.attack_name} at {distance:.1f} units!"
                     )
                     return True
 
+        self.last_result = False
         return False
 
     def get_detected_enemy(self) -> Optional[Dict[str, Any]]:
@@ -86,14 +102,39 @@ class DynamicEnemyInChaseRange(ConditionNode):
 
     def __init__(self, chase_range: float, enemy_types: List[str] = None):
         super().__init__(f"DynamicEnemyInChaseRange_{chase_range}")
-        self.chase_range = chase_range
+        self.base_chase_range = chase_range
         self.enemy_types = enemy_types or ["enemy", "player"]
         self.detected_enemy: Optional[Dict[str, Any]] = None
+
+        # Hysteresis to prevent oscillation at chase boundaries
+        self.hysteresis_factor = 0.2  # 20% hysteresis for chase (larger than attack)
+        self.last_result = False
 
     def check_condition(self, agent) -> bool:
         self.detected_enemy = None
 
+        # Apply hysteresis to prevent oscillation
+        if self.last_result:
+            # Currently chasing, use expanded range to keep chasing
+            chase_range = self.base_chase_range * (1 + self.hysteresis_factor)
+        else:
+            # Not currently chasing, use normal range to start chasing
+            chase_range = self.base_chase_range
+
         visible_entities = getattr(agent, "visible_entities", [])
+        visible_count = len(visible_entities)
+
+        # TEMPORARY DEBUG - FORCE INFO LEVEL
+        logger.info(
+            f"[CHASE] Agent {agent.id[:8]} ({agent.agent_type}) at ({agent.x:.1f},{agent.y:.1f}) checking chase range {chase_range:.1f} with {visible_count} visible entities"
+        )
+
+        if visible_count == 0:
+            logger.info(
+                f"[CHASE] Agent {agent.id[:8]} ({agent.agent_type}) cannot see ANY entities for chase check"
+            )
+            self.last_result = False
+            return False
 
         for entity in visible_entities:
             entity_type = entity.get("agent_type")
@@ -104,13 +145,15 @@ class DynamicEnemyInChaseRange(ConditionNode):
                 dy = entity["y"] - agent.y
                 distance = math.sqrt(dx * dx + dy * dy)
 
-                if distance <= self.chase_range:
+                if distance <= chase_range:
                     self.detected_enemy = entity
+                    self.last_result = True
                     logger.debug(
-                        f"[DYNAMIC] Agent {agent.id[:8]} can chase {entity_type} {entity_id[:8]} at {distance:.1f} units!"
+                        f"[DYNAMIC] Agent {agent.id[:8]} can chase {entity_type} {entity_id[:8]} at {distance:.1f} units (range: {chase_range:.1f})!"
                     )
                     return True
 
+        self.last_result = False
         return False
 
     def get_detected_enemy(self) -> Optional[Dict[str, Any]]:

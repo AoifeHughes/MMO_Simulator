@@ -19,17 +19,31 @@ class EnemyAgent(BaseAgent):
         self.last_attack_time = 0
         self.aggression_level = random.uniform(0.5, 1.0)
 
-        # Initialize behavior tree
-        self._initialize_behavior_tree()
+        # Don't initialize behavior tree yet - wait for provider injection
+        self.behavior_tree_initialized = False
 
     def _initialize_behavior_tree(self):
         """Initialize the behavior tree for this Enemy agent"""
+        # Try provider-based initialization first
+        if self.behavior_tree_provider:
+            success = self.initialize_behavior_tree_from_provider(
+                patrol_radius=10.0
+            )
+            if success:
+                logger.info(f"Enemy {self.id[:8]} initialized with custom scenario behavior tree")
+                self.behavior_tree_initialized = True
+                return
+            else:
+                logger.warning(f"Enemy {self.id[:8]} provider failed, falling back to TreeFactory")
+
+        # Fallback to TreeFactory
         tree = TreeFactory.create_tree_for_agent_type(
             "enemy", self.x, self.y, patrol_radius=10.0
         )
         if tree:
             self.set_behavior_tree(tree)
-            logger.info(f"Enemy {self.id[:8]} initialized with behavior tree")
+            logger.info(f"Enemy {self.id[:8]} initialized with TreeFactory behavior tree")
+            self.behavior_tree_initialized = True
         else:
             raise Exception(f"Failed to create behavior tree for Enemy {self.id[:8]}")
 
@@ -41,12 +55,9 @@ class EnemyAgent(BaseAgent):
         """Update visible entities for behavior tree conditions"""
         self.visible_entities = visible_entities
 
-        # Debug: Log when perceive is called
-        logger.info(f"[PERCEIVE DEBUG] Enemy {self.id[:8]} perceive() called with {len(visible_entities)} entities")
-        for entity in visible_entities:
-            entity_type = entity.get("agent_type", "unknown")
-            entity_id = entity.get("id", "unknown")
-            logger.info(f"[PERCEIVE DEBUG] - Agent sees: {entity_id[:8]} ({entity_type})")
+        # Debug: Log when perceive is called (reduced verbosity)
+        player_count = sum(1 for e in visible_entities if e.get("agent_type") == "player")
+        logger.debug(f"[PERCEIVE] Enemy {self.id[:8]} perceive() called - sees {player_count} players of {len(visible_entities)} total entities")
 
     def decide(self) -> Optional[Dict[str, Any]]:
         """Decision making is now handled by the behavior tree"""

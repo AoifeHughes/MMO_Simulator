@@ -61,48 +61,123 @@ def create_explorer_tree(
 ) -> BehaviorTree:
     """
     Create behavior tree for Explorer agents.
-    Behavior: Avoid others -> Explore -> Return to base
+    Behavior: Avoid others -> Explore -> Return to base (or Fish if mode is "fishing")
     """
 
-    root = PrioritySelector(
-        "ExplorerRoot",
-        [
-            # Main exploration behavior
-            CooldownDecorator(
-                "ExploreCooldown",
-                TimerDecorator(
-                    "ExploreTimer",
-                    Explore(exploration_radius, mode),
-                    minimum_duration=3.0,
+    if mode == "fishing":
+        # Special fishing explorer behavior
+        root = PrioritySelector(
+            "FishingExplorerRoot",
+            [
+                # Priority 1: Fish at water if we're already close enough and have fishing rod
+                Sequence(
+                    "FishingBehavior",
+                    [
+                        HasFishingRod(),
+                        WaterNearby(1.2),  # Use same distance as FishAtWater for consistency
+                        CooldownDecorator(
+                            "FishingCooldown",
+                            FishAtWater(1.2),  # Use default distance parameter
+                            cooldown_duration=2.0,
+                        ),
+                    ],
                 ),
-                cooldown_duration=2.0,
-            ),
-            # Recovery behavior when stuck
-            Sequence(
-                "UnstuckBehavior",
-                [
-                    IsStuck(1.0, 2.0),
-                    CooldownDecorator(
-                        "UnstuckCooldown",
-                        Wander(home_x, home_y, 10.0),
-                        cooldown_duration=3.0,
-                    ),
-                ],
-            ),
-            # Default idle
-            Idle(1.0),
-        ],
-    )
 
-    return BehaviorTree(root, "ExplorerTree")
+                # Priority 2: Move to water if we know where it is but aren't close enough
+                Sequence(
+                    "MoveToWaterBehavior",
+                    [
+                        HasFishingRod(),
+                        WaterDiscoveredButNotNearby(1.2),  # Water is known but not fishing-close
+                        CooldownDecorator(
+                            "MoveToWaterCooldown",
+                            TimerDecorator(
+                                "MoveToWaterTimer",
+                                MoveToFishingSpot(1.2),
+                                minimum_duration=2.0,
+                            ),
+                            cooldown_duration=1.0,
+                        ),
+                    ],
+                ),
+
+                # Priority 3: Explore to find water if none discovered yet
+                CooldownDecorator(
+                    "ExplorationCooldown",
+                    TimerDecorator(
+                        "ExploreTimer",
+                        Explore(exploration_radius, "frontier"),  # Use frontier mode for water discovery
+                        minimum_duration=3.0,
+                    ),
+                    cooldown_duration=1.0,
+                ),
+
+                # Priority 4: Wander if stuck or need to move
+                Sequence(
+                    "UnstuckBehavior",
+                    [
+                        IsStuck(1.0, 2.0),
+                        CooldownDecorator(
+                            "UnstuckCooldown",
+                            Wander(home_x, home_y, 15.0),
+                            cooldown_duration=3.0,
+                        ),
+                    ],
+                ),
+
+                # Priority 5: Default idle
+                Idle(1.0),
+            ],
+        )
+
+        return BehaviorTree(root, "FishingExplorerTree")
+
+    else:
+        # Default exploration behavior
+        root = PrioritySelector(
+            "ExplorerRoot",
+            [
+                # Main exploration behavior
+                CooldownDecorator(
+                    "ExploreCooldown",
+                    TimerDecorator(
+                        "ExploreTimer",
+                        Explore(exploration_radius, mode),
+                        minimum_duration=3.0,
+                    ),
+                    cooldown_duration=2.0,
+                ),
+                # Recovery behavior when stuck
+                Sequence(
+                    "UnstuckBehavior",
+                    [
+                        IsStuck(1.0, 2.0),
+                        CooldownDecorator(
+                            "UnstuckCooldown",
+                            Wander(home_x, home_y, 10.0),
+                            cooldown_duration=3.0,
+                        ),
+                    ],
+                ),
+                # Default idle
+                Idle(1.0),
+            ],
+        )
+
+        return BehaviorTree(root, "ExplorerTree")
 
 
 def create_player_tree(
     spawn_x: float, spawn_y: float, patrol_radius: float = 8.0
 ) -> BehaviorTree:
     """
-    Create behavior tree for Player agents.
-    Behavior: Emergency -> Combat -> Patrol -> Idle
+    Create behavior tree for Player agents with improved priority structure.
+    Behavior: Emergency -> Combat Engagement -> Patrol -> Idle
+
+    Key improvements:
+    - Longer commitment durations to reduce flipping
+    - Cleaner priority hierarchy
+    - Better intention management
     """
 
     # Create patrol points around spawn
@@ -116,83 +191,106 @@ def create_player_tree(
     root = PrioritySelector(
         "PlayerRoot",
         [
-            # Emergency: Low health -> Flee
+            # Priority 1: Emergency - Low health (highest priority)
             Sequence(
-                "Emergency",
+                "EmergencyResponse",
                 [
                     HealthBelowThreshold(20.0),
-                    CooldownDecorator(
-                        "EmergencyFlee",
-                        TimerDecorator(
-                            "FleeTimer",
-                            Wander(spawn_x, spawn_y, 15.0),  # Move around spawn area
-                            minimum_duration=6.0,  # Increased for tactical consistency
+                    # Use longer timer for commitment to emergency behavior
+                    TimerDecorator(
+                        "EmergencyCommitment",
+                        CooldownDecorator(
+                            "EmergencyFlee",
+                            Wander(spawn_x, spawn_y, 15.0),
+                            cooldown_duration=1.0,  # Reduced internal cooldown
                         ),
-                        cooldown_duration=2.0,  # Reduced to allow re-evaluation
+                        minimum_duration=8.0,  # Longer commitment to fleeing
                     ),
                 ],
             ),
-            # Combat: Enemy nearby -> Chase and attack
+
+            # Priority 2: Combat Engagement (only if healthy)
             Sequence(
-                "Combat",
+                "CombatEngagement",
                 [
+                    # Must be healthy enough to fight
+                    HealthAboveThreshold(25.0),  # Hysteresis with emergency
                     DynamicEnemyInChaseRange(20.0, ["enemy"]),
-                    CooldownDecorator(
-                        "CombatCooldown",
+
+                    # Combat state machine with commitment
+                    TimerDecorator(
+                        "CombatCommitment",
                         PrioritySelector(
-                            "CombatActions",
+                            "CombatStateMachine",
                             [
-                                # Attack if close enough (uses server sword_slash range)
+                                # State 1: Attack if in range
                                 Sequence(
-                                    "AttackSequence",
+                                    "AttackState",
                                     [
                                         DynamicEnemyInRange("sword_slash", ["enemy"]),
-                                        TimerDecorator(
-                                            "AttackTimer",
+                                        CooldownDecorator(
+                                            "AttackExecution",
                                             AttackNearestEnemy(
                                                 attack_name="sword_slash",
-                                                damage=15.0,  # Legacy fallback
-                                                attack_range=2.5,  # Match server definition
+                                                damage=15.0,
+                                                attack_range=2.5,
                                                 enemy_types=["enemy"],
                                             ),
-                                            minimum_duration=1.0,
+                                            cooldown_duration=1.2,  # Attack cooldown
                                         ),
                                     ],
                                 ),
-                                # Otherwise chase (more responsive timing)
-                                TimerDecorator(
-                                    "ChaseTimer",
+
+                                # State 2: Chase to get in range
+                                CooldownDecorator(
+                                    "ChaseExecution",
                                     ChaseNearestEnemy(
-                                        enemy_types=["enemy"], chase_range=20.0
+                                        enemy_types=["enemy"],
+                                        chase_range=20.0
                                     ),
-                                    minimum_duration=0.2,
+                                    cooldown_duration=0.3,  # Faster chase updates
                                 ),
                             ],
                         ),
-                        cooldown_duration=0.5,
+                        minimum_duration=3.0,  # Commit to combat for 3 seconds minimum
                     ),
                 ],
             ),
-            # Patrol behavior
+
+            # Priority 3: Patrol (peaceful behavior)
             CooldownDecorator(
-                "PatrolCooldown",
-                Patrol(patrol_points),
-                cooldown_duration=1.0,
+                "PatrolBehavior",
+                TimerDecorator(
+                    "PatrolCommitment",
+                    Patrol(patrol_points),
+                    minimum_duration=4.0,  # Commit to patrol route
+                ),
+                cooldown_duration=2.0,
             ),
-            # Default idle
-            Idle(2.0),
+
+            # Priority 4: Idle (lowest priority fallback)
+            TimerDecorator(
+                "IdleCommitment",
+                Idle(3.0),  # Longer idle periods
+                minimum_duration=2.0,
+            ),
         ],
     )
 
-    return BehaviorTree(root, "PlayerTree")
+    return BehaviorTree(root, "ImprovedPlayerTree")
 
 
 def create_enemy_tree(
     spawn_x: float, spawn_y: float, patrol_radius: float = 10.0
 ) -> BehaviorTree:
     """
-    Create behavior tree for Enemy agents.
+    Create behavior tree for Enemy agents with improved aggression and commitment.
     Behavior: Hunt players -> Combat -> Patrol -> Idle
+
+    Key improvements:
+    - More aggressive hunting behavior
+    - Better commitment to combat once engaged
+    - Longer pursuit range for enemies
     """
 
     # Create patrol points around spawn
@@ -206,59 +304,73 @@ def create_enemy_tree(
     root = PrioritySelector(
         "EnemyRoot",
         [
-            # Hunt and combat - highest priority
+            # Priority 1: Aggressive hunting and combat
             Sequence(
-                "HuntCombat",
+                "AggressiveHunt",
                 [
-                    DynamicEnemyInChaseRange(15.0, ["player"]),
-                    CooldownDecorator(
-                        "HuntCooldown",
+                    DynamicEnemyInChaseRange(18.0, ["player"]),  # Longer pursuit range
+
+                    # Combat commitment - stick with it once engaged
+                    TimerDecorator(
+                        "CombatCommitment",
                         PrioritySelector(
-                            "HuntActions",
+                            "CombatStateMachine",
                             [
-                                # Attack if in range (uses server claw range)
+                                # State 1: Claw attack if in range
                                 Sequence(
-                                    "AttackSequence",
+                                    "ClawAttackState",
                                     [
                                         DynamicEnemyInRange("claw", ["player"]),
-                                        TimerDecorator(
-                                            "AttackTimer",
+                                        CooldownDecorator(
+                                            "ClawAttackExecution",
                                             AttackNearestEnemy(
                                                 attack_name="claw",
-                                                damage=12.0,  # Legacy fallback
-                                                attack_range=1.8,  # Match server definition
+                                                damage=12.0,
+                                                attack_range=1.8,
                                                 enemy_types=["player"],
                                             ),
-                                            minimum_duration=0.8,
+                                            cooldown_duration=0.9,  # Slightly faster attacks
                                         ),
                                     ],
                                 ),
-                                # Chase if farther away (more responsive timing)
-                                TimerDecorator(
-                                    "ChaseTimer",
+
+                                # State 2: Aggressive pursuit
+                                CooldownDecorator(
+                                    "AggressivePursuit",
                                     ChaseNearestEnemy(
-                                        enemy_types=["player"], chase_range=15.0
+                                        enemy_types=["player"],
+                                        chase_range=18.0  # Extended chase range
                                     ),
-                                    minimum_duration=0.2,
+                                    cooldown_duration=0.2,  # Very responsive chasing
                                 ),
                             ],
                         ),
-                        cooldown_duration=0.5,
+                        minimum_duration=4.0,  # Longer combat commitment than players
                     ),
                 ],
             ),
-            # Patrol when no targets
+
+            # Priority 2: Patrol when no players detected
             CooldownDecorator(
-                "PatrolCooldown",
-                Patrol(patrol_points),
-                cooldown_duration=1.0,
+                "HuntPatrol",
+                TimerDecorator(
+                    "PatrolCommitment",
+                    Patrol(patrol_points),
+                    minimum_duration=3.0,  # Shorter patrol commitment (ready to hunt)
+                ),
+                cooldown_duration=1.5,
             ),
-            # Default idle
-            Idle(1.5),
+
+            # Priority 3: Alert idle (scanning for targets)
+            TimerDecorator(
+                "AlertIdle",
+                Idle(2.0),  # Shorter idle periods
+                minimum_duration=1.0,
+            ),
         ],
     )
 
-    return BehaviorTree(root, "EnemyTree")
+    return BehaviorTree(root, "ImprovedEnemyTree")
 
 
 class TreeFactory:

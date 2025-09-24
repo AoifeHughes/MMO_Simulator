@@ -106,6 +106,15 @@ class SimulatorApp:
             agent_type = agent_data.agent_type
             if agent_type in ["explorer", "npc", "enemy", "player", "pathfinding_test"]:
                 client = GameClient()
+
+                # Inject behavior tree provider from scenario if available
+                if scenario and hasattr(scenario, 'get_custom_behavior_tree'):
+                    from client.behavior_tree.provider import BehaviorTreeInjector, ScenarioTreeProvider
+                    scenario_provider = ScenarioTreeProvider(scenario)
+                    injector = BehaviorTreeInjector(scenario_provider)
+                    client.set_behavior_tree_provider(injector)
+                    logger.info(f"Injected scenario behavior tree provider for {agent_type}")
+
                 connected = await client.connect(agent_type=agent_type)
                 if connected:
                     self.agent_clients.append(client)

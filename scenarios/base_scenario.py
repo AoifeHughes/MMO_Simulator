@@ -1,9 +1,12 @@
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from world.terrain_generator import TerrainType
+
+if TYPE_CHECKING:
+    from client.behavior_tree.tree import BehaviorTree
 
 logger = logging.getLogger(__name__)
 
@@ -51,3 +54,29 @@ class BaseScenario(ABC):
             "agent_count": len(self.agents),
             "visualization": self.visualization_enabled,
         }
+
+    def get_custom_behavior_tree(self, agent_type: str, agent_x: float, agent_y: float) -> Optional["BehaviorTree"]:
+        """
+        Get custom behavior tree for agent in this scenario.
+
+        Args:
+            agent_type: Type of agent ("explorer", "player", etc.)
+            agent_x: Agent's spawn X position
+            agent_y: Agent's spawn Y position
+
+        Returns:
+            BehaviorTree instance or None if scenario uses default trees
+        """
+        return None
+
+    def has_custom_behavior_tree(self, agent_type: str) -> bool:
+        """
+        Check if scenario provides custom behavior tree for agent type.
+
+        Args:
+            agent_type: Type of agent to check
+
+        Returns:
+            True if scenario provides custom tree for this agent type
+        """
+        return self.get_custom_behavior_tree(agent_type, 0, 0) is not None

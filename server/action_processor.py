@@ -12,6 +12,7 @@ It provides:
 
 import asyncio
 import logging
+import random
 import time
 from abc import ABC, abstractmethod
 from collections import defaultdict, deque
@@ -25,6 +26,8 @@ from shared.actions import (
     ActionResult,
     ActionType,
 )
+from shared.items import create_item, EquipmentSlot
+from world.tiles import TileType
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +104,8 @@ class CooldownValidator(ActionValidator):
             ActionType.USE_ITEM: 0.5,
             ActionType.TELEPORT: 30.0,
             ActionType.TRADE_REQUEST: 5.0,
+            ActionType.FISH: 1.0,  # Fishing attempt cooldown
+            ActionType.EQUIP_ITEM: 0.2,  # Equipment swap cooldown
         }
         # (agent_id, action_type) -> last_use_timestamp
         self.last_use: Dict[Tuple[str, ActionType], float] = {}
@@ -210,6 +215,118 @@ class CombatValidator(ActionValidator):
         return {ActionType.ATTACK_TARGET, ActionType.CAST_SPELL}
 
 
+class InventoryValidator(ActionValidator):
+    """Validates inventory-related actions"""
+
+    def validate(self, request: ActionRequest, context: ActionContext) -> Tuple[bool, str]:
+        agent = context.agent_registry.get_agent(request.agent_id)
+        if not agent or not agent.is_alive:
+            return False, "Agent not found or dead"
+
+        if request.action_type == ActionType.QUERY_INVENTORY:
+            return True, ""
+
+        elif request.action_type == ActionType.EQUIP_ITEM:
+            item_id = request.parameters.get("item_id")
+            if not item_id:
+                return False, "Missing item_id"
+
+            item = agent.inventory.get_item_by_id(item_id)
+            if not item:
+                return False, "Item not found in inventory"
+
+            return True, ""
+
+        elif request.action_type == ActionType.UNEQUIP_ITEM:
+            slot_name = request.parameters.get("slot")
+            if not slot_name:
+                return False, "Missing slot"
+
+            try:
+                slot = EquipmentSlot(slot_name)
+                if agent.inventory.equipped_items.get(slot) is None:
+                    return False, f"No item equipped in {slot_name}"
+
+                if not agent.inventory.has_space_for_item(
+                    agent.inventory.equipped_items[slot], 1
+                ):
+                    return False, "Inventory full, cannot unequip"
+            except ValueError:
+                return False, f"Invalid equipment slot: {slot_name}"
+
+            return True, ""
+
+        elif request.action_type == ActionType.USE_ITEM:
+            item_id = request.parameters.get("item_id")
+            if not item_id:
+                return False, "Missing item_id"
+
+            item = agent.inventory.get_item_by_id(item_id)
+            if not item:
+                return False, "Item not found in inventory"
+
+            return True, ""
+
+        return True, ""
+
+    def get_supported_actions(self) -> Set[ActionType]:
+        return {
+            ActionType.QUERY_INVENTORY,
+            ActionType.EQUIP_ITEM,
+            ActionType.UNEQUIP_ITEM,
+            ActionType.USE_ITEM,
+        }
+
+
+class FishingValidator(ActionValidator):
+    """Validates fishing actions"""
+
+    def validate(self, request: ActionRequest, context: ActionContext) -> Tuple[bool, str]:
+        if request.action_type != ActionType.FISH:
+            return True, ""
+
+        agent = context.agent_registry.get_agent(request.agent_id)
+        if not agent or not agent.is_alive:
+            return False, "Agent not found or dead"
+
+        # Check if agent has fishing rod
+        fishing_rods = [item for item in agent.inventory.get_items_by_type("tool")
+                      if hasattr(item, 'tool_type') and item.tool_type == "fishing"]
+        if not fishing_rods:
+            return False, "No fishing rod in inventory"
+
+        # Get target position (agent's current position if not specified)
+        target_x = request.parameters.get("target_x", agent.position[0])
+        target_y = request.parameters.get("target_y", agent.position[1])
+
+        # Check if target location has water
+        world_map = context.world.world_map
+        tile_x, tile_y = int(target_x), int(target_y)
+
+        if not (0 <= tile_x < world_map.width and 0 <= tile_y < world_map.height):
+            return False, "Target location out of bounds"
+
+        tile_type = world_map.get_tile(tile_x, tile_y)
+        if tile_type != TileType.WATER:
+            return False, "Can only fish at water locations"
+
+        # Check distance (must be close to water)
+        distance = ((target_x - agent.position[0]) ** 2 + (target_y - agent.position[1]) ** 2) ** 0.5
+
+        # Debug logging for fishing distance validation
+        logger.debug(f"🎣 Fishing validation: Agent {agent.agent_id[:8]} at ({agent.position[0]:.2f}, {agent.position[1]:.2f}) wants to fish at ({target_x}, {target_y}), distance: {distance:.2f}")
+
+        max_fishing_distance = 1.5  # More generous than client's 0.5 to account for positioning errors
+        if distance > max_fishing_distance:
+            logger.warning(f"🎣 Fishing rejected: Agent {agent.agent_id[:8]} distance {distance:.2f} > {max_fishing_distance} limit")
+            return False, f"Too far from water to fish (distance: {distance:.2f}, max: {max_fishing_distance})"
+
+        return True, ""
+
+    def get_supported_actions(self) -> Set[ActionType]:
+        return {ActionType.FISH}
+
+
 class ActionProcessor:
     """Main action processing engine"""
 
@@ -224,6 +341,8 @@ class ActionProcessor:
             CooldownValidator(),
             MovementValidator(),
             CombatValidator(),
+            InventoryValidator(),
+            FishingValidator(),
         ]
 
         # Processing queues by priority
@@ -352,6 +471,16 @@ class ActionProcessor:
                 return await self._execute_attack_target(request, context)
             elif request.action_type == ActionType.STOP_MOVEMENT:
                 return await self._execute_stop_movement(request, context)
+            elif request.action_type == ActionType.QUERY_INVENTORY:
+                return await self._execute_query_inventory(request, context)
+            elif request.action_type == ActionType.EQUIP_ITEM:
+                return await self._execute_equip_item(request, context)
+            elif request.action_type == ActionType.UNEQUIP_ITEM:
+                return await self._execute_unequip_item(request, context)
+            elif request.action_type == ActionType.USE_ITEM:
+                return await self._execute_use_item(request, context)
+            elif request.action_type == ActionType.FISH:
+                return await self._execute_fish(request, context)
             else:
                 return ActionResponse(
                     action_id=request.action_id,
@@ -492,6 +621,174 @@ class ActionProcessor:
             # For now, we'll just continue (non-atomic behavior)
 
         return execution_results
+
+    async def _execute_query_inventory(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+        """Execute QUERY_INVENTORY action"""
+        agent = context.agent_registry.get_agent(request.agent_id)
+
+        return ActionResponse(
+            action_id=request.action_id,
+            agent_id=request.agent_id,
+            action_type=request.action_type,
+            result=ActionResult.APPROVED,
+            message="Inventory retrieved",
+            approved_parameters={"inventory": agent.inventory.to_dict()},
+        )
+
+    async def _execute_equip_item(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+        """Execute EQUIP_ITEM action"""
+        agent = context.agent_registry.get_agent(request.agent_id)
+        item_id = request.parameters["item_id"]
+
+        success = agent.inventory.equip_item(item_id)
+
+        if success:
+            return ActionResponse(
+                action_id=request.action_id,
+                agent_id=request.agent_id,
+                action_type=request.action_type,
+                result=ActionResult.APPROVED,
+                message="Item equipped successfully",
+                approved_parameters=request.parameters,
+            )
+        else:
+            return ActionResponse(
+                action_id=request.action_id,
+                agent_id=request.agent_id,
+                action_type=request.action_type,
+                result=ActionResult.REJECTED,
+                message="Failed to equip item",
+            )
+
+    async def _execute_unequip_item(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+        """Execute UNEQUIP_ITEM action"""
+        agent = context.agent_registry.get_agent(request.agent_id)
+        slot = EquipmentSlot(request.parameters["slot"])
+
+        success = agent.inventory.unequip_item(slot)
+
+        if success:
+            return ActionResponse(
+                action_id=request.action_id,
+                agent_id=request.agent_id,
+                action_type=request.action_type,
+                result=ActionResult.APPROVED,
+                message="Item unequipped successfully",
+                approved_parameters=request.parameters,
+            )
+        else:
+            return ActionResponse(
+                action_id=request.action_id,
+                agent_id=request.agent_id,
+                action_type=request.action_type,
+                result=ActionResult.REJECTED,
+                message="Failed to unequip item",
+            )
+
+    async def _execute_use_item(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+        """Execute USE_ITEM action"""
+        agent = context.agent_registry.get_agent(request.agent_id)
+        item_id = request.parameters["item_id"]
+
+        item = agent.inventory.get_item_by_id(item_id)
+        if not item:
+            return ActionResponse(
+                action_id=request.action_id,
+                agent_id=request.agent_id,
+                action_type=request.action_type,
+                result=ActionResult.REJECTED,
+                message="Item not found",
+            )
+
+        # Use the item
+        use_result = item.use(request.agent_id, context.world)
+
+        if use_result.get("success", False):
+            # Remove consumable items
+            if item.item_type.value == "consumable":
+                agent.inventory.remove_item_by_id(item_id)
+
+            # Apply effects (healing, etc.)
+            if use_result.get("effect_type") == "heal":
+                heal_amount = use_result.get("effect_value", 0)
+                agent.heal(heal_amount)
+
+            return ActionResponse(
+                action_id=request.action_id,
+                agent_id=request.agent_id,
+                action_type=request.action_type,
+                result=ActionResult.APPROVED,
+                message=use_result.get("message", "Item used successfully"),
+                approved_parameters={"effect": use_result},
+            )
+        else:
+            return ActionResponse(
+                action_id=request.action_id,
+                agent_id=request.agent_id,
+                action_type=request.action_type,
+                result=ActionResult.REJECTED,
+                message=use_result.get("message", "Failed to use item"),
+            )
+
+    async def _execute_fish(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+        """Execute FISH action"""
+        agent = context.agent_registry.get_agent(request.agent_id)
+
+        # Fishing takes 1-5 seconds randomly
+        fishing_time = random.uniform(1.0, 5.0)
+        await asyncio.sleep(fishing_time)
+
+        # Random chance to catch a fish (80% success rate)
+        if random.random() < 0.8:
+            fish = create_item("fish")
+            logger.debug(f"Created fish item: {fish}, name: {fish.name if fish else 'None'}")
+
+            if fish and agent.inventory.has_space_for_item(fish, 1):
+                # Add item to inventory
+                added_count = agent.inventory.add_item(fish, 1)
+                logger.debug(f"Attempted to add 1 fish, actually added: {added_count}")
+
+                logger.info(f"🎣 Agent {agent.agent_id[:8]} caught a fish!")
+                print(f"🎣 Agent {agent.agent_id[:8]} caught a fish!")
+
+                return ActionResponse(
+                    action_id=request.action_id,
+                    agent_id=request.agent_id,
+                    action_type=request.action_type,
+                    result=ActionResult.APPROVED,
+                    message=f"Caught a fish! (took {fishing_time:.1f} seconds)",
+                    approved_parameters={
+                        "caught_item": fish.to_dict(),
+                        "fishing_time": fishing_time,
+                        "success": True
+                    },
+                )
+            else:
+                logger.warning(f"🎣 Agent {agent.agent_id[:8]} caught a fish but inventory is full!")
+                print(f"🎣 Agent {agent.agent_id[:8]} caught a fish but inventory is full!")
+
+                return ActionResponse(
+                    action_id=request.action_id,
+                    agent_id=request.agent_id,
+                    action_type=request.action_type,
+                    result=ActionResult.REJECTED,
+                    message=f"Caught a fish but inventory is full (took {fishing_time:.1f} seconds)",
+                )
+        else:
+            logger.info(f"🎣 Agent {agent.agent_id[:8]} fishing unsuccessful (no catch).")
+            print(f"🎣 Agent {agent.agent_id[:8]} fishing unsuccessful (no catch).")
+
+            return ActionResponse(
+                action_id=request.action_id,
+                agent_id=request.agent_id,
+                action_type=request.action_type,
+                result=ActionResult.APPROVED,
+                message=f"Fishing unsuccessful (took {fishing_time:.1f} seconds)",
+                approved_parameters={
+                    "fishing_time": fishing_time,
+                    "success": False
+                },
+            )
 
     def get_stats(self) -> Dict[str, Any]:
         """Get processing statistics"""

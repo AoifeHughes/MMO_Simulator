@@ -294,6 +294,23 @@ class ActionManager:
             prediction.confirmed = True
             logger.debug(f"Prediction confirmed for action {request.action_id}")
 
+        # Special handling for fishing actions
+        if request.action_type == ActionType.FISH:
+            # Extract fishing results from response
+            success = response.approved_parameters.get("success", False)
+            caught_item = response.approved_parameters.get("caught_item")
+            fishing_time = response.approved_parameters.get("fishing_time", 0)
+
+            if success and caught_item:
+                logger.info(f"🎣 Agent {self.agent_id[:8]} successfully caught a fish!")
+                print(f"🎣 Agent {self.agent_id[:8]} successfully caught a fish! (took {fishing_time:.1f}s)")
+
+                # Query server for current inventory state to get accurate fish count
+                await self._query_inventory_and_report_fish(fishing_time)
+            else:
+                logger.info(f"🎣 Agent {self.agent_id[:8]} completed fishing (no catch this time)")
+                print(f"🎣 Agent {self.agent_id[:8]} completed fishing (no catch this time, took {fishing_time:.1f}s)")
+
     async def _handle_modified_action(
         self, request: ActionRequest, response: ActionResponse, prediction: Optional[PredictionState]
     ):
@@ -313,7 +330,13 @@ class ActionManager:
         """Handle server rejection of action"""
         if prediction and not prediction.rollback_applied:
             await self._apply_rollback(prediction)
-            logger.debug(f"Rolled back prediction for rejected action {request.action_id}")
+
+        # Special handling for rejected fishing actions
+        if request.action_type == ActionType.FISH:
+            logger.warning(f"🎣 Agent {self.agent_id[:8]} fishing was rejected: {response.message}")
+            print(f"🎣 Agent {self.agent_id[:8]} fishing was rejected: {response.message}")
+
+        logger.debug(f"Rolled back prediction for rejected action {request.action_id}")
 
         # Check if we should retry
         if request.retry_count < request.max_retries and self._should_retry(response):
@@ -394,6 +417,46 @@ class ActionManager:
             if prediction and not prediction.confirmed and not prediction.rollback_applied:
                 await self._apply_rollback(prediction)
                 logger.warning(f"Rolled back expired prediction for action {action_id}")
+
+    async def _query_inventory_and_report_fish(self, fishing_time: float):
+        """Query server inventory and report current fish count after successful fishing"""
+        try:
+            # Request inventory from server
+            inventory_action_id = await self.request_action(
+                action_type=ActionType.QUERY_INVENTORY,
+                parameters={},
+                predict=False
+            )
+
+            # Note: The response will be handled by handle_response, but we need to track it
+            # to extract inventory data when it arrives. For now, we'll register a temporary
+            # callback to handle inventory responses specifically for fishing.
+            async def handle_inventory_response(request: ActionRequest, response: ActionResponse, prediction):
+                if (request.action_id == inventory_action_id and
+                    response.result == ActionResult.APPROVED and
+                    "inventory" in response.approved_parameters):
+
+                    inventory_data = response.approved_parameters["inventory"]
+
+                    # Count fish items from server inventory
+                    fish_count = 0
+                    for slot in inventory_data.get("slots", []):
+                        if slot.get("item") and slot["item"].get("name") == "Fresh Fish":
+                            fish_count += slot.get("quantity", 0)
+
+                    # Report the authoritative fish count
+                    logger.info(f"🎣 Agent {self.agent_id[:8]} fish inventory updated - Total fish: {fish_count}")
+                    print(f"🎣 Agent {self.agent_id[:8]} fish inventory updated - Total fish: {fish_count}")
+
+                    # Remove this temporary callback
+                    if handle_inventory_response in self.action_callbacks[ActionType.QUERY_INVENTORY]:
+                        self.action_callbacks[ActionType.QUERY_INVENTORY].remove(handle_inventory_response)
+
+            # Register temporary callback
+            self.register_action_callback(ActionType.QUERY_INVENTORY, handle_inventory_response)
+
+        except Exception as e:
+            logger.error(f"Error querying inventory after fishing: {e}")
 
     def get_stats(self) -> Dict[str, Any]:
         """Get action manager statistics"""

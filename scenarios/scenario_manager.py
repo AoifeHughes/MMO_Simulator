@@ -3,11 +3,15 @@ from typing import Any, Dict, List, Optional
 
 from scenarios.base_scenario import BaseScenario
 from scenarios.basic_combat import BasicCombatScenario
+from scenarios.dual_weapon_combat import DualWeaponCombatScenario
 from scenarios.duel_test import DuelTestScenario
 from scenarios.exploration_demo import ExplorationDemoScenario
+from scenarios.fishing_exploration import FishingExplorationScenario
 from scenarios.pathfinding_demo import PathfindingDemoScenario
 from scenarios.peaceful_village import PeacefulVillageScenario
 from scenarios.simple_duel import SimpleDuelScenario
+from scenarios.test_combat_simple import TestCombatSimpleScenario
+from scenarios.test_fishing_simple import TestFishingSimpleScenario
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +31,10 @@ class ScenarioManager:
             PeacefulVillageScenario(),
             PathfindingDemoScenario(),
             SimpleDuelScenario(),
+            FishingExplorationScenario(),
+            DualWeaponCombatScenario(),
+            TestCombatSimpleScenario(),
+            TestFishingSimpleScenario(),
         ]
 
         for scenario in scenarios:
