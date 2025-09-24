@@ -145,6 +145,14 @@ class GameClient:
                 self.visible_entities = message.payload.get("entities", [])
                 terrain_dict = message.payload.get("terrain", {})
 
+                # Debug: Log received visibility data
+                logger.info(f"[CLIENT DEBUG] Agent {self.agent_id[:8]} received {len(self.visible_entities)} visible entities")
+                for entity in self.visible_entities:
+                    entity_type = entity.get("agent_type", "unknown")
+                    entity_id = entity.get("id", "unknown")
+                    pos = f"({entity.get('x', 0):.1f}, {entity.get('y', 0):.1f})"
+                    logger.info(f"[CLIENT DEBUG] - Received entity: {entity_id[:8]} ({entity_type}) at {pos}")
+
                 # Convert terrain data back to usable format
                 terrain_data = {}
                 for coord_str, tile_value in terrain_dict.items():
@@ -217,6 +225,13 @@ class GameClient:
     async def update_agent(self):
         if not self.agent:
             return
+
+        # Ensure agent has latest visibility data before each update
+        # Initialize empty list if not yet received
+        if not hasattr(self, 'visible_entities'):
+            self.visible_entities = []
+
+        self.agent.perceive(self.visible_entities)
 
         delta_time = 0.016
         self.agent.update(delta_time)

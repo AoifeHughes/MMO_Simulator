@@ -76,6 +76,15 @@ class AttackNearestEnemy(ActionNode):
         if distance > self.attack_range:
             return NodeStatus.FAILURE
 
+        # Stop movement and face target during attack
+        agent.velocity_x = 0
+        agent.velocity_y = 0
+
+        # Calculate rotation to face target
+        target_angle = math.degrees(math.atan2(dy, dx))
+        agent.rotation = target_angle
+
+
         # Perform attack
         self.last_attack_time = current_time
         setattr(agent, "last_attack_time", current_time)
@@ -104,6 +113,9 @@ class AttackNearestEnemy(ActionNode):
         return NodeStatus.SUCCESS
 
     def stop_action(self, agent):
+        # Stop movement when attack action ends
+        agent.velocity_x = 0
+        agent.velocity_y = 0
         self.current_target = None
 
     def _find_nearest_enemy(self, agent) -> Optional[Dict[str, Any]]:
@@ -191,8 +203,10 @@ class ChaseNearestEnemy(ActionNode):
                     f"[CHASE] Agent {agent.id[:8]} updated chase velocity toward {self.current_target['id'][:8]}"
                 )
 
-        # Success when close enough for attack
-        if distance <= 3.0:  # Close enough to attack
+        # Success when close enough for attack - use smaller attack range for coordination
+        if distance <= 2.0:  # Allow room for different attack ranges
+            agent.velocity_x = 0
+            agent.velocity_y = 0
             return NodeStatus.SUCCESS
 
         return NodeStatus.RUNNING

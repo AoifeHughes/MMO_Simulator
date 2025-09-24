@@ -67,7 +67,6 @@ class VisionSystem:
 
             if self.world_map.blocks_vision(tile_x, tile_y):
                 return False
-
         return True
 
     def get_entities_in_vision(

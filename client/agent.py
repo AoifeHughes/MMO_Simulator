@@ -45,8 +45,8 @@ class BaseAgent(ABC):
         self.last_intention_change: float = (
             time.time() - 3.0
         )  # Allow immediate first intention change
-        self.intention_cooldown: float = 3.0  # 3 seconds between intention changes
-        self.base_intention_cooldown: float = 3.0  # Original cooldown for recovery
+        self.intention_cooldown: float = 0.5  # 0.5 seconds between intention changes (was 3.0)
+        self.base_intention_cooldown: float = 0.5  # Original cooldown for recovery (was 3.0)
 
         # Collision detection (will be set when world bounds are known)
         self.collision_detector: Optional[CollisionDetector] = None

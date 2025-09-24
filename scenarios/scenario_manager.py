@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 
 from scenarios.base_scenario import BaseScenario
 from scenarios.basic_combat import BasicCombatScenario
+from scenarios.duel_test import DuelTestScenario
 from scenarios.exploration_demo import ExplorationDemoScenario
 from scenarios.pathfinding_demo import PathfindingDemoScenario
 from scenarios.peaceful_village import PeacefulVillageScenario
@@ -22,6 +23,7 @@ class ScenarioManager:
         scenarios = [
             ExplorationDemoScenario(),
             BasicCombatScenario(),
+            DuelTestScenario(),
             PeacefulVillageScenario(),
             PathfindingDemoScenario(),
             SimpleDuelScenario(),

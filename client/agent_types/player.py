@@ -39,6 +39,13 @@ class PlayerAgent(BaseAgent):
         """Update visible entities for behavior tree conditions"""
         self.visible_entities = visible_entities
 
+        # Debug: Log when perceive is called
+        logger.info(f"[PERCEIVE DEBUG] Player {self.id[:8]} perceive() called with {len(visible_entities)} entities")
+        for entity in visible_entities:
+            entity_type = entity.get("agent_type", "unknown")
+            entity_id = entity.get("id", "unknown")
+            logger.info(f"[PERCEIVE DEBUG] - Agent sees: {entity_id[:8]} ({entity_type})")
+
     def decide(self) -> Optional[Dict[str, Any]]:
         """Decision making is now handled by the behavior tree"""
         return None

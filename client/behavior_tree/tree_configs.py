@@ -142,30 +142,30 @@ def create_player_tree(
                         PrioritySelector(
                             "CombatActions",
                             [
-                                # Attack if close enough
+                                # Attack if close enough (matches server sword_slash range)
                                 Sequence(
                                     "AttackSequence",
                                     [
-                                        EnemyInRange(3.0, ["enemy"]),
+                                        EnemyInRange(2.5, ["enemy"]),
                                         TimerDecorator(
                                             "AttackTimer",
                                             AttackNearestEnemy(
                                                 attack_name="sword_slash",
                                                 damage=15.0,  # Legacy fallback
-                                                attack_range=3.0,  # Legacy fallback
+                                                attack_range=2.5,  # Match server definition
                                                 enemy_types=["enemy"],
                                             ),
                                             minimum_duration=1.0,
                                         ),
                                     ],
                                 ),
-                                # Otherwise chase
+                                # Otherwise chase (more responsive timing)
                                 TimerDecorator(
                                     "ChaseTimer",
                                     ChaseNearestEnemy(
                                         enemy_types=["enemy"], chase_range=20.0
                                     ),
-                                    minimum_duration=0.5,
+                                    minimum_duration=0.2,
                                 ),
                             ],
                         ),
@@ -176,9 +176,7 @@ def create_player_tree(
             # Patrol behavior
             CooldownDecorator(
                 "PatrolCooldown",
-                TimerDecorator(
-                    "PatrolTimer", Patrol(patrol_points), minimum_duration=2.0
-                ),
+                Patrol(patrol_points),
                 cooldown_duration=1.0,
             ),
             # Default idle
@@ -218,30 +216,30 @@ def create_enemy_tree(
                         PrioritySelector(
                             "HuntActions",
                             [
-                                # Attack if in range
+                                # Attack if in range (matches server claw range)
                                 Sequence(
                                     "AttackSequence",
                                     [
-                                        EnemyInRange(2.0, ["player"]),
+                                        EnemyInRange(1.8, ["player"]),
                                         TimerDecorator(
                                             "AttackTimer",
                                             AttackNearestEnemy(
                                                 attack_name="claw",
                                                 damage=12.0,  # Legacy fallback
-                                                attack_range=2.0,  # Legacy fallback
+                                                attack_range=1.8,  # Match server definition
                                                 enemy_types=["player"],
                                             ),
                                             minimum_duration=0.8,
                                         ),
                                     ],
                                 ),
-                                # Chase if farther away
+                                # Chase if farther away (more responsive timing)
                                 TimerDecorator(
                                     "ChaseTimer",
                                     ChaseNearestEnemy(
                                         enemy_types=["player"], chase_range=15.0
                                     ),
-                                    minimum_duration=0.5,
+                                    minimum_duration=0.2,
                                 ),
                             ],
                         ),
@@ -252,9 +250,7 @@ def create_enemy_tree(
             # Patrol when no targets
             CooldownDecorator(
                 "PatrolCooldown",
-                TimerDecorator(
-                    "PatrolTimer", Patrol(patrol_points), minimum_duration=2.0
-                ),
+                Patrol(patrol_points),
                 cooldown_duration=1.0,
             ),
             # Default idle

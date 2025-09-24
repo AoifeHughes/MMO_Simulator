@@ -51,7 +51,19 @@ class EnemyInRange(ConditionNode):
     def check_condition(self, agent) -> bool:
         self.detected_enemy = None
 
-        visible_count = len(getattr(agent, "visible_entities", []))
+        visible_entities = getattr(agent, "visible_entities", [])
+        visible_count = len(visible_entities)
+
+        # Always log visibility info for debugging
+        logger.info(
+            f"[VISIBILITY DEBUG] Agent {agent.id[:8]} ({agent.agent_type}) has {visible_count} visible entities, looking for: {self.enemy_types}"
+        )
+
+        if visible_count == 0:
+            logger.warning(
+                f"[VISIBILITY DEBUG] Agent {agent.id[:8]} ({agent.agent_type}) cannot see ANY entities - vision system issue?"
+            )
+
         if visible_count > 0:
             logger.debug(
                 f"[VISIBILITY] Agent {agent.id[:8]} ({agent.agent_type}) can see {visible_count} entities, looking for: {self.enemy_types}"
@@ -62,8 +74,8 @@ class EnemyInRange(ConditionNode):
             entity_id = entity.get("id")
 
             # Debug logging to understand what we're seeing
-            logger.debug(
-                f"[VISIBILITY] Agent {agent.id[:8]} sees entity {entity_id[:8] if entity_id else 'unknown'} of type '{entity_type}'"
+            logger.info(
+                f"[VISIBILITY DEBUG] Agent {agent.id[:8]} sees entity {entity_id[:8] if entity_id else 'unknown'} of type '{entity_type}'"
             )
 
             # Fix: Use 'agent_type' instead of 'type' since entities come from AgentData.to_dict()

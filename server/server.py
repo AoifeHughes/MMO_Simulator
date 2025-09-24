@@ -237,6 +237,11 @@ class GameServer:
 
         import time
 
+        # Check if respawn_time is set
+        if agent.respawn_time is None or agent.respawn_time <= 0:
+            logger.debug(f"Agent {agent_id[:8]} has no respawn time set, skipping respawn scheduling")
+            return
+
         respawn_delay = agent.respawn_time - time.time()
         if respawn_delay > 0:
             await asyncio.sleep(respawn_delay)
@@ -400,6 +405,11 @@ class GameServer:
 
         # Get visible agents for this client
         visible_agents = self.world.get_visible_agents(client.agent_id)
+
+        # Debug: Log visibility data being sent to client
+        logger.info(f"[SERVER DEBUG] Client {client_id} (agent {client.agent_id[:8]}) can see {len(visible_agents)} entities")
+        for agent in visible_agents:
+            logger.info(f"[SERVER DEBUG] - Sending entity: {agent.id[:8]} ({agent.agent_type}) at ({agent.x:.1f}, {agent.y:.1f})")
 
         # Get terrain data within vision range
         terrain_data = self.world.get_terrain_in_vision(client.agent_id)
