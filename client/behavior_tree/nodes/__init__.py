@@ -50,6 +50,20 @@ from .condition import (
     TargetVisible,
     TimeSinceLastAction,
 )
+from .personality_condition import (
+    PersonalityCondition,
+    PersonalityPriorityCondition,
+    PersonalityActivityMotivation,
+    PersonalityCompatibility,
+    PersonalityArchetypeMatch,
+    high_combat_drive,
+    high_exploration_drive,
+    low_risk_tolerance,
+    high_social_desire,
+    prefers_combat_over_exploration,
+    motivated_to_fish,
+    motivated_to_explore,
+)
 from .dynamic_condition import (
     DynamicEnemyInRange,
     DynamicEnemyInChaseRange,
@@ -97,6 +111,19 @@ __all__ = [
     "IsIdle",
     "NearOtherAgent",
     "CustomCondition",
+    # Personality condition nodes
+    "PersonalityCondition",
+    "PersonalityPriorityCondition",
+    "PersonalityActivityMotivation",
+    "PersonalityCompatibility",
+    "PersonalityArchetypeMatch",
+    "high_combat_drive",
+    "high_exploration_drive",
+    "low_risk_tolerance",
+    "high_social_desire",
+    "prefers_combat_over_exploration",
+    "motivated_to_fish",
+    "motivated_to_explore",
     # Dynamic condition nodes (use server data)
     "DynamicEnemyInRange",
     "DynamicEnemyInChaseRange",

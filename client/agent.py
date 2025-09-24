@@ -2,7 +2,7 @@ import logging
 import math
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 from client.agent_map import AgentMap
 from shared.collision import CollisionDetector
@@ -15,16 +15,20 @@ from shared.math_utils import normalize_angle
 from shared.pathfinding import Pathfinder
 from world.tiles import TileType
 
+if TYPE_CHECKING:
+    from shared.personality import Personality
+
 logger = logging.getLogger(__name__)
 
 
 class BaseAgent(ABC):
-    def __init__(self, agent_id: str, x: float, y: float, agent_type: str):
+    def __init__(self, agent_id: str, x: float, y: float, agent_type: str, personality: Optional["Personality"] = None):
         self.id = agent_id
         self.x = x
         self.y = y
         self.rotation = 0.0
-        self.agent_type = agent_type
+        self.agent_type = agent_type  # Kept for server compatibility during transition
+        self.personality = personality  # New personality system
 
         self.velocity_x = 0.0
         self.velocity_y = 0.0

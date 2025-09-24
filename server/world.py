@@ -82,6 +82,10 @@ class ServerWorld:
             return False
 
         agent = self.agents[agent_id]
+
+        # Don't allow dead agents to move
+        if not agent.is_alive:
+            return False
         current_pos = (agent.x, agent.y)
         intended_pos = (new_x, new_y)
 

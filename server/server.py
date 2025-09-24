@@ -549,23 +549,40 @@ class ClientConnection:
             # Get agent state for additional data
             agent_state = self.server.agent_registry.get_agent(self.agent_id)
 
+            # Check if agent has personality configuration from scenario
+            personality_config = None
+            if agent_state and hasattr(agent_state, 'personality_config'):
+                personality_config = agent_state.personality_config
+
+            response_payload = {
+                "agent_id": self.agent_id,
+                "client_id": self.client_id,
+                "x": agent.x,
+                "y": agent.y,
+                "rotation": agent.rotation,
+                "attack_data": attack_data,
+                "exploration_mode": agent_state.exploration_mode if agent_state else "frontier",
+            }
+
+            # Add personality configuration if available
+            if personality_config:
+                response_payload["personality_config"] = personality_config
+
             response = Message(
                 type=MessageType.SPAWN_AGENT,
-                payload={
-                    "agent_id": self.agent_id,
-                    "client_id": self.client_id,
-                    "x": agent.x,
-                    "y": agent.y,
-                    "rotation": agent.rotation,
-                    "attack_data": attack_data,
-                    "exploration_mode": agent_state.exploration_mode if agent_state else "frontier",
-                },
+                payload=response_payload,
                 timestamp=time.time(),
             )
             await self.send_message(response)
 
         elif message.type == MessageType.MOVE_COMMAND:
             if self.agent_id:
+                # Check if agent is alive before processing movement
+                agent = self.server.world.get_agent(self.agent_id)
+                if agent and not agent.is_alive:
+                    # Ignore movement commands from dead agents
+                    return
+
                 x = message.payload.get("x")
                 y = message.payload.get("y")
                 rotation = message.payload.get("rotation", 0)
@@ -577,11 +594,33 @@ class ClientConnection:
 
         elif message.type == MessageType.AGENT_ACTION:
             if self.agent_id:
+                # Check if agent is alive before processing actions
+                agent = self.server.world.get_agent(self.agent_id)
+                if agent and not agent.is_alive:
+                    # Ignore actions from dead agents
+                    return
+
                 await self.server.process_agent_action(self.agent_id, message.payload)
 
         elif message.type == MessageType.ACTION_REQUEST:
             # Handle new unified action request
             if self.agent_id:
+                # Check if agent is alive before processing action requests
+                agent = self.server.world.get_agent(self.agent_id)
+                if agent and not agent.is_alive:
+                    # Send error response to dead agents
+                    error_response = Message(
+                        type=MessageType.ACTION_RESPONSE,
+                        payload={
+                            "success": False,
+                            "error": "Agent is dead and cannot perform actions",
+                            "request_id": message.payload.get("request_id")
+                        },
+                        timestamp=time.time()
+                    )
+                    await self.send_message(error_response)
+                    return
+
                 from shared.actions import ActionRequest
                 request = ActionRequest.from_dict(message.payload)
                 response = await self.server.action_processor.submit_action(request)

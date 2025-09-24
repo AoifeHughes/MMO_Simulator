@@ -11,6 +11,7 @@ from client.agent_types.explorer import ExplorerAgent
 from client.agent_types.npc import NPCAgent
 from client.agent_types.pathfinding_test import PathfindingTestAgent
 from client.agent_types.player import PlayerAgent
+from client.agent_types.personality_agent import PersonalityAgent
 from client.thin_agent import ThinBaseAgent, create_thin_agent
 from shared.constants import SERVER_PORT, UDP_PORT
 from shared.messages import Message, MessageType
@@ -70,6 +71,12 @@ class GameClient:
                 # Store server game data for agent decision-making
                 self.server_game_data = response.payload.get("attack_data", {})
                 self.exploration_mode = response.payload.get("exploration_mode", "frontier")
+
+                # Store personality configuration if provided by scenario
+                self.personality_config = response.payload.get("personality_config")
+                if self.personality_config:
+                    logger.info(f"[CLIENT] Received personality config for {self.personality_config.get('archetype', 'custom')} agent")
+
                 logger.info(f"[CLIENT] Received game data: {len(self.server_game_data.get('attacks', {}))} attacks")
 
                 self.connected = True
@@ -86,33 +93,48 @@ class GameClient:
     def create_agent(
         self, agent_type: str, x: float = 50, y: float = 50, rotation: float = 0
     ):
-        # Create thick agent with behavior trees - server will provide game data
-        if agent_type == "player":
-            self.agent = PlayerAgent(self.agent_id, x, y)
-        elif agent_type == "npc":
-            self.agent = NPCAgent(self.agent_id, x, y)
-        elif agent_type == "enemy":
-            self.agent = EnemyAgent(self.agent_id, x, y)
-        elif agent_type == "explorer":
-            self.agent = ExplorerAgent(self.agent_id, x, y)
-            # Pass exploration mode if available
-            if hasattr(self, 'exploration_mode'):
-                self.agent.exploration_mode = self.exploration_mode
-                # Defer behavior tree initialization until after provider injection
-        elif agent_type == "pathfinding_test":
-            # For pathfinding test, use the test agent with predefined waypoints
-            test_waypoints = [
-                (10, 10),
-                (90, 10),
-                (90, 90),
-                (10, 90),
-                (50, 50),
-                (10, 10),
-            ]
-            self.agent = PathfindingTestAgent(self.agent_id, x, y, test_waypoints)
-            # Ensure agent uses the actual spawn position
-            self.agent.x = x
-            self.agent.y = y
+        # Check if we have personality data from scenario
+        personality_config = getattr(self, 'personality_config', None)
+
+        if personality_config and 'personality' in personality_config:
+            # Create personality agent with scenario-provided personality
+            # Deserialize personality from dict
+            from shared.personality import Personality
+            personality_dict = personality_config['personality']
+            personality = Personality.from_dict(personality_dict)
+
+            logger.info(f"Creating PersonalityAgent with {personality_config.get('archetype', 'custom')} personality")
+            self.agent = PersonalityAgent(
+                self.agent_id, x, y, personality
+            )
+        else:
+            # Fallback to legacy agents for backward compatibility
+            logger.info(f"Creating legacy {agent_type} agent (no personality data)")
+            if agent_type == "player":
+                self.agent = PlayerAgent(self.agent_id, x, y)
+            elif agent_type == "npc":
+                self.agent = NPCAgent(self.agent_id, x, y)
+            elif agent_type == "enemy":
+                self.agent = EnemyAgent(self.agent_id, x, y)
+            elif agent_type == "explorer":
+                self.agent = ExplorerAgent(self.agent_id, x, y)
+                # Pass exploration mode if available
+                if hasattr(self, 'exploration_mode'):
+                    self.agent.exploration_mode = self.exploration_mode
+            elif agent_type == "pathfinding_test":
+                # For pathfinding test, use the test agent with predefined waypoints
+                test_waypoints = [
+                    (10, 10),
+                    (90, 10),
+                    (90, 90),
+                    (10, 90),
+                    (50, 50),
+                    (10, 10),
+                ]
+                self.agent = PathfindingTestAgent(self.agent_id, x, y, test_waypoints)
+                # Ensure agent uses the actual spawn position
+                self.agent.x = x
+                self.agent.y = y
 
         logger.info(f"[CLIENT] Created {agent_type} agent {self.agent_id[:8]} with behavior tree")
 

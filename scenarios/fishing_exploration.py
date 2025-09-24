@@ -1,10 +1,10 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
+from client.agent_types.personality_agent import PersonalityAgent
 from scenarios.base_scenario import BaseScenario
 from world.terrain_generator import TerrainType
-from client.behavior_tree.nodes import *
-from client.behavior_tree.tree import BehaviorTree
+from shared.personality import PersonalityArchetype, create_personality_variant
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +13,7 @@ class FishingExplorationScenario(BaseScenario):
     def __init__(self):
         super().__init__(
             name="Fishing Exploration",
-            description="Explorer agent explores until finding water, then fishes for food",
+            description="Explorer-fisher personality agent explores until finding water, then fishes for food",
             terrain_type=TerrainType.MIXED,  # Mixed terrain with water bodies
             seed=200,  # Seed that generates interesting terrain with water
         )
@@ -25,125 +25,59 @@ class FishingExplorationScenario(BaseScenario):
         logger.info("Setting up fishing exploration scenario")
 
     async def spawn_agents(self) -> List[Dict[str, Any]]:
-        """Spawn explorer agent with fishing rod"""
+        """Spawn explorer-fisher personality agent with fishing rod"""
         agent_configs = []
 
-        # Spawn single explorer at starting position
+        # Create explorer-fisher personality (high exploration and fishing)
+        explorer_fisher = create_personality_variant(PersonalityArchetype.explorer(), {
+            'exploration': 7.0,
+            'fishing': 8.0,
+            'patience': 8.0,  # Patient enough for both exploration and fishing
+            'foraging': 5.0,  # Some interest in resource gathering
+        })
+
+        # Spawn single explorer-fisher at starting position
         explorer_x, explorer_y = 50, 50
         explorer_rotation = 0.0
 
         agent_config = {
             "type": "explorer",
             "position": (explorer_x, explorer_y),
-            "name": "Fisher_Explorer",
+            "name": "ExplorerFisher",
+            "personality": explorer_fisher,
+            "archetype": "explorer_fisher",
+            "behavior": "personality_driven"
         }
         agent_configs.append(agent_config)
 
         # Spawn the agent on the server
         agent_id = self.server.world.spawn_agent("explorer", explorer_x, explorer_y, explorer_rotation)
 
-        # Register agent and give starting items (fishing rod is added automatically for explorers)
+        # Register agent and give starting items
         agent_state = self.server.agent_registry.register_agent(agent_id, "explorer", explorer_x, explorer_y)
 
-        # Mark this agent as a fishing explorer
-        agent_state.exploration_mode = "fishing"
+        # Store personality configuration on agent state for server-to-client communication
+        if agent_state:
+            agent_state.personality_config = {
+                "personality": explorer_fisher.to_dict(),
+                "archetype": "explorer_fisher",
+                "behavior": "personality_driven"
+            }
 
-        logger.info(f"Spawned explorer {agent_id} at ({explorer_x}, {explorer_y})")
-        logger.info(f"Explorer inventory: {len(agent_state.inventory.slots)} slots")
-        logger.info(f"Explorer has fishing rod: {bool([item for item in agent_state.inventory.get_items_by_type('tool') if hasattr(item, 'tool_type') and item.tool_type == 'fishing'])}")
-
-        # Override the default explorer behavior tree with fishing exploration tree
-        self._create_fishing_explorer_tree(explorer_x, explorer_y)
+        logger.info(f"Spawned explorer-fisher {agent_id} at ({explorer_x}, {explorer_y})")
+        logger.info(f"Explorer-fisher personality: exploration={explorer_fisher.exploration:.1f}, fishing={explorer_fisher.fishing:.1f}")
 
         logger.info("Fishing exploration scenario setup:")
-        logger.info(f"  Explorer: 1 agent with fishing rod")
-        logger.info(f"  Goal: Explore until water is found, then fish")
+        logger.info(f"  Explorer-Fisher: 1 personality agent with balanced exploration/fishing desires")
+        logger.info(f"  Goal: Explore until water is found, then switch focus to fishing")
         logger.info(f"  Terrain: Mixed terrain with water bodies")
-        logger.info(f"  Expected behavior: Explore -> Find water -> Fish repeatedly")
+        logger.info(f"  Expected behavior: Dynamic priority switching between exploration and fishing")
 
         return agent_configs
 
-    def _create_fishing_explorer_tree(self, home_x: float, home_y: float) -> BehaviorTree:
+    def get_custom_behavior_tree(self, agent_type: str, agent_x: float, agent_y: float) -> Optional[Any]:
         """
-        Create behavior tree for fishing explorer agent.
-        Behavior: Explore until water found -> Fish at water -> Continue exploring/fishing
+        Personality agents use the personality tree builder for exploration/fishing behavior.
+        This method returns None to indicate they should use their built-in personality-driven behavior.
         """
-
-        root = PrioritySelector(
-            "FishingExplorerRoot",
-            [
-                # Priority 1: Fish at water if we're already close enough and have fishing rod
-                Sequence(
-                    "FishingBehavior",
-                    [
-                        HasFishingRod(),
-                        WaterNearby(1.2),  # Use same distance as FishAtWater for consistency
-                        TimerDecorator(
-                            "FishingCommitment",
-                            CooldownDecorator(
-                                "FishingCooldown",
-                                FishAtWater(1.2),
-                                cooldown_duration=2.0,
-                            ),
-                            minimum_duration=10.0,  # Stay fishing for 10 seconds minimum
-                        ),
-                    ],
-                ),
-
-                # Priority 2: Move to water if discovered but not nearby
-                Sequence(
-                    "MoveToWater",
-                    [
-                        HasFishingRod(),
-                        WaterDiscoveredButNotNearby(1.2),
-                        CooldownDecorator(
-                            "MoveToWaterCooldown",
-                            TimerDecorator(
-                                "MoveToWaterTimer",
-                                MoveToFishingSpot(1.2),
-                                minimum_duration=2.0,
-                            ),
-                            cooldown_duration=1.0,
-                        ),
-                    ],
-                ),
-
-                # Priority 3: Explore to find water
-                CooldownDecorator(
-                    "ExplorationCooldown",
-                    TimerDecorator(
-                        "ExploreTimer",
-                        Explore(40.0, "frontier"),  # Large exploration radius
-                        minimum_duration=3.0,
-                    ),
-                    cooldown_duration=1.0,
-                ),
-
-                # Priority 4: Wander if stuck or need to move
-                Sequence(
-                    "UnstuckBehavior",
-                    [
-                        IsStuck(1.0, 2.0),
-                        CooldownDecorator(
-                            "UnstuckCooldown",
-                            Wander(home_x, home_y, 15.0),
-                            cooldown_duration=3.0,
-                        ),
-                    ],
-                ),
-
-                # Priority 5: Default idle
-                Idle(1.0),
-            ],
-        )
-
-        # Store the tree for later use (in a real implementation, this would be
-        # passed to the agent when it connects)
-        self.fishing_explorer_tree = BehaviorTree(root, "FishingExplorerTree")
-        return self.fishing_explorer_tree
-
-    def get_custom_behavior_tree(self, agent_type: str, agent_x: float, agent_y: float) -> BehaviorTree:
-        """Return custom behavior tree for this scenario"""
-        if agent_type == "explorer":
-            return self._create_fishing_explorer_tree(agent_x, agent_y)
         return None

@@ -150,6 +150,10 @@ class MovementValidator(ActionValidator):
         if not agent:
             return False, "Agent not found"
 
+        # Dead agents cannot move
+        if not agent.is_alive:
+            return False, "Agent is dead and cannot move"
+
         # Check bounds
         world_bounds = context.world.world_map.get_bounds()
         if not (0 <= target_x < world_bounds[0] and 0 <= target_y < world_bounds[1]):
