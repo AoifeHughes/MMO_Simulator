@@ -62,8 +62,8 @@ class MockWorld:
         """Move agent to new position"""
         if agent_id in self.agents:
             agent = self.agents[agent_id]
-            # Simple bounds checking
-            if 0 <= x < self.width and 0 <= y < self.height:
+            # Check if position is valid and walkable
+            if self.validate_position(x, y):
                 agent.x = x
                 agent.y = y
                 agent.rotation = rotation
@@ -72,8 +72,10 @@ class MockWorld:
 
     def is_walkable(self, x: int, y: int) -> bool:
         """Check if position is walkable"""
-        tile_type = self.terrain.get((x, y), TileType.WALL)
-        return tile_type in [TileType.GRASS, TileType.SAND]
+        tile_type = self.terrain.get((x, y), TileType.GRASS)
+        # Import here to avoid circular imports
+        from world.tiles import TILE_PROPERTIES
+        return TILE_PROPERTIES[tile_type].walkable
 
     def find_nearest_walkable_position(self, x: float, y: float) -> tuple:
         """Find nearest walkable position - just return the input for mocking"""
@@ -97,6 +99,16 @@ class MockWorld:
                 visible.append(other_agent)
 
         return visible
+
+    def validate_position(self, x: float, y: float) -> bool:
+        """Validate that a position is on walkable terrain"""
+        # Check bounds first
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            return False
+
+        # Check tile walkability
+        tile_x, tile_y = int(x), int(y)
+        return self.is_walkable(tile_x, tile_y)
 
 
 class MockActionProcessor:

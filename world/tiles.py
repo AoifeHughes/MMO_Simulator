@@ -29,7 +29,7 @@ TILE_PROPERTIES = {
         walkable=True, blocking_vision=False, movement_cost=1.0, color=(34, 139, 34)
     ),
     TileType.WATER: TileProperties(
-        walkable=False, blocking_vision=False, movement_cost=3.0, color=(64, 164, 223)
+        walkable=False, blocking_vision=False, movement_cost=float("inf"), color=(64, 164, 223)
     ),
     TileType.STONE: TileProperties(
         walkable=True, blocking_vision=False, movement_cost=1.2, color=(128, 128, 128)

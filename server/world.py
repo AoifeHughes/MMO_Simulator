@@ -18,9 +18,10 @@ class ServerWorld:
         height: int,
         terrain_type: Optional[TerrainType] = None,
         seed: int = 42,
+        use_perlin: bool = True,
     ):
         self.world_map = WorldMap(
-            width, height, terrain_type=terrain_type, seed=seed, use_perlin=True
+            width, height, terrain_type=terrain_type, seed=seed, use_perlin=use_perlin
         )
         self.vision_system = VisionSystem(self.world_map)
         self.collision_detector = CollisionDetector(width, height)
@@ -99,11 +100,20 @@ class ServerWorld:
 
         # Enhanced terrain validation
         if not self.validate_movement_path(current_pos, (safe_x, safe_y)):
+            # Calculate intended movement direction to prefer corrections in that direction
+            intended_direction = (safe_x - current_pos[0], safe_y - current_pos[1])
+            direction_length = (intended_direction[0] ** 2 + intended_direction[1] ** 2) ** 0.5
+
+            if direction_length > 0.01:  # Avoid division by zero for very small movements
+                normalized_direction = (intended_direction[0] / direction_length, intended_direction[1] / direction_length)
+            else:
+                normalized_direction = None
+
             # Movement blocked by terrain - try to find nearby walkable position
-            safe_x, safe_y = self.find_nearest_walkable_position(safe_x, safe_y)
+            safe_x, safe_y = self.find_nearest_walkable_position(safe_x, safe_y, preferred_direction=normalized_direction)
 
             # If still not walkable, reject movement
-            if not self.world_map.is_walkable(int(safe_x), int(safe_y)):
+            if not self.world_map.is_walkable(round(safe_x), round(safe_y)):
                 return False
 
         # Apply movement cost penalty for difficult terrain
@@ -218,6 +228,7 @@ class ServerWorld:
         if not self.collision_detector.is_position_valid(x, y):
             return False
 
+        # Use int() to determine which tile the position actually occupies
         tile_x = int(x)
         tile_y = int(y)
         return self.world_map.is_walkable(tile_x, tile_y)
@@ -232,36 +243,70 @@ class ServerWorld:
         # Simple line-of-movement check
         distance = ((end_x - start_x) ** 2 + (end_y - start_y) ** 2) ** 0.5
 
-        if distance < 1.0:  # Short movements are usually fine
-            return self.world_map.is_walkable(int(end_x), int(end_y))
+        # Very short movements: check if the actual end position (not rounded) is valid
+        if distance < 0.5:
+            # For sub-tile movements, check both start and end tiles are walkable
+            start_tile_x, start_tile_y = int(start_x), int(start_y)
+            end_tile_x, end_tile_y = int(end_x), int(end_y)
 
-        # Check intermediate points along the path
-        steps = max(2, int(distance))
+            # If both positions are in the same walkable tile, allow movement
+            if (start_tile_x == end_tile_x and start_tile_y == end_tile_y):
+                return self.world_map.is_walkable(start_tile_x, start_tile_y)
+
+            # If crossing tile boundary, both tiles must be walkable
+            return (self.world_map.is_walkable(start_tile_x, start_tile_y) and
+                    self.world_map.is_walkable(end_tile_x, end_tile_y))
+
+        # For medium distances, check tile boundaries more carefully
+        if distance < 2.0:
+            # Use int() instead of round() to check actual tile occupancy
+            end_tile_x, end_tile_y = int(end_x), int(end_y)
+            return self.world_map.is_walkable(end_tile_x, end_tile_y)
+
+        # For longer movements, check intermediate points but with tolerance
+        steps = max(2, int(distance * 0.5))  # Reduced sampling density
+        unwalkable_count = 0
+        total_checks = 0
+
         for i in range(1, steps + 1):
             t = i / steps
             check_x = start_x + (end_x - start_x) * t
             check_y = start_y + (end_y - start_y) * t
+            total_checks += 1
 
+            # Use int() instead of round() for consistency with tile boundaries
             if not self.world_map.is_walkable(int(check_x), int(check_y)):
-                return False
+                unwalkable_count += 1
+
+        # Allow movement if less than 30% of path is unwalkable (more tolerant)
+        if total_checks > 0:
+            unwalkable_ratio = unwalkable_count / total_checks
+            return unwalkable_ratio < 0.3
 
         return True
 
     def find_nearest_walkable_position(
-        self, x: float, y: float, max_radius: int = 3
+        self, x: float, y: float, max_radius: int = 3, preferred_direction: Optional[Tuple[float, float]] = None
     ) -> Tuple[float, float]:
-        """Find the nearest walkable position to the given coordinates"""
+        """
+        Find the nearest walkable position to the given coordinates.
+        If preferred_direction is provided, prefer positions in that direction.
+        """
+        # Use int() to determine which tile the position occupies
         start_x, start_y = int(x), int(y)
 
-        # Check the current position first
+        # Check the current position first (with floating point precision)
         if self.world_map.is_walkable(start_x, start_y):
             return x, y
+
+        # Collect all possible walkable positions within radius
+        candidates = []
 
         # Search in expanding circles
         for radius in range(1, max_radius + 1):
             for dy in range(-radius, radius + 1):
                 for dx in range(-radius, radius + 1):
-                    # Only check the edge of the current radius
+                    # Only check the edge of the current radius for efficiency
                     if abs(dx) == radius or abs(dy) == radius:
                         check_x = start_x + dx
                         check_y = start_y + dy
@@ -271,14 +316,36 @@ class ServerWorld:
                             and 0 <= check_y < self.world_map.height
                             and self.world_map.is_walkable(check_x, check_y)
                         ):
-                            return float(check_x), float(check_y)
+                            # Calculate distance from original position
+                            distance = ((check_x - x) ** 2 + (check_y - y) ** 2) ** 0.5
+
+                            # Calculate preference score if direction provided
+                            preference_score = 0
+                            if preferred_direction:
+                                dir_x, dir_y = preferred_direction
+                                # Dot product to measure alignment with preferred direction
+                                alignment = (check_x - x) * dir_x + (check_y - y) * dir_y
+                                preference_score = max(0, alignment)  # Positive alignment is preferred
+
+                            candidates.append((check_x, check_y, distance, preference_score))
+
+            # If we found candidates at this radius, pick the best one
+            if candidates:
+                # Sort by preference score (descending), then by distance (ascending)
+                candidates.sort(key=lambda c: (-c[3], c[2]))
+                best_x, best_y, _, _ = candidates[0]
+
+                # Return position with sub-tile precision preserved
+                offset_x = x - start_x
+                offset_y = y - start_y
+                return float(best_x) + offset_x, float(best_y) + offset_y
 
         # If no walkable position found, return original
         return x, y
 
     def get_movement_cost_penalty(self, x: float, y: float) -> float:
         """Get movement speed multiplier based on terrain"""
-        tile_x, tile_y = int(x), int(y)
+        tile_x, tile_y = round(x), round(y)
 
         if not (
             0 <= tile_x < self.world_map.width and 0 <= tile_y < self.world_map.height

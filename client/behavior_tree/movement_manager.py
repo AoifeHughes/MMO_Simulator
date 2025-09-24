@@ -21,6 +21,7 @@ class MovementMode(Enum):
     WANDER = "wander"           # Random wandering
     PATROL = "patrol"           # Patrol between waypoints
     FLEE = "flee"               # Fleeing from threat
+    PATHFINDING = "pathfinding" # Following calculated path
 
 
 class MovementManager:
@@ -47,13 +48,16 @@ class MovementManager:
         self.base_update_interval = 0.2  # 200ms between updates
         self.chase_update_interval = 0.15  # Faster for combat
         self.wander_update_interval = 0.3  # Slower for wandering
+        self.pathfinding_update_interval = 0.1  # Faster for pathfinding
 
         # Movement commitment (minimum time to maintain direction)
         self.commitment_duration = 0.5  # 500ms minimum
+        self.pathfinding_commitment_duration = 0.2  # Shorter for pathfinding
         self.last_direction_change = 0.0
 
         # Smoothing factors
         self.direction_smoothing = 0.3  # How much to smooth direction changes
+        self.pathfinding_smoothing = 0.1  # Less smoothing for pathfinding
         self.last_velocity = (0.0, 0.0)
         self.target_velocity = (0.0, 0.0)
 
@@ -182,6 +186,8 @@ class MovementManager:
             return self.chase_update_interval
         elif mode == MovementMode.WANDER:
             return self.wander_update_interval
+        elif mode == MovementMode.PATHFINDING:
+            return self.pathfinding_update_interval
         else:
             return self.base_update_interval
 
@@ -217,8 +223,16 @@ class MovementManager:
         current_time: float
     ) -> Tuple[float, float]:
         """Apply smoothing to reduce jittery movement"""
+        # Get commitment duration and smoothing factor based on mode
+        commitment_duration = (self.pathfinding_commitment_duration
+                             if self.current_mode == MovementMode.PATHFINDING
+                             else self.commitment_duration)
+        smoothing_factor = (self.pathfinding_smoothing
+                          if self.current_mode == MovementMode.PATHFINDING
+                          else self.direction_smoothing)
+
         # Check movement commitment
-        if (current_time - self.last_direction_change < self.commitment_duration and
+        if (current_time - self.last_direction_change < commitment_duration and
             self.last_velocity[0] != 0 or self.last_velocity[1] != 0):
             # Still in commitment period, maintain current direction
             return self.last_velocity
@@ -232,12 +246,15 @@ class MovementManager:
         if dir_change > math.pi:
             dir_change = 2 * math.pi - dir_change
 
+        # For pathfinding mode, allow quicker direction changes
+        direction_threshold = (math.pi / 6 if self.current_mode == MovementMode.PATHFINDING
+                             else math.pi / 4)  # 30 vs 45 degrees
+
         # If direction change is significant, apply smoothing
-        if dir_change > math.pi / 4:  # 45 degrees
+        if dir_change > direction_threshold:
             # Smooth the transition
-            smooth_factor = self.direction_smoothing
-            smoothed_x = self.last_velocity[0] * (1 - smooth_factor) + target_velocity[0] * smooth_factor
-            smoothed_y = self.last_velocity[1] * (1 - smooth_factor) + target_velocity[1] * smooth_factor
+            smoothed_x = self.last_velocity[0] * (1 - smoothing_factor) + target_velocity[0] * smoothing_factor
+            smoothed_y = self.last_velocity[1] * (1 - smoothing_factor) + target_velocity[1] * smoothing_factor
 
             self.last_direction_change = current_time
             result = (smoothed_x, smoothed_y)

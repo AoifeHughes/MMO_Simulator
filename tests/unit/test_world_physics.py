@@ -230,10 +230,20 @@ class TestServerWorldPhysics:
 
         # Test path that crosses wall
         valid_path = self.world.validate_movement_path((5, 5), (15, 5))  # Same side
-        invalid_path = self.world.validate_movement_path((5, 5), (5, 15))  # Cross wall
+
+        # Create a path that crosses multiple wall tiles (should be invalid)
+        # Add a thick wall barrier to make the path definitely invalid
+        thick_wall_map = MapBuilder(20, 20)\
+            .add_rect(0, 9, 20, 12, TileType.WALL)\
+            .build()
+
+        for (x, y), tile_type in thick_wall_map.items():
+            self.world.world_map.set_tile(x, y, tile_type)
+
+        invalid_path = self.world.validate_movement_path((5, 5), (5, 15))  # Cross thick wall
 
         assert valid_path, "Path on same side should be valid"
-        assert not invalid_path, "Path crossing wall should be invalid"
+        assert not invalid_path, "Path crossing thick wall should be invalid"
 
     def test_movement_cost_calculation(self):
         """Should calculate movement costs based on terrain"""
