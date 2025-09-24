@@ -102,7 +102,10 @@ class Renderer:
             pygame.draw.circle(self.screen, color, (int(x), int(y)), radius)
 
             health = agent.get("health", 100)
-            if health < 100:
+            max_health = agent.get("max_health", 100)
+
+            # Always show healthbars for enemy and player agents in combat scenarios
+            if agent_type in ["enemy", "player"] or health < max_health:
                 bar_width = 30
                 bar_height = 4
                 bar_x = x - bar_width // 2
@@ -114,7 +117,7 @@ class Renderer:
                 pygame.draw.rect(
                     self.screen,
                     (0, 255, 0),
-                    (bar_x, bar_y, int(bar_width * health / 100), bar_height),
+                    (bar_x, bar_y, int(bar_width * health / max_health), bar_height),
                 )
 
             rotation = agent.get("rotation", 0)

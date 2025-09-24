@@ -203,8 +203,10 @@ class ChaseNearestEnemy(ActionNode):
                     f"[CHASE] Agent {agent.id[:8]} updated chase velocity toward {self.current_target['id'][:8]}"
                 )
 
-        # Success when close enough for attack - use smaller attack range for coordination
-        if distance <= 2.0:  # Allow room for different attack ranges
+        # Success when close enough for attack - get within 90% of smallest attack range
+        # This ensures all agent types can attack when chase completes
+        min_attack_range = 1.5  # Conservative minimum that works for most attacks
+        if distance <= min_attack_range:
             agent.velocity_x = 0
             agent.velocity_y = 0
             return NodeStatus.SUCCESS

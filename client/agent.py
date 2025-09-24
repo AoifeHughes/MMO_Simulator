@@ -68,6 +68,12 @@ class BaseAgent(ABC):
         # Action tracking for conditions
         self.current_target: Optional[Tuple[float, float]] = None
 
+        # Server game data (received from server)
+        self.server_game_data: Optional[Dict[str, Any]] = None
+
+        # Action manager for new request-response system (will be set by client)
+        self.action_manager: Optional["ActionManager"] = None
+
     @abstractmethod
     def update(self, delta_time: float):
         pass
@@ -110,6 +116,23 @@ class BaseAgent(ABC):
         self.world_bounds = (width, height)
         self.collision_detector = CollisionDetector(width, height)
         self.agent_map = AgentMap(width, height)
+
+    def set_server_game_data(self, game_data: Dict[str, Any]):
+        """Set server game data for agent decision-making"""
+        self.server_game_data = game_data
+        logger.info(f"[AGENT] Agent {self.id[:8]} received server game data with {len(game_data.get('attacks', {}))} attacks")
+
+    def get_attack_data(self, attack_name: str) -> Optional[Dict[str, Any]]:
+        """Get attack data from server for decision-making"""
+        if not self.server_game_data or 'attacks' not in self.server_game_data:
+            return None
+        return self.server_game_data['attacks'].get(attack_name)
+
+    def get_available_attacks(self) -> List[str]:
+        """Get list of attacks available to this agent type"""
+        if not self.server_game_data or 'character_attacks' not in self.server_game_data:
+            return []
+        return self.server_game_data['character_attacks'].get(self.agent_type, [])
 
     def can_change_intention(self) -> bool:
         """Check if enough time has passed to allow intention change"""

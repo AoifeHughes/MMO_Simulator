@@ -37,6 +37,11 @@ from .condition import (
     TargetVisible,
     TimeSinceLastAction,
 )
+from .dynamic_condition import (
+    DynamicEnemyInRange,
+    DynamicEnemyInChaseRange,
+    HasServerGameData,
+)
 from .decorator import (
     CooldownDecorator,
     InterruptibleDecorator,
@@ -79,6 +84,10 @@ __all__ = [
     "IsIdle",
     "NearOtherAgent",
     "CustomCondition",
+    # Dynamic condition nodes (use server data)
+    "DynamicEnemyInRange",
+    "DynamicEnemyInChaseRange",
+    "HasServerGameData",
     # Action nodes
     "MoveToTarget",
     "MoveToEntity",

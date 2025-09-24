@@ -16,6 +16,11 @@ class MessageType(Enum):
     DAMAGE_DEALT = "damage_dealt"
     AGENT_DEATH = "agent_death"
     AGENT_RESPAWN = "agent_respawn"
+    GAME_DATA_UPDATE = "game_data_update"  # Send game mechanics data to client
+    ACTION_REQUEST = "action_request"     # Client requests single action from server
+    ACTION_RESPONSE = "action_response"   # Server responds to single action request
+    ACTION_BATCH = "action_batch"         # Client requests multiple actions (batch)
+    ACTION_BATCH_RESPONSE = "action_batch_response"  # Server responds to batch
     PING = "ping"
     PONG = "pong"
     ERROR = "error"

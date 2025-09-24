@@ -136,17 +136,17 @@ def create_player_tree(
             Sequence(
                 "Combat",
                 [
-                    EnemyInRange(20.0, ["enemy"]),
+                    DynamicEnemyInChaseRange(20.0, ["enemy"]),
                     CooldownDecorator(
                         "CombatCooldown",
                         PrioritySelector(
                             "CombatActions",
                             [
-                                # Attack if close enough (matches server sword_slash range)
+                                # Attack if close enough (uses server sword_slash range)
                                 Sequence(
                                     "AttackSequence",
                                     [
-                                        EnemyInRange(2.5, ["enemy"]),
+                                        DynamicEnemyInRange("sword_slash", ["enemy"]),
                                         TimerDecorator(
                                             "AttackTimer",
                                             AttackNearestEnemy(
@@ -210,17 +210,17 @@ def create_enemy_tree(
             Sequence(
                 "HuntCombat",
                 [
-                    EnemyInRange(15.0, ["player"]),
+                    DynamicEnemyInChaseRange(15.0, ["player"]),
                     CooldownDecorator(
                         "HuntCooldown",
                         PrioritySelector(
                             "HuntActions",
                             [
-                                # Attack if in range (matches server claw range)
+                                # Attack if in range (uses server claw range)
                                 Sequence(
                                     "AttackSequence",
                                     [
-                                        EnemyInRange(1.8, ["player"]),
+                                        DynamicEnemyInRange("claw", ["player"]),
                                         TimerDecorator(
                                             "AttackTimer",
                                             AttackNearestEnemy(

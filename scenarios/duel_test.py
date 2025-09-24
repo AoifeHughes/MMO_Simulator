@@ -90,6 +90,8 @@ class DuelTestScenario(BaseScenario):
         if player_agent_id:
             # Register agent so clients can take control
             self.server.agent_registry.register_agent(player_agent_id, "player", player_spawn[0], player_spawn[1])
+            # Register with AI system
+            self.server.ai_system.register_agent(player_agent_id, "player", player_spawn[0], player_spawn[1])
             agent_configs.append({
                 "type": "player",
                 "position": player_spawn,
@@ -106,6 +108,8 @@ class DuelTestScenario(BaseScenario):
         if enemy_agent_id:
             # Register agent so clients can take control
             self.server.agent_registry.register_agent(enemy_agent_id, "enemy", enemy_spawn[0], enemy_spawn[1])
+            # Register with AI system
+            self.server.ai_system.register_agent(enemy_agent_id, "enemy", enemy_spawn[0], enemy_spawn[1])
             agent_configs.append({
                 "type": "enemy",
                 "position": enemy_spawn,
@@ -185,6 +189,9 @@ class DuelTestScenario(BaseScenario):
             dead_agent.respawn_time = None
 
             logger.info(f"[DUEL TEST] Respawned {agent_type} {dead_agent_id[:8]} at {spawn_point}")
+
+            # Notify clients about the respawn so they can reset behavior trees
+            await server.broadcast_respawn_event(dead_agent_id, spawn_point[0], spawn_point[1])
 
     async def _finish_test(self, server):
         """Finish the test and log results"""

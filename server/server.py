@@ -5,6 +5,7 @@ import socket
 import time
 from typing import Any, Dict, Optional, Set
 
+from server.agent_ai import ServerAI
 from server.agent_state import AgentRegistry
 from server.attack_system import AttackSystem
 from server.game_loop import GameLoop
@@ -31,6 +32,15 @@ class GameServer:
         self.game_loop = GameLoop(self.world, self)
         self.agent_registry = AgentRegistry()
         self.attack_system = AttackSystem()
+        self.ai_system = ServerAI()
+
+        # Initialize new action processing system
+        from server.action_processor import ActionProcessor
+        self.action_processor = ActionProcessor(
+            world=self.world,
+            agent_registry=self.agent_registry,
+            attack_system=self.attack_system,
+        )
         self.clients: Dict[str, "ClientConnection"] = {}
         self.udp_endpoints: Dict[str, tuple] = {}
         self.tcp_server = None
@@ -47,6 +57,9 @@ class GameServer:
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.udp_socket.setblocking(False)
         self.udp_socket.bind(("127.0.0.1", UDP_PORT))
+
+        # Start action processor
+        await self.action_processor.start()
 
         logger.info(f"Server started on TCP:{SERVER_PORT}, UDP:{UDP_PORT}")
 
@@ -448,9 +461,13 @@ class GameServer:
         """Legacy method - replaced by send_client_update"""
         await self.send_client_update(client_id)
 
-    def stop(self):
+    async def stop(self):
         self.running = False
         logger.info("Stopping server...")
+
+        # Stop action processor
+        await self.action_processor.stop()
+
         if self.tcp_server:
             self.tcp_server.close()
         if self.udp_socket:
@@ -510,6 +527,10 @@ class ClientConnection:
                     self.server.agent_registry.register_agent(
                         self.agent_id, agent_type, agent.x, agent.y
                     )
+                    # Register with AI system
+                    self.server.ai_system.register_agent(
+                        self.agent_id, agent_type, agent.x, agent.y
+                    )
 
                 self.server.agent_registry.assign_agent_to_client(
                     self.agent_id, self.client_id
@@ -552,6 +573,36 @@ class ClientConnection:
         elif message.type == MessageType.AGENT_ACTION:
             if self.agent_id:
                 await self.server.process_agent_action(self.agent_id, message.payload)
+
+        elif message.type == MessageType.ACTION_REQUEST:
+            # Handle new unified action request
+            if self.agent_id:
+                from shared.actions import ActionRequest
+                request = ActionRequest.from_dict(message.payload)
+                response = await self.server.action_processor.submit_action(request)
+
+                # Send response back to client
+                response_message = Message(
+                    type=MessageType.ACTION_RESPONSE,
+                    payload=response.to_dict(),
+                    timestamp=time.time(),
+                )
+                await self.send_message(response_message)
+
+        elif message.type == MessageType.ACTION_BATCH:
+            # Handle batch action request
+            if self.agent_id:
+                from shared.actions import ActionBatch
+                batch = ActionBatch.from_dict(message.payload)
+                responses = await self.server.action_processor.submit_batch(batch)
+
+                # Send batch response back to client
+                batch_response_message = Message(
+                    type=MessageType.ACTION_BATCH_RESPONSE,
+                    payload={"responses": [r.to_dict() for r in responses]},
+                    timestamp=time.time(),
+                )
+                await self.send_message(batch_response_message)
 
         elif message.type == MessageType.DISCONNECT:
             await self.server.disconnect_client(self.client_id)

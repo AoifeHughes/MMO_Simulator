@@ -11,6 +11,7 @@ from client.agent_types.explorer import ExplorerAgent
 from client.agent_types.npc import NPCAgent
 from client.agent_types.pathfinding_test import PathfindingTestAgent
 from client.agent_types.player import PlayerAgent
+from client.thin_agent import ThinBaseAgent, create_thin_agent
 from shared.constants import SERVER_PORT, UDP_PORT
 from shared.messages import Message, MessageType
 
@@ -29,6 +30,9 @@ class GameClient:
         self.connected = False
         self.world_state = {}
         self.visible_entities = []
+
+        # Server game data (received from server)
+        self.server_game_data = None
 
     async def connect(self, host: str = "127.0.0.1", agent_type: str = "player"):
         try:
@@ -55,6 +59,11 @@ class GameClient:
                 spawn_x = response.payload.get("x", 50)
                 spawn_y = response.payload.get("y", 50)
                 spawn_rotation = response.payload.get("rotation", 0)
+
+                # Store server game data for agent decision-making
+                self.server_game_data = response.payload.get("attack_data", {})
+                logger.info(f"[CLIENT] Received game data: {len(self.server_game_data.get('attacks', {}))} attacks")
+
                 self.connected = True
                 logger.info(f"Connected as agent {self.agent_id}")
 
@@ -69,6 +78,7 @@ class GameClient:
     def create_agent(
         self, agent_type: str, x: float = 50, y: float = 50, rotation: float = 0
     ):
+        # Create thick agent with behavior trees - server will provide game data
         if agent_type == "player":
             self.agent = PlayerAgent(self.agent_id, x, y)
         elif agent_type == "npc":
@@ -92,11 +102,28 @@ class GameClient:
             self.agent.x = x
             self.agent.y = y
 
+        logger.info(f"[CLIENT] Created {agent_type} agent {self.agent_id[:8]} with behavior tree")
+
         if self.agent:
             self.agent.rotation = rotation
+
+            # Provide server game data to agent
+            if self.server_game_data:
+                if hasattr(self.agent, 'set_server_game_data'):
+                    self.agent.set_server_game_data(self.server_game_data)
+                    logger.info(f"[CLIENT] Provided server game data to agent {self.agent_id[:8]}")
+
             # Set default world bounds immediately so pathfinding can work
             # These will be updated with actual bounds when world state arrives
             self.agent.set_world_bounds(100, 100)
+
+            # Initialize action manager for new request-response system
+            from client.action_manager import ActionManager
+            self.agent.action_manager = ActionManager(
+                agent_id=self.agent_id,
+                send_message_callback=self.send_tcp_message,
+            )
+            logger.info(f"[CLIENT] Initialized action manager for agent {self.agent_id[:8]}")
 
     async def send_tcp_message(self, message: Message):
         if self.tcp_writer:
@@ -189,6 +216,22 @@ class GameClient:
                     self.agent.is_alive = False
                     logger.info(f"[DEATH] Agent {self.agent_id[:8]} has died")
 
+            elif message.type == MessageType.ACTION_RESPONSE:
+                # Handle action response from new action system
+                if self.agent and self.agent.action_manager:
+                    from shared.actions import ActionResponse
+                    response = ActionResponse.from_dict(message.payload)
+                    await self.agent.action_manager.handle_response(response)
+                    logger.debug(f"[ACTION] Processed response for action {response.action_id}: {response.result.value}")
+
+            elif message.type == MessageType.ACTION_BATCH_RESPONSE:
+                # Handle batch action response from new action system
+                if self.agent and self.agent.action_manager:
+                    from shared.actions import ActionResponse
+                    responses = [ActionResponse.from_dict(r) for r in message.payload.get("responses", [])]
+                    await self.agent.action_manager.handle_batch_response(responses)
+                    logger.debug(f"[ACTION] Processed batch response with {len(responses)} actions")
+
             elif message.type == MessageType.AGENT_RESPAWN:
                 agent_id = message.payload.get("agent_id")
                 respawn_x = message.payload.get("x")
@@ -199,6 +242,16 @@ class GameClient:
                     self.agent.y = respawn_y
                     self.agent.health = getattr(self.agent, "max_health", 100)
                     self.agent.is_alive = True
+
+                    # Reset behavior tree to clear any stuck states
+                    if hasattr(self.agent, 'behavior_tree') and self.agent.behavior_tree:
+                        self.agent.behavior_tree.reset()
+                        logger.debug(f"[RESPAWN] Reset behavior tree for agent {self.agent_id[:8]}")
+
+                    # Reset movement state
+                    self.agent.velocity_x = 0
+                    self.agent.velocity_y = 0
+
                     logger.info(
                         f"[RESPAWN] Agent {self.agent_id[:8]} respawned at "
                         f"({respawn_x:.1f}, {respawn_y:.1f})"
