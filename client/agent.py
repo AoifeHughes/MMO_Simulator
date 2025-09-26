@@ -345,6 +345,7 @@ class BaseAgent(ABC):
             "y": self.y,
             "rotation": self.rotation,
             "type": self.agent_type,
+            "agent_type": self.agent_type,  # Add for behavior tree compatibility
             "health": self.health,
             "velocity_x": self.velocity_x,
             "velocity_y": self.velocity_y,
