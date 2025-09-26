@@ -224,6 +224,8 @@ class MockClient:
             self.agent = PlayerAgent(agent_id, x, y)
         elif self.agent_type == "explorer":
             self.agent = ExplorerAgent(agent_id, x, y)
+            # Initialize explorer behavior tree
+            self.agent.set_exploration_mode("frontier")
         elif self.agent_type == "enemy":
             self.agent = EnemyAgent(agent_id, x, y)
         else:
@@ -233,6 +235,15 @@ class MockClient:
 
         # Set up basic world bounds
         self.agent.set_world_bounds(20, 20)
+
+        # Set up collision detection for water avoidance
+        from shared.collision import CollisionDetector
+        self.agent.collision_detector = CollisionDetector(20, 20)
+
+        # Ensure behavior trees are initialized for all agent types
+        if hasattr(self.agent, '_initialize_behavior_tree'):
+            if not getattr(self.agent, 'behavior_tree_initialized', True):
+                self.agent._initialize_behavior_tree()
 
     async def send_tcp_message(self, message: Message):
         """Mock message sending"""

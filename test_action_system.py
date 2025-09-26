@@ -11,6 +11,7 @@ This script creates a simple scenario to test:
 Run this instead of the full simulation to test just the action system.
 """
 
+import pytest
 import asyncio
 import logging
 import time
@@ -74,6 +75,7 @@ class MockClient:
         self.mock_agent = agent
 
 
+@pytest.mark.asyncio
 async def test_action_manager():
     """Test basic action manager functionality"""
     logger.info("=== Testing Action Manager ===")
@@ -113,6 +115,7 @@ async def test_action_manager():
     logger.info("✅ Action manager test passed!")
 
 
+@pytest.mark.asyncio
 async def test_request_action_node():
     """Test RequestAction behavior tree node"""
     logger.info("=== Testing RequestAction Behavior Tree Node ===")
@@ -173,6 +176,7 @@ async def test_request_action_node():
     logger.info("✅ RequestAction behavior tree node test passed!")
 
 
+@pytest.mark.asyncio
 async def test_prediction_system():
     """Test client-side prediction"""
     logger.info("=== Testing Client-Side Prediction ===")

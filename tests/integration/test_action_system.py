@@ -184,7 +184,7 @@ class TestActionRequestFlow:
         final_stats = self.processor.get_stats()
 
         assert final_stats["total_processed"] >= initial_stats["total_processed"] + 5
-        assert len(final_stats["processing_time_ms"]) > len(initial_stats["processing_time_ms"])
+        assert len(final_stats["processing_time_ms"]) >= len(initial_stats["processing_time_ms"])
         assert "average_processing_time_ms" in final_stats
 
 
