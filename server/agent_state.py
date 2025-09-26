@@ -54,6 +54,9 @@ class ServerAgentState:
     # Special modes for different behaviors
     exploration_mode: str = "frontier"
 
+    # Server-side exploration tracking
+    explored_tiles: set = field(default_factory=set)
+
     def update_position(self, x: float, y: float, rotation: float = None):
         """Update agent position and track distance traveled"""
         old_x, old_y = self.position
@@ -108,6 +111,18 @@ class ServerAgentState:
             self.stats["exploration_percent"], percent
         )
 
+    def add_explored_tile(self, x: int, y: int):
+        """Add a tile to the explored set"""
+        self.explored_tiles.add((x, y))
+
+    def get_exploration_percentage(self, world_width: int, world_height: int) -> float:
+        """Calculate exploration percentage based on tiles explored"""
+        total_tiles = world_width * world_height
+        if total_tiles == 0:
+            return 0.0
+        explored_count = len(self.explored_tiles)
+        return (explored_count / total_tiles) * 100.0
+
     def add_starting_items(self):
         """Add default starting items based on agent type"""
         if self.agent_type == "player":
@@ -140,6 +155,7 @@ class ServerAgentState:
             "stats": self.stats.copy(),
             "inventory": self.inventory.to_dict(),
             "last_update_time": self.last_update_time,
+            "explored_tiles_count": len(self.explored_tiles),
         }
 
 
@@ -149,6 +165,8 @@ class AgentRegistry:
     def __init__(self):
         self.agents: Dict[str, ServerAgentState] = {}
         self.controlled_agents: Dict[str, str] = {}  # agent_id -> client_id
+        self.world_width: int = 100
+        self.world_height: int = 100
 
     def register_agent(
         self, agent_id: str, agent_type: str, x: float = 50.0, y: float = 50.0
@@ -268,3 +286,21 @@ class AgentRegistry:
             "total_kills": total_kills,
             "total_damage_dealt": total_damage,
         }
+
+    def set_world_dimensions(self, width: int, height: int):
+        """Set world dimensions for exploration percentage calculations"""
+        self.world_width = width
+        self.world_height = height
+
+    def process_agent_vision_update(self, agent_id: str, discovered_tiles: List[Tuple[int, int]]):
+        """Process vision update from agent to track server-side exploration"""
+        agent = self.get_agent(agent_id)
+        if not agent:
+            return
+
+        for x, y in discovered_tiles:
+            agent.add_explored_tile(x, y)
+
+        # Update the exploration percentage in stats
+        exploration_percent = agent.get_exploration_percentage(self.world_width, self.world_height)
+        agent.update_exploration(exploration_percent)

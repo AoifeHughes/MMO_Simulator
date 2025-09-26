@@ -67,6 +67,9 @@ class SimulatorApp:
                 logger.error(f"Failed to load scenario: {self.scenario_name}")
                 self.running = False
                 return None
+
+            # Start database tracking for the scenario
+            await self.server.start_scenario_tracking(self.scenario_name)
         else:
             # Default agents if no scenario
             for i in range(3):
@@ -291,7 +294,7 @@ class SimulatorApp:
             await self.client.disconnect()
 
         if self.server:
-            self.server.stop()
+            await self.server.stop()
 
         if self.renderer:
             self.renderer.cleanup()

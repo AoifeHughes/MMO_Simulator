@@ -3,7 +3,7 @@ import json
 import logging
 import socket
 import time
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from server.agent_ai import ServerAI
 from server.agent_state import AgentRegistry
@@ -46,6 +46,14 @@ class GameServer:
         self.tcp_server = None
         self.udp_socket = None
         self.running = False
+
+        # Database system
+        from server.database import DatabaseManager, PeriodicDataCollector
+        self.database_manager = DatabaseManager()
+        self.data_collector: Optional[PeriodicDataCollector] = None
+
+        # Set world dimensions for exploration tracking
+        self.agent_registry.set_world_dimensions(world_width, world_height)
 
     async def start(self):
         self.running = True
@@ -466,6 +474,14 @@ class GameServer:
         self.running = False
         logger.info("Stopping server...")
 
+        # Stop data collection and save final snapshot
+        if self.data_collector:
+            await self.data_collector.stop()
+
+        # End scenario and close database
+        await self.database_manager.end_scenario()
+        await self.database_manager.close()
+
         # Stop action processor
         await self.action_processor.stop()
 
@@ -474,6 +490,31 @@ class GameServer:
         if self.udp_socket:
             self.udp_socket.close()
         logger.info("Server stopped")
+
+    async def start_scenario_tracking(self, scenario_name: str):
+        """Initialize database tracking for a scenario"""
+        from server.database import PeriodicDataCollector
+
+        # Initialize database and start scenario
+        await self.database_manager.initialize()
+        await self.database_manager.start_scenario(
+            scenario_name,
+            self.world.world_map.width,
+            self.world.world_map.height
+        )
+
+        # Start periodic data collection
+        self.data_collector = PeriodicDataCollector(
+            self.database_manager,
+            self.agent_registry
+        )
+        await self.data_collector.start()
+
+        logger.info(f"Started database tracking for scenario: {scenario_name}")
+
+    def process_agent_vision_update(self, agent_id: str, discovered_tiles: List[tuple]):
+        """Process vision updates from agents for exploration tracking"""
+        self.agent_registry.process_agent_vision_update(agent_id, discovered_tiles)
 
 
 class ClientConnection:
