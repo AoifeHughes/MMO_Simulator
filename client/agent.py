@@ -90,6 +90,12 @@ class BaseAgent(ABC):
         # Movement management system for smooth movement
         self.movement_manager: Optional["MovementManager"] = None
 
+        # Position reconciliation system to fix sync issues
+        self.position_reconciler: Optional["PositionReconciler"] = None
+
+        # Movement validation system to prevent server conflicts
+        self.movement_validator: Optional["MovementValidator"] = None
+
     @abstractmethod
     def update(self, delta_time: float):
         pass
@@ -113,8 +119,20 @@ class BaseAgent(ABC):
                 (self.x, self.y), (new_x, new_y)
             )
 
-        self.x = new_x
-        self.y = new_y
+        # Update position reconciler with prediction
+        if self.position_reconciler:
+            self.position_reconciler.update_prediction(
+                new_x, new_y, self.rotation, self.velocity_x, self.velocity_y
+            )
+            # Get reconciled display position
+            display_x, display_y, display_rotation = self.position_reconciler.update(delta_time)
+            self.x = display_x
+            self.y = display_y
+            self.rotation = display_rotation
+        else:
+            # Fallback to direct position update
+            self.x = new_x
+            self.y = new_y
 
     def set_velocity(self, vx: float, vy: float):
         self.velocity_x = vx
@@ -132,6 +150,10 @@ class BaseAgent(ABC):
         self.world_bounds = (width, height)
         self.collision_detector = CollisionDetector(width, height)
         self.agent_map = AgentMap(width, height)
+
+        # Update movement validator bounds
+        if self.movement_validator:
+            self.movement_validator.set_world_bounds(width, height)
 
     def set_server_game_data(self, game_data: Dict[str, Any]):
         """Set server game data for agent decision-making"""
@@ -339,10 +361,40 @@ class BaseAgent(ABC):
         # Discover terrain within vision range
         self.agent_map.discover_area(self.x, self.y, self.vision_range, terrain_data)
 
+        # Update movement validator terrain cache
+        if self.movement_validator and terrain_data:
+            self.movement_validator.update_terrain_cache(terrain_data)
+
         # Mark that we've received initial map data
         if not self.has_initial_map_data and terrain_data:
             self.has_initial_map_data = True
             logger.debug(f"Agent {self.id[:8]} received initial map data")
+
+    def _has_sufficient_terrain_coverage(self, required_coverage: float = 0.3) -> bool:
+        """Check if agent has sufficient terrain coverage around their position for safe behavior tree execution"""
+        if not self.agent_map:
+            return False
+
+        # Check coverage in a small radius around agent (fishing range)
+        search_radius = 2  # 2-tile radius around agent
+        known_tiles_count = 0
+        total_tiles = 0
+
+        for dy in range(-search_radius, search_radius + 1):
+            for dx in range(-search_radius, search_radius + 1):
+                check_x = int(self.x) + dx
+                check_y = int(self.y) + dy
+
+                if self.agent_map.is_valid_position(check_x, check_y):
+                    total_tiles += 1
+                    if self.agent_map.is_tile_known(check_x, check_y):
+                        known_tiles_count += 1
+
+        if total_tiles == 0:
+            return False
+
+        coverage = known_tiles_count / total_tiles
+        return coverage >= required_coverage
 
     def get_state(self) -> Dict[str, Any]:
         state = {
@@ -370,9 +422,20 @@ class BaseAgent(ABC):
         return state
 
     def update_from_state(self, state: Dict[str, Any]):
-        self.x = state.get("x", self.x)
-        self.y = state.get("y", self.y)
-        self.rotation = state.get("rotation", self.rotation)
+        x = state.get("x", self.x)
+        y = state.get("y", self.y)
+        rotation = state.get("rotation", self.rotation)
+
+        # Update through position reconciler if available
+        if self.position_reconciler:
+            import time
+            self.position_reconciler.set_server_position(x, y, rotation, time.time())
+        else:
+            # Direct update for fallback
+            self.x = x
+            self.y = y
+            self.rotation = rotation
+
         self.health = state.get("health", self.health)
         self.velocity_x = state.get("velocity_x", 0)
         self.velocity_y = state.get("velocity_y", 0)
@@ -447,6 +510,11 @@ class BaseAgent(ABC):
         # Wait for initial map data before executing behavior tree
         if not self.has_initial_map_data:
             logger.debug(f"Agent {self.id[:8]} waiting for initial map data before behavior tree execution")
+            return
+
+        # Ensure sufficient terrain coverage around agent before allowing behavior tree execution
+        if self.agent_map and not self._has_sufficient_terrain_coverage():
+            logger.debug(f"Agent {self.id[:8]} waiting for sufficient terrain coverage before behavior tree execution")
             return
 
         # Update position tracking for stuck detection
@@ -571,3 +639,46 @@ class BaseAgent(ABC):
         if not self.movement_manager:
             self._initialize_movement_manager()
         return self.movement_manager
+
+    def _initialize_position_reconciler(self):
+        """Initialize the position reconciliation system for this agent"""
+        if not self.position_reconciler:
+            from client.position_reconciliation import PositionReconciler
+            self.position_reconciler = PositionReconciler(self.id)
+            logger.debug(f"Agent {self.id[:8]} initialized position reconciler")
+
+    def get_position_reconciler(self):
+        """Get the position reconciler, initializing if needed"""
+        if not self.position_reconciler:
+            self._initialize_position_reconciler()
+        return self.position_reconciler
+
+    def set_position_reconciler_enabled(self, enabled: bool):
+        """Enable or disable position reconciliation"""
+        if enabled and not self.position_reconciler:
+            self._initialize_position_reconciler()
+        elif not enabled:
+            self.position_reconciler = None
+
+    def _initialize_movement_validator(self):
+        """Initialize the movement validation system for this agent"""
+        if not self.movement_validator:
+            from client.movement_validator import MovementValidator
+            self.movement_validator = MovementValidator(self.id)
+            # Set world bounds if we have them
+            if self.world_bounds:
+                self.movement_validator.set_world_bounds(*self.world_bounds)
+            logger.debug(f"Agent {self.id[:8]} initialized movement validator")
+
+    def get_movement_validator(self):
+        """Get the movement validator, initializing if needed"""
+        if not self.movement_validator:
+            self._initialize_movement_validator()
+        return self.movement_validator
+
+    def validate_movement_to(self, target_x: float, target_y: float) -> Tuple[bool, str]:
+        """Validate movement to target position"""
+        if not self.movement_validator:
+            self._initialize_movement_validator()
+
+        return self.movement_validator.validate_behavior_tree_movement(self, target_x, target_y)

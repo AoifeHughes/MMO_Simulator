@@ -179,6 +179,14 @@ class GameClient:
             )
             logger.info(f"[CLIENT] Initialized action manager for agent {self.agent_id[:8]}")
 
+            # Initialize position reconciliation system to fix sync issues
+            self.agent._initialize_position_reconciler()
+            logger.info(f"[CLIENT] Initialized position reconciler for agent {self.agent_id[:8]}")
+
+            # Initialize movement validation system to prevent conflicts
+            self.agent._initialize_movement_validator()
+            logger.info(f"[CLIENT] Initialized movement validator for agent {self.agent_id[:8]}")
+
     async def send_tcp_message(self, message: Message):
         if self.tcp_writer:
             data = message.to_json() + "\n"
@@ -559,6 +567,13 @@ class GameClient:
 
     async def move_to(self, x: float, y: float):
         if self.agent and isinstance(self.agent, PlayerAgent):
+            # Validate movement through position reconciler
+            if self.agent.position_reconciler:
+                is_valid, reason = self.agent.position_reconciler.validate_movement(x, y)
+                if not is_valid:
+                    logger.warning(f"[CLIENT] Movement validation failed for agent {self.agent_id[:8]}: {reason}")
+                    return
+
             self.agent.handle_input("move_to", {"x": x, "y": y})
 
             message = Message(

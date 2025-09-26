@@ -111,21 +111,37 @@ class GameServer:
                     self.udp_endpoints[client_id] = addr
                     await self.process_udp_message(client_id, message)
             except Exception as e:
-                # Use the locally defined logger to avoid scope issues
-                udp_logger.error(f"UDP error: {e}")
+                # Use defensive logging to avoid any logger issues
+                try:
+                    udp_logger.error(f"UDP error: {e}")
+                except:
+                    # Fallback to print if logger fails
+                    print(f"UDP error (logger failed): {e}")
+                    import traceback
+                    traceback.print_exc()
 
             await asyncio.sleep(0.001)
 
     async def process_udp_message(self, client_id: str, message: dict):
-        msg_type = message.get("type")
+        try:
+            msg_type = message.get("type")
 
-        if msg_type == "move":
-            agent_id = self.clients[client_id].agent_id
-            if agent_id:
-                x = message.get("x", 0)
-                y = message.get("y", 0)
-                rotation = message.get("rotation", 0)
-                self.world.move_agent(agent_id, x, y, rotation)
+            if msg_type == "move":
+                agent_id = self.clients[client_id].agent_id
+                if agent_id:
+                    x = message.get("x", 0)
+                    y = message.get("y", 0)
+                    rotation = message.get("rotation", 0)
+                    self.world.move_agent(agent_id, x, y, rotation)
+        except Exception as e:
+            # Defensive logging for UDP message processing errors
+            try:
+                # Use module-level logger if available
+                logger.error(f"Error processing UDP message from {client_id}: {e}")
+            except:
+                print(f"Error processing UDP message from {client_id} (logger failed): {e}")
+                import traceback
+                traceback.print_exc()
 
     def find_uncontrolled_agent(self, agent_type: str) -> Optional[str]:
         """Find an uncontrolled agent of the specified type"""

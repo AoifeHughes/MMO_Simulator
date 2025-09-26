@@ -47,6 +47,8 @@ class WaterNearbyCondition(ConditionNode):
         agent_x, agent_y = agent.x, agent.y
         search_radius = int(self.max_distance) + 1
 
+        # Count known tiles to check if we have sufficient terrain data
+        known_tiles_count = 0
         water_found = False
         closest_distance = float('inf')
 
@@ -56,6 +58,7 @@ class WaterNearbyCondition(ConditionNode):
                 check_y = int(agent_y) + dy
 
                 if agent.agent_map.is_tile_known(check_x, check_y):
+                    known_tiles_count += 1
                     tile_type = agent.agent_map.get_tile_type(check_x, check_y)
                     if tile_type == TileType.WATER:
                         # Calculate real distance to water tile center
@@ -68,7 +71,21 @@ class WaterNearbyCondition(ConditionNode):
                             if real_distance < closest_distance:
                                 closest_distance = real_distance
 
-        logger.info(f"🎣 WaterNearby: Agent {agent.id[:8]} at ({agent_x:.2f}, {agent_y:.2f}) water within {self.max_distance}: {water_found} (closest: {closest_distance:.2f})")
+        # If we have insufficient terrain data, don't attempt fishing to prevent position issues
+        total_search_tiles = (2 * search_radius + 1) ** 2
+        terrain_coverage = known_tiles_count / total_search_tiles
+
+        if terrain_coverage < 0.3:  # Need at least 30% terrain coverage
+            logger.debug(f"🎣 WaterNearby: Agent {agent.id[:8]} insufficient terrain data ({terrain_coverage:.1%} coverage), deferring fishing")
+            return False
+
+        # Only log 'inf' if we have sufficient terrain data but no water found
+        if closest_distance == float('inf'):
+            closest_distance_log = "none found"
+        else:
+            closest_distance_log = f"{closest_distance:.2f}"
+
+        logger.info(f"🎣 WaterNearby: Agent {agent.id[:8]} at ({agent_x:.2f}, {agent_y:.2f}) water within {self.max_distance}: {water_found} (closest: {closest_distance_log}, terrain: {terrain_coverage:.1%})")
         return water_found
 
 
@@ -179,6 +196,7 @@ class FishingAction(ActionNode):
         search_radius = int(self.max_distance) + 1
         closest_water = None
         closest_distance = float('inf')
+        known_tiles_count = 0
 
         for dy in range(-search_radius, search_radius + 1):
             for dx in range(-search_radius, search_radius + 1):
@@ -186,6 +204,7 @@ class FishingAction(ActionNode):
                 check_y = int(agent_y) + dy
 
                 if agent.agent_map.is_tile_known(check_x, check_y):
+                    known_tiles_count += 1
                     tile_type = agent.agent_map.get_tile_type(check_x, check_y)
                     if tile_type == TileType.WATER:
                         water_center_x = check_x + 0.5
@@ -195,6 +214,13 @@ class FishingAction(ActionNode):
                         if distance <= self.max_distance and distance < closest_distance:
                             closest_distance = distance
                             closest_water = (water_center_x, water_center_y)
+
+        # Check if we have sufficient terrain coverage before returning water
+        total_search_tiles = (2 * search_radius + 1) ** 2
+        terrain_coverage = known_tiles_count / total_search_tiles
+
+        if terrain_coverage < 0.3:  # Need at least 30% terrain coverage
+            return None
 
         return closest_water
 

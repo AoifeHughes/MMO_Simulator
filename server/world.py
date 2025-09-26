@@ -1,3 +1,4 @@
+import logging
 import time
 import uuid
 from typing import Dict, List, Optional, Tuple
@@ -12,6 +13,8 @@ from world.vision import VisionSystem
 from server.world_objects import WorldObjectManager
 from debug_tracker import track_agent_position
 from shared.position_authority import update_agent_server_position
+
+logger = logging.getLogger(__name__)
 
 
 class ServerWorld:
