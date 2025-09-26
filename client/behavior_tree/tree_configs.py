@@ -8,7 +8,9 @@ import math
 from typing import Optional
 
 from .nodes import *
+from .nodes.wood_harvesting_action import *
 from .tree import BehaviorTree
+from shared.action_constants import DISTANCES
 
 
 def create_npc_tree(
@@ -74,10 +76,10 @@ def create_explorer_tree(
                     "FishingBehavior",
                     [
                         HasFishingRod(),
-                        WaterNearby(1.2),  # Use same distance as FishAtWater for consistency
+                        WaterNearby(DISTANCES.FISHING_RANGE),  # Use centralized fishing distance
                         CooldownDecorator(
                             "FishingCooldown",
-                            FishAtWater(1.2),  # Use default distance parameter
+                            FishAtWater(DISTANCES.FISHING_RANGE),  # Use centralized fishing distance
                             cooldown_duration=2.0,
                         ),
                     ],
@@ -88,12 +90,12 @@ def create_explorer_tree(
                     "MoveToWaterBehavior",
                     [
                         HasFishingRod(),
-                        WaterDiscoveredButNotNearby(1.2),  # Water is known but not fishing-close
+                        WaterDiscoveredButNotNearby(DISTANCES.FISHING_RANGE),  # Water is known but not fishing-close
                         CooldownDecorator(
                             "MoveToWaterCooldown",
                             TimerDecorator(
                                 "MoveToWaterTimer",
-                                MoveToFishingSpot(1.2),
+                                MoveToFishingSpot(DISTANCES.FISHING_RANGE),
                                 minimum_duration=2.0,
                             ),
                             cooldown_duration=1.0,
@@ -131,6 +133,72 @@ def create_explorer_tree(
         )
 
         return BehaviorTree(root, "FishingExplorerTree")
+
+    elif mode == "wood_harvesting":
+        # Special wood harvesting explorer behavior
+        root = PrioritySelector(
+            "WoodHarvestingExplorerRoot",
+            [
+                # Priority 1: Harvest wood if we're already close enough
+                Sequence(
+                    "WoodHarvestingBehavior",
+                    [
+                        WoodNearby(DISTANCES.WOOD_HARVESTING_RANGE),  # Wood is within harvesting distance
+                        CooldownDecorator(
+                            "HarvestingCooldown",
+                            HarvestWood(DISTANCES.WOOD_HARVESTING_RANGE),  # Use centralized harvesting distance
+                            cooldown_duration=2.0,
+                        ),
+                    ],
+                ),
+
+                # Priority 2: Move to wood if we know where it is but aren't close enough
+                Sequence(
+                    "MoveToWoodBehavior",
+                    [
+                        WoodDiscoveredButNotNearby(DISTANCES.WOOD_HARVESTING_RANGE),  # Wood is known but not harvesting-close
+                        CooldownDecorator(
+                            "MoveToWoodCooldown",
+                            TimerDecorator(
+                                "MoveToWoodTimer",
+                                MoveToWoodHarvestingSpot(DISTANCES.WOOD_HARVESTING_RANGE),
+                                minimum_duration=2.0,
+                            ),
+                            cooldown_duration=1.0,
+                        ),
+                    ],
+                ),
+
+                # Priority 3: Explore to find wood if none discovered yet
+                CooldownDecorator(
+                    "ExplorationCooldown",
+                    TimerDecorator(
+                        "ExploreTimer",
+                        Explore(exploration_radius, "frontier"),  # Use frontier mode for wood discovery
+                        minimum_duration=3.0,
+                    ),
+                    cooldown_duration=1.0,
+                ),
+
+                # Priority 4: Wander if stuck or need to move
+                Sequence(
+                    "UnstuckBehavior",
+                    [
+                        IsStuck(1.0, 2.0),
+                        CooldownDecorator(
+                            "UnstuckCooldown",
+                            Wander(home_x, home_y, 15.0),
+                            cooldown_duration=3.0,
+                        ),
+                    ],
+                ),
+
+                # Priority 5: Default idle
+                Idle(1.0),
+            ],
+        )
+
+        return BehaviorTree(root, "WoodHarvestingExplorerTree")
 
     else:
         # Default exploration behavior

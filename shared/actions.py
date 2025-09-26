@@ -31,13 +31,11 @@ class ActionType(Enum):
 
     # Social Actions
     CHAT_MESSAGE = "chat_message"         # Send chat message
-    TRADE_REQUEST = "trade_request"       # Initiate trade
     PARTY_INVITE = "party_invite"         # Invite to party
 
     # World Interaction
     INTERACT_OBJECT = "interact_object"   # Use environmental object
     PICK_UP_ITEM = "pick_up_item"         # Collect item from ground
-    CRAFT_ITEM = "craft_item"             # Create item from resources
 
     # Inventory Actions
     QUERY_INVENTORY = "query_inventory"   # Get inventory state
@@ -47,6 +45,16 @@ class ActionType(Enum):
 
     # Special Actions
     FISH = "fish"                        # Use fishing rod at water
+    HARVEST_WOOD = "harvest_wood"        # Harvest wood from forest tiles
+    CRAFT_ITEM = "craft_item"           # Craft an item using recipe
+
+    # Trading Actions
+    TRADE_REQUEST = "trade_request"      # Request a trade with another agent
+    TRADE_ACCEPT = "trade_accept"       # Accept a trade offer
+    TRADE_DECLINE = "trade_decline"     # Decline a trade offer
+
+    # Exploration Actions
+    EXPLORATION_REPORT = "exploration_report"  # Report exploration progress
 
     # System Actions
     PING = "ping"                         # Network latency test
@@ -303,3 +311,84 @@ def fish_params(x: float = None, y: float = None) -> Dict[str, Any]:
     if x is not None and y is not None:
         params.update({"target_x": x, "target_y": y})
     return params
+
+
+def harvest_wood_params(x: float, y: float) -> Dict[str, Any]:
+    """Parameters for HARVEST_WOOD action"""
+    return {
+        "target_x": x,
+        "target_y": y,
+    }
+
+
+def craft_item_params(recipe_name: str, x: float = 0.0, y: float = 0.0) -> Dict[str, Any]:
+    """Parameters for CRAFT_ITEM action"""
+    return {
+        "recipe_name": recipe_name,
+        "target_x": x,
+        "target_y": y,
+    }
+
+
+def trade_request_params(target_agent_id: str, offering_items: List[Dict], requesting_items: List[Dict]) -> Dict[str, Any]:
+    """Parameters for TRADE_REQUEST action"""
+    return {
+        "target_agent_id": target_agent_id,
+        "offering_items": offering_items,
+        "requesting_items": requesting_items,
+    }
+
+
+def trade_accept_params(trade_id: str) -> Dict[str, Any]:
+    """Parameters for TRADE_ACCEPT action"""
+    return {
+        "trade_id": trade_id,
+    }
+
+
+def trade_decline_params(trade_id: str) -> Dict[str, Any]:
+    """Parameters for TRADE_DECLINE action"""
+    return {
+        "trade_id": trade_id,
+    }
+
+
+# Action creation helpers
+def create_harvest_wood_action(x: float = 0.0, y: float = 0.0) -> ActionRequest:
+    """Create a harvest wood action"""
+    return ActionRequest(
+        action_type=ActionType.HARVEST_WOOD,
+        parameters={"target_x": x, "target_y": y}
+    )
+
+
+def create_craft_item_action(recipe_name: str, x: float = 0.0, y: float = 0.0) -> ActionRequest:
+    """Create a craft item action"""
+    return ActionRequest(
+        action_type=ActionType.CRAFT_ITEM,
+        parameters=craft_item_params(recipe_name, x, y)
+    )
+
+
+def create_trade_request_action(target_agent_id: str, offering_items: List[Dict], requesting_items: List[Dict]) -> ActionRequest:
+    """Create a trade request action"""
+    return ActionRequest(
+        action_type=ActionType.TRADE_REQUEST,
+        parameters=trade_request_params(target_agent_id, offering_items, requesting_items)
+    )
+
+
+def create_trade_accept_action(trade_id: str) -> ActionRequest:
+    """Create a trade accept action"""
+    return ActionRequest(
+        action_type=ActionType.TRADE_ACCEPT,
+        parameters=trade_accept_params(trade_id)
+    )
+
+
+def create_trade_decline_action(trade_id: str) -> ActionRequest:
+    """Create a trade decline action"""
+    return ActionRequest(
+        action_type=ActionType.TRADE_DECLINE,
+        parameters=trade_decline_params(trade_id)
+    )

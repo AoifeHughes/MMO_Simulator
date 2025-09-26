@@ -18,11 +18,15 @@ class BaseScenario(ABC):
         description: str,
         terrain_type: TerrainType = TerrainType.MIXED,
         seed: int = 42,
+        world_width: int = 100,
+        world_height: int = 100,
     ):
         self.name = name
         self.description = description
         self.terrain_type = terrain_type
         self.seed = seed
+        self.world_width = world_width
+        self.world_height = world_height
         self.agents = []
         self.server = None
         self.visualization_enabled = True

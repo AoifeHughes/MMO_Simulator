@@ -73,6 +73,16 @@ class ExplorerAgent(BaseAgent):
             self.exploration_mode = server_data['exploration_mode']
             logger.info(f"Explorer {self.id[:8]} using exploration mode: {self.exploration_mode}")
 
+        # Also check for specialization which might indicate behavior mode
+        if 'specialization' in server_data:
+            specialization = server_data['specialization']
+            if specialization == "wood_harvesting" and self.exploration_mode == "frontier":
+                self.exploration_mode = "wood_harvesting"
+                logger.info(f"Explorer {self.id[:8]} switching to wood_harvesting mode based on specialization")
+            elif specialization == "fishing" and self.exploration_mode == "frontier":
+                self.exploration_mode = "fishing"
+                logger.info(f"Explorer {self.id[:8]} switching to fishing mode based on specialization")
+
         # Initialize behavior tree now that we have server data
         if not self.behavior_tree_initialized:
             self._initialize_behavior_tree()

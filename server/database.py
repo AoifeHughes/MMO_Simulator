@@ -9,7 +9,7 @@ import asyncio
 import logging
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import aiosqlite
 from sqlalchemy import Column, Integer, Float, String, Text, DateTime, ForeignKey, Boolean, text
@@ -105,6 +105,57 @@ class EquipmentSnapshot(Base):
     agent_snapshot = relationship("AgentSnapshot", back_populates="equipment_items")
 
 
+class TradeRecord(Base):
+    __tablename__ = "trades"
+
+    id = Column(Integer, primary_key=True)
+    scenario_run_id = Column(Integer, ForeignKey("scenario_runs.id"), nullable=False)
+    trade_time = Column(DateTime, nullable=False)
+
+    # Trade participants
+    agent1_id = Column(String(50), nullable=False)
+    agent2_id = Column(String(50), nullable=False)
+
+    # Trade details
+    agent1_items_given = Column(JSON)  # [{"item_name": str, "quantity": int}, ...]
+    agent2_items_given = Column(JSON)  # [{"item_name": str, "quantity": int}, ...]
+    trade_status = Column(String(20), default="completed")  # completed, cancelled
+
+    # Trade location
+    trade_location_x = Column(Float)
+    trade_location_y = Column(Float)
+
+    # Relationships
+    scenario_run = relationship("ScenarioRun")
+
+
+class CraftRecord(Base):
+    __tablename__ = "crafts"
+
+    id = Column(Integer, primary_key=True)
+    scenario_run_id = Column(Integer, ForeignKey("scenario_runs.id"), nullable=False)
+    craft_time = Column(DateTime, nullable=False)
+
+    # Crafter
+    agent_id = Column(String(50), nullable=False)
+
+    # Craft details
+    recipe_name = Column(String(100), nullable=False)
+    ingredients_used = Column(JSON)  # [{"item_name": str, "quantity": int}, ...]
+    result_item = Column(String(100))  # Name of created object/item
+
+    # Craft location
+    craft_location_x = Column(Float, nullable=False)
+    craft_location_y = Column(Float, nullable=False)
+
+    # Result details
+    craft_duration = Column(Float)  # How long the crafted object lasts
+    craft_success = Column(Boolean, default=True)
+
+    # Relationships
+    scenario_run = relationship("ScenarioRun")
+
+
 class DatabaseManager:
     """Manages SQLite database operations for scenario data storage"""
 
@@ -191,6 +242,54 @@ class DatabaseManager:
             await session.commit()
 
         logger.debug(f"Saved snapshot for {len(agent_registry.agents)} agents")
+
+    async def record_trade(self, agent1_id: str, agent2_id: str, agent1_items: List[Dict], agent2_items: List[Dict],
+                          location: Tuple[float, float], status: str = "completed"):
+        """Record a trade transaction"""
+        if not self.current_scenario_id or not self.session_factory:
+            return
+
+        async with self.session_factory() as session:
+            trade_record = TradeRecord(
+                scenario_run_id=self.current_scenario_id,
+                trade_time=datetime.now(),
+                agent1_id=agent1_id,
+                agent2_id=agent2_id,
+                agent1_items_given=agent1_items,
+                agent2_items_given=agent2_items,
+                trade_status=status,
+                trade_location_x=location[0],
+                trade_location_y=location[1]
+            )
+
+            session.add(trade_record)
+            await session.commit()
+            logger.debug(f"Recorded trade between {agent1_id} and {agent2_id}")
+
+    async def record_craft(self, agent_id: str, recipe_name: str, ingredients: List[Dict],
+                          result_item: str, location: Tuple[float, float],
+                          duration: float = 300.0, success: bool = True):
+        """Record a crafting activity"""
+        if not self.current_scenario_id or not self.session_factory:
+            return
+
+        async with self.session_factory() as session:
+            craft_record = CraftRecord(
+                scenario_run_id=self.current_scenario_id,
+                craft_time=datetime.now(),
+                agent_id=agent_id,
+                recipe_name=recipe_name,
+                ingredients_used=ingredients,
+                result_item=result_item,
+                craft_location_x=location[0],
+                craft_location_y=location[1],
+                craft_duration=duration,
+                craft_success=success
+            )
+
+            session.add(craft_record)
+            await session.commit()
+            logger.debug(f"Recorded craft by {agent_id}: {recipe_name} -> {result_item}")
 
     async def _save_agent_snapshot(self, session, agent_id: str, agent_state: ServerAgentState, snapshot_time: datetime):
         """Save a single agent snapshot with inventory and equipment"""

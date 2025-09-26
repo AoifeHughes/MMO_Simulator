@@ -357,7 +357,7 @@ def create_sword() -> Weapon:
     return Weapon(
         name="Iron Sword",
         description="A sturdy iron sword for close combat",
-        value=100,
+        value=100,  # Iron Sword base value
         weight=3.0,
         weapon_type=WeaponType.MELEE,
         damage=15.0,
@@ -374,7 +374,7 @@ def create_bow() -> Weapon:
     return Weapon(
         name="Hunter's Bow",
         description="A reliable bow for ranged combat",
-        value=150,
+        value=80,  # Hunter's Bow base value
         weight=2.0,
         weapon_type=WeaponType.RANGED,
         damage=20.0,
@@ -391,7 +391,7 @@ def create_fishing_rod() -> Tool:
     return Tool(
         name="Fishing Rod",
         description="A tool for catching fish at water sources",
-        value=50,
+        value=30,  # Fishing Rod base value
         weight=1.5,
         tool_type="fishing",
         uses=-1,  # Infinite uses
@@ -403,11 +403,24 @@ def create_fish() -> Consumable:
     return Consumable(
         name="Fresh Fish",
         description="A nutritious fish that restores health",
-        value=10,
+        value=5,  # Fresh Fish base value
         weight=0.5,
         effect_type="heal",
         effect_value=25.0,
         effect_duration=0.0,
+    )
+
+
+def create_wood() -> Item:
+    """Create a wood resource item"""
+    return Item(
+        name="Wood",
+        description="Harvested wood from forest trees, useful for crafting",
+        item_type=ItemType.MISC,
+        value=2,  # Wood base value
+        weight=0.8,
+        stackable=True,
+        max_stack_size=50
     )
 
 
@@ -423,6 +436,7 @@ ITEM_REGISTRY = {
     "hunters_bow": create_bow,
     "fishing_rod": create_fishing_rod,
     "fish": create_fish,
+    "wood": create_wood,
     "gold": lambda: create_gold_stack(10),
 }
 

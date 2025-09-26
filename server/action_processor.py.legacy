@@ -32,8 +32,6 @@ from world.tiles import TileType
 from server.world_objects import get_recipe
 from debug_tracker import track_agent_action, track_agent_position
 from shared.position_sync import get_position_sync, validate_action_position, update_agent_position
-from shared.action_constants import DISTANCES, THRESHOLDS, position_tracker
-from shared.position_stats import record_position_discrepancy, record_action_distance_attempt
 
 logger = logging.getLogger(__name__)
 
@@ -327,31 +325,35 @@ class FishingValidator(ActionValidator):
         if tile_type != TileType.WATER:
             return False, "Can only fish at water locations"
 
-        # MMO-style distance validation - server is authoritative, no position corrections
-        max_fishing_distance = DISTANCES.FISHING_RANGE
-
-        # Calculate actual distance between agent and target
-        agent_pos = (agent.position[0], agent.position[1])
-        target_pos = (target_x, target_y)
-        dx = target_pos[0] - agent_pos[0]
-        dy = target_pos[1] - agent_pos[1]
-        actual_distance = (dx * dx + dy * dy) ** 0.5
-
-        # Simple binary validation - no position corrections
-        is_valid = actual_distance <= max_fishing_distance
-
-        # Record distance validation statistics
-        record_action_distance_attempt("fishing", agent_pos, target_pos, max_fishing_distance, is_valid)
+        # Use position sync for more accurate distance validation
+        max_fishing_distance = 1.2  # Consistent with client distance
+        is_valid, error_msg, suggested_pos = validate_action_position(
+            agent.agent_id, target_x, target_y, max_fishing_distance, "fishing"
+        )
 
         if not is_valid:
-            error_msg = f"Fishing failed: distance {actual_distance:.2f} > max {max_fishing_distance:.2f}. Move closer to the water."
-            logger.info(f"🎣 Fishing rejected for {agent.agent_id[:8]}: {error_msg}")
+            logger.warning(f"🎣 Fishing validation failed: Agent {agent.agent_id[:8]} - {error_msg}")
 
-            # Track client-server position discrepancy for debugging
-            record_position_discrepancy(agent.agent_id, agent_pos, agent_pos, "fishing_validation")
+            # If we have a suggested position, try to move agent there
+            if suggested_pos:
+                logger.info(f"🎣 Suggesting position correction for {agent.agent_id[:8]}: "
+                           f"from ({agent.position[0]:.2f}, {agent.position[1]:.2f}) "
+                           f"to ({suggested_pos[0]:.2f}, {suggested_pos[1]:.2f})")
+
+                # Allow the action if the suggested position is reasonable
+                distance_to_suggested = ((suggested_pos[0] - agent.position[0]) ** 2 +
+                                       (suggested_pos[1] - agent.position[1]) ** 2) ** 0.5
+
+                if distance_to_suggested <= 1.0:  # Small position correction
+                    # Update the target parameters to use the suggested position
+                    request.parameters["suggested_agent_x"] = suggested_pos[0]
+                    request.parameters["suggested_agent_y"] = suggested_pos[1]
+                    logger.info(f"🎣 Allowing fishing with position suggestion for {agent.agent_id[:8]}")
+                    return True, ""
 
             # Track the failed action for debugging
-            track_agent_action(agent.agent_id, "fishing", target_pos, agent_pos, False, error_msg)
+            track_agent_action(agent.agent_id, "fishing", (target_x, target_y), agent.position,
+                             False, error_msg)
             return False, error_msg
 
         return True, ""
@@ -783,8 +785,22 @@ class ActionProcessor:
         """Execute FISH action"""
         agent = context.agent_registry.get_agent(request.agent_id)
 
-        # No position corrections - server doesn't move agents during actions
-        # In MMO-style architecture, clients must be positioned correctly before requesting actions
+        # Apply position suggestion if provided
+        if "suggested_agent_x" in request.parameters and "suggested_agent_y" in request.parameters:
+            suggested_x = request.parameters["suggested_agent_x"]
+            suggested_y = request.parameters["suggested_agent_y"]
+
+            # Smoothly move agent to suggested position
+            from shared.position_sync import smooth_position_correction
+            corrected_x, corrected_y = smooth_position_correction(
+                agent.agent_id, suggested_x, suggested_y
+            )
+
+            # Update agent position
+            success = context.world.move_agent(agent.agent_id, corrected_x, corrected_y, agent.rotation)
+            if success:
+                logger.info(f"🎣 Applied position correction for fishing: {agent.agent_id[:8]} "
+                           f"moved to ({corrected_x:.2f}, {corrected_y:.2f})")
 
         # Fishing takes 1-5 seconds randomly
         fishing_time = random.uniform(1.0, 5.0)
@@ -796,18 +812,9 @@ class ActionProcessor:
             logger.debug(f"Created fish item: {fish}, name: {fish.name if fish else 'None'}")
 
             if fish and agent.inventory.has_space_for_item(fish, 1):
-                # Add item to inventory - with better error handling
+                # Add item to inventory
                 added_count = agent.inventory.add_item(fish, 1)
                 logger.debug(f"Attempted to add 1 fish, actually added: {added_count}")
-
-                # If add_item failed, try manual slot assignment
-                if added_count == 0:
-                    for slot in agent.inventory.slots:
-                        if slot.is_empty():
-                            slot.set_item(fish, 1)
-                            added_count = 1
-                            logger.info(f"🎣 Manually added fish to empty slot for agent {agent.agent_id[:8]}")
-                            break
 
                 logger.info(f"🎣 Agent {agent.agent_id[:8]} caught a fish!")
                 print(f"🎣 Agent {agent.agent_id[:8]} caught a fish!")
@@ -860,38 +867,52 @@ class ActionProcessor:
         # Update position sync with current agent state
         update_agent_position(agent.agent_id, agent.position[0], agent.position[1])
 
-        # MMO-style distance validation - server is authoritative, no position corrections
-        max_harvest_distance = DISTANCES.WOOD_HARVESTING_RANGE
-
-        # Calculate actual distance between agent and target
-        agent_pos = (agent.position[0], agent.position[1])
-        target_pos = (target_x, target_y)
-        dx = target_pos[0] - agent_pos[0]
-        dy = target_pos[1] - agent_pos[1]
-        actual_distance = (dx * dx + dy * dy) ** 0.5
-
-        # Simple binary validation - no position corrections
-        is_valid = actual_distance <= max_harvest_distance
-
-        # Record distance validation statistics
-        record_action_distance_attempt("wood_harvesting", agent_pos, target_pos, max_harvest_distance, is_valid)
+        # Use position sync for more accurate distance validation
+        max_harvest_distance = 1.2  # Consistent with fishing distance
+        is_valid, error_msg, suggested_pos = validate_action_position(
+            agent.agent_id, target_x, target_y, max_harvest_distance, "wood harvesting"
+        )
 
         if not is_valid:
-            error_msg = f"Wood harvesting failed: distance {actual_distance:.2f} > max {max_harvest_distance:.2f}. Move closer to the trees."
-            logger.info(f"🌲 Wood harvesting rejected for {agent.agent_id[:8]}: {error_msg}")
+            logger.warning(f"🌲 Wood harvesting validation failed: Agent {agent.agent_id[:8]} - {error_msg}")
 
-            # Track client-server position discrepancy for debugging
-            record_position_discrepancy(agent.agent_id, agent_pos, agent_pos, "wood_harvesting_validation")
+            # If we have a suggested position, try to move agent there
+            if suggested_pos:
+                logger.info(f"🌲 Suggesting position correction for {agent.agent_id[:8]}: "
+                           f"from ({agent.position[0]:.2f}, {agent.position[1]:.2f}) "
+                           f"to ({suggested_pos[0]:.2f}, {suggested_pos[1]:.2f})")
 
-            # Track the failed action for debugging
-            track_agent_action(agent.agent_id, "harvest_wood", target_pos, agent_pos, False, error_msg)
-            return ActionResponse(
-                action_id=request.action_id,
-                agent_id=request.agent_id,
-                action_type=request.action_type,
-                result=ActionResult.REJECTED,
-                message=error_msg
-            )
+                # Allow the action if the suggested position is reasonable
+                distance_to_suggested = ((suggested_pos[0] - agent.position[0]) ** 2 +
+                                       (suggested_pos[1] - agent.position[1]) ** 2) ** 0.5
+
+                if distance_to_suggested <= 1.0:  # Small position correction
+                    # Update the target parameters to use the suggested position
+                    request.parameters["suggested_agent_x"] = suggested_pos[0]
+                    request.parameters["suggested_agent_y"] = suggested_pos[1]
+                    logger.info(f"🌲 Allowing wood harvesting with position suggestion for {agent.agent_id[:8]}")
+                else:
+                    # Track the failed action for debugging
+                    track_agent_action(agent.agent_id, "harvest_wood", (target_x, target_y), agent.position,
+                                     False, error_msg)
+                    return ActionResponse(
+                        action_id=request.action_id,
+                        agent_id=request.agent_id,
+                        action_type=request.action_type,
+                        result=ActionResult.REJECTED,
+                        message="Target location too far for wood harvesting"
+                    )
+            else:
+                # Track the failed action for debugging
+                track_agent_action(agent.agent_id, "harvest_wood", (target_x, target_y), agent.position,
+                                 False, error_msg)
+                return ActionResponse(
+                    action_id=request.action_id,
+                    agent_id=request.agent_id,
+                    action_type=request.action_type,
+                    result=ActionResult.REJECTED,
+                    message="Target location too far for wood harvesting"
+                )
 
         # Check if target tile is forest
         tile_x, tile_y = int(target_x), int(target_y)
@@ -905,8 +926,22 @@ class ActionProcessor:
                 message="Can only harvest wood from forest tiles"
             )
 
-        # No position corrections - server doesn't move agents during actions
-        # In MMO-style architecture, clients must be positioned correctly before requesting actions
+        # Apply position suggestion if provided
+        if "suggested_agent_x" in request.parameters and "suggested_agent_y" in request.parameters:
+            suggested_x = request.parameters["suggested_agent_x"]
+            suggested_y = request.parameters["suggested_agent_y"]
+
+            # Smoothly move agent to suggested position
+            from shared.position_sync import smooth_position_correction
+            corrected_x, corrected_y = smooth_position_correction(
+                agent.agent_id, suggested_x, suggested_y
+            )
+
+            # Update agent position
+            success = context.world.move_agent(agent.agent_id, corrected_x, corrected_y, agent.rotation)
+            if success:
+                logger.info(f"🌲 Applied position correction for wood harvesting: {agent.agent_id[:8]} "
+                           f"moved to ({corrected_x:.2f}, {corrected_y:.2f})")
 
         # Harvesting takes 2-4 seconds
         harvest_time = random.uniform(2.0, 4.0)
@@ -914,19 +949,7 @@ class ActionProcessor:
 
         # Create wood item and try to add to inventory
         wood_item = create_item("wood")
-        if wood_item and agent.inventory.has_space_for_item(wood_item, 1):
-            added_count = agent.inventory.add_item(wood_item, 1)
-
-            # If add_item failed, try manual slot assignment
-            if added_count == 0:
-                for slot in agent.inventory.slots:
-                    if slot.is_empty():
-                        slot.set_item(wood_item, 1)
-                        added_count = 1
-                        logger.info(f"🌲 Manually added wood to empty slot for agent {agent.agent_id[:8]}")
-                        break
-
-        if wood_item and added_count > 0:
+        if wood_item and agent.inventory.add_item(wood_item, 1):
             logger.info(f"🌲 Agent {agent.agent_id[:8]} harvested wood at ({tile_x}, {tile_y})")
 
             return ActionResponse(

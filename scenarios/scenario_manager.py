@@ -7,6 +7,7 @@ from scenarios.dual_weapon_combat import DualWeaponCombatScenario
 from scenarios.duel_test import DuelTestScenario
 from scenarios.exploration_demo import ExplorationDemoScenario
 from scenarios.fishing_exploration import FishingExplorationScenario
+from scenarios.forest_fisher_cooperation import ForestFisherCooperationScenario
 from scenarios.pathfinding_demo import PathfindingDemoScenario
 from scenarios.peaceful_village import PeacefulVillageScenario
 from scenarios.simple_duel import SimpleDuelScenario
@@ -32,6 +33,7 @@ class ScenarioManager:
             PathfindingDemoScenario(),
             SimpleDuelScenario(),
             FishingExplorationScenario(),
+            ForestFisherCooperationScenario(),
             DualWeaponCombatScenario(),
             TestCombatSimpleScenario(),
             TestFishingSimpleScenario(),

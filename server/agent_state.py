@@ -47,6 +47,10 @@ class ServerAgentState:
         }
     )
 
+    # Agent behavior configuration
+    specialization: Optional[str] = None
+    exploration_mode: Optional[str] = None
+
     # Inventory system
     inventory: Inventory = field(default_factory=lambda: Inventory(max_weight=100.0))
     experience: float = 0.0
@@ -143,7 +147,7 @@ class ServerAgentState:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization"""
-        return {
+        data = {
             "agent_id": self.agent_id,
             "agent_type": self.agent_type,
             "health": self.health,
@@ -157,6 +161,14 @@ class ServerAgentState:
             "last_update_time": self.last_update_time,
             "explored_tiles_count": len(self.explored_tiles),
         }
+
+        # Include behavior configuration if available
+        if self.specialization:
+            data["specialization"] = self.specialization
+        if self.exploration_mode:
+            data["exploration_mode"] = self.exploration_mode
+
+        return data
 
 
 class AgentRegistry:

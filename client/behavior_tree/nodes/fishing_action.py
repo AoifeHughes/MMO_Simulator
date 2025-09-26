@@ -12,69 +12,48 @@ from world.tiles import TileType
 
 from .base import ActionNode, ConditionNode, NodeStatus
 from .action import MoveToTargetWithPathfinding
+from .two_phase_action import ResourceActionNode
+
+try:
+    from debug_tracker import track_resource_event, track_agent_position
+except ImportError:
+    # Fallback if debug tracker is not available
+    def track_resource_event(*args, **kwargs): pass
+    def track_agent_position(*args, **kwargs): pass
 
 logger = logging.getLogger(__name__)
 
 
-class FishAtWater(ActionNode):
-    """Action node that makes the agent fish at nearby water"""
+class FishAtWater(ResourceActionNode):
+    """Action node that makes the agent fish at nearby water using two-phase positioning"""
 
-    def __init__(self, max_distance: float = 1.2):
-        super().__init__("FishAtWater")
-        self.max_distance = max_distance
-        self.is_fishing = False
-        self.fishing_start_time = 0
+    def __init__(self, max_distance: float = 5.0):
+        super().__init__("FishAtWater", TileType.WATER, max_distance)
 
-    def start_action(self, agent) -> bool:
-        """Start fishing action"""
-        logger.info(f"🎣 FishAtWater.start_action: Agent {agent.id[:8]} attempting to start fishing")
-
+    def execute_action(self, agent, target_pos: Tuple[float, float]) -> bool:
+        """Execute the fishing action at the confirmed position"""
         # Check if agent has fishing rod
         if not self._has_fishing_rod(agent):
             logger.debug(f"FishAtWater: Agent {agent.id[:8]} has no fishing rod")
             return False
 
-        # Find nearby water
-        water_pos = self._find_nearby_water(agent)
-        if not water_pos:
-            logger.warning(f"FishAtWater: Agent {agent.id[:8]} found no nearby water within {self.max_distance} units")
-            return False
+        # Send fishing request to server
+        self._request_fishing(agent, target_pos[0], target_pos[1])
 
-        # Stop movement to prevent drifting while fishing
-        agent.stop_movement()
+        logger.info(f"🎣 Agent {agent.id[:8]} executing fishing at ({target_pos[0]:.2f}, {target_pos[1]:.2f})")
+        print(f"🎣 Agent {agent.id[:8]} fishing at validated position - distance should be ≤1.0")
 
-        # Start fishing
-        agent_pos = (agent.x, agent.y)
-        water_center = (water_pos[0] + 0.5, water_pos[1] + 0.5)
-        distance_to_water = ((water_center[0] - agent.x) ** 2 + (water_center[1] - agent.y) ** 2) ** 0.5
-
-        logger.info(f"🎣 Agent {agent.id[:8]} at ({agent_pos[0]:.2f}, {agent_pos[1]:.2f}) starting fishing at water tile ({water_pos[0]}, {water_pos[1]}), distance {distance_to_water:.2f}")
-        print(f"🎣 Agent {agent.id[:8]} starting fishing at water position ({water_pos[0]}, {water_pos[1]}) - distance {distance_to_water:.2f}")
-        self._request_fishing(agent, water_pos[0], water_pos[1])
-        self.is_fishing = True
-        self.fishing_start_time = time.time()
         return True
 
-    def update_action(self, agent, dt: float) -> NodeStatus:
-        """Update fishing action"""
-        # If already fishing, wait for completion
-        if self.is_fishing:
-            # Keep the agent stationary while fishing
-            agent.stop_movement()
+    def get_action_name(self) -> str:
+        return "fishing"
 
-            # Check if fishing time has passed
-            elapsed_time = time.time() - self.fishing_start_time
-            if elapsed_time > 6.0:  # Max fishing time
-                self.is_fishing = False
-                logger.info(f"🎣 Agent {agent.id[:8]} finished fishing attempt at water ({self.max_distance:.1f}m range)")
-                return NodeStatus.SUCCESS
-            return NodeStatus.RUNNING
+    def get_resource_type(self) -> str:
+        return "water"
 
-        return NodeStatus.FAILURE
-
-    def stop_action(self, agent):
-        """Stop fishing action"""
-        self.is_fishing = False
+    def should_complete_action(self, agent, elapsed_time: float) -> bool:
+        """Complete fishing after reasonable time"""
+        return elapsed_time >= 4.0  # Fish for 4 seconds
 
     def _has_fishing_rod(self, agent) -> bool:
         """Check if agent has a fishing rod"""
@@ -122,6 +101,10 @@ class FishAtWater(ActionNode):
         closest_water = water_tiles[0]
 
         logger.info(f"Agent {agent.id[:8]} at ({agent_x:.2f}, {agent_y:.2f}) found {len(water_tiles)} water tiles, chose tile ({closest_water[0]}, {closest_water[1]}) at real distance {closest_water[2]:.2f}")
+
+        # Track water discovery for debugging
+        track_resource_event(agent.id, "discovered", "water",
+                           (closest_water[0], closest_water[1]), (agent_x, agent_y), "find_nearby_water")
 
         # Log all nearby water for debugging
         for i, (wx, wy, dist, cx, cy) in enumerate(water_tiles[:5]):  # Show top 5

@@ -9,6 +9,8 @@ from world.map import WorldMap
 from world.terrain_generator import TerrainType
 from world.tiles import TileType
 from world.vision import VisionSystem
+from server.world_objects import WorldObjectManager
+from debug_tracker import track_agent_position
 
 
 class ServerWorld:
@@ -25,6 +27,7 @@ class ServerWorld:
         )
         self.vision_system = VisionSystem(self.world_map)
         self.collision_detector = CollisionDetector(width, height)
+        self.world_objects = WorldObjectManager()
         self.agents: Dict[str, AgentData] = {}
         self.last_update = time.time()
 
@@ -123,12 +126,25 @@ class ServerWorld:
         adjusted_velocity_x = velocity_x * movement_cost
         adjusted_velocity_y = velocity_y * movement_cost
 
+        # Track potential position jumps for debugging
+        old_x, old_y = agent.x, agent.y
+        position_change = ((safe_x - old_x) ** 2 + (safe_y - old_y) ** 2) ** 0.5
+
         # Update agent position and velocity
         agent.x = safe_x
         agent.y = safe_y
         agent.rotation = rotation
         agent.velocity_x = adjusted_velocity_x
         agent.velocity_y = adjusted_velocity_y
+
+        # Track the position change for debugging
+        track_agent_position(agent_id, safe_x, safe_y, "movement")
+
+        # Log significant position corrections
+        if position_change > 1.0:
+            logger.warning(f"🚨 POSITION CORRECTION: Agent {agent_id[:8]} moved from "
+                         f"({old_x:.2f}, {old_y:.2f}) to ({safe_x:.2f}, {safe_y:.2f}) "
+                         f"- change: {position_change:.2f} units")
 
         return True
 
@@ -369,3 +385,14 @@ class ServerWorld:
     def get_world_bounds(self) -> Tuple[int, int]:
         """Get world dimensions"""
         return self.world_map.width, self.world_map.height
+
+    def update(self) -> None:
+        """Update world state, including object cleanup"""
+        current_time = time.time()
+
+        # Update world objects (cleanup expired ones)
+        expired_count = self.world_objects.update()
+        if expired_count > 0:
+            print(f"Cleaned up {expired_count} expired world objects")
+
+        self.last_update = current_time

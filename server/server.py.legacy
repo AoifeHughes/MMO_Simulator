@@ -106,9 +106,6 @@ class GameServer:
                     self.udp_endpoints[client_id] = addr
                     await self.process_udp_message(client_id, message)
             except Exception as e:
-                # Ensure logger is available in this context
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.error(f"UDP error: {e}")
 
             await asyncio.sleep(0.001)
