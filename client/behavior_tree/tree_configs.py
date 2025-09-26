@@ -9,6 +9,8 @@ from typing import Optional
 
 from .nodes import *
 from .nodes.wood_harvesting_action import *
+from .nodes.fishing_action_simple import FishingAction, FishingRodRequirement, WaterNearbyCondition
+from .nodes.wood_harvesting_action_simple import WoodHarvestingAction, WoodNearbyCondition
 from .tree import BehaviorTree
 from shared.action_constants import DISTANCES
 
@@ -75,11 +77,11 @@ def create_explorer_tree(
                 Sequence(
                     "FishingBehavior",
                     [
-                        HasFishingRod(),
-                        WaterNearby(DISTANCES.FISHING_RANGE),  # Use centralized fishing distance
+                        FishingRodRequirement(),  # OOP-based fishing rod check
+                        WaterNearbyCondition(DISTANCES.FISHING_RANGE),  # Server-authoritative water detection
                         CooldownDecorator(
                             "FishingCooldown",
-                            FishAtWater(DISTANCES.FISHING_RANGE),  # Use centralized fishing distance
+                            FishingAction(DISTANCES.FISHING_RANGE),  # OOP-based fishing action with server queries
                             cooldown_duration=2.0,
                         ),
                     ],
@@ -89,7 +91,7 @@ def create_explorer_tree(
                 Sequence(
                     "MoveToWaterBehavior",
                     [
-                        HasFishingRod(),
+                        FishingRodRequirement(),  # OOP-based fishing rod check
                         WaterDiscoveredButNotNearby(DISTANCES.FISHING_RANGE),  # Water is known but not fishing-close
                         CooldownDecorator(
                             "MoveToWaterCooldown",
@@ -143,10 +145,10 @@ def create_explorer_tree(
                 Sequence(
                     "WoodHarvestingBehavior",
                     [
-                        WoodNearby(DISTANCES.WOOD_HARVESTING_RANGE),  # Wood is within harvesting distance
+                        WoodNearbyCondition(DISTANCES.WOOD_HARVESTING_RANGE),  # Server-authoritative wood detection
                         CooldownDecorator(
                             "HarvestingCooldown",
-                            HarvestWood(DISTANCES.WOOD_HARVESTING_RANGE),  # Use centralized harvesting distance
+                            WoodHarvestingAction(DISTANCES.WOOD_HARVESTING_RANGE),  # OOP-based wood harvesting with server queries
                             cooldown_duration=2.0,
                         ),
                     ],

@@ -11,6 +11,7 @@ from world.tiles import TileType
 from world.vision import VisionSystem
 from server.world_objects import WorldObjectManager
 from debug_tracker import track_agent_position
+from shared.position_authority import update_agent_server_position
 
 
 class ServerWorld:
@@ -136,6 +137,9 @@ class ServerWorld:
         agent.rotation = rotation
         agent.velocity_x = adjusted_velocity_x
         agent.velocity_y = adjusted_velocity_y
+
+        # Update server position authority with authoritative position
+        update_agent_server_position(agent_id, safe_x, safe_y, rotation, adjusted_velocity_x, adjusted_velocity_y)
 
         # Track the position change for debugging
         track_agent_position(agent_id, safe_x, safe_y, "movement")

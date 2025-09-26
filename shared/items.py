@@ -293,6 +293,44 @@ class Consumable(Item):
 
 
 @dataclass
+class Resource(Item):
+    """Resource items for crafting materials"""
+
+    resource_type: str = "generic"  # wood, stone, ore, etc.
+
+    def __init__(self, **kwargs):
+        # Extract resource-specific attributes
+        resource_attrs = ['resource_type']
+        resource_kwargs = {}
+
+        for attr in resource_attrs:
+            if attr in kwargs:
+                resource_kwargs[attr] = kwargs.pop(attr)
+
+        super().__init__(stackable=True, max_stack_size=50, **kwargs)
+        self.item_type = ItemType.MISC
+
+        # Set resource-specific attributes
+        for key, value in resource_kwargs.items():
+            setattr(self, key, value)
+
+    def to_dict(self) -> Dict[str, Any]:
+        result = super().to_dict()
+        result.update({
+            "resource_type": self.resource_type,
+        })
+        return result
+
+    def use(self, agent_id: str, world_context: Optional[Any] = None) -> Dict[str, Any]:
+        """Resources are used in crafting, not directly"""
+        return {
+            "success": False,
+            "message": f"{self.name} is a crafting material and cannot be used directly",
+            "action": "none"
+        }
+
+
+@dataclass
 class Tool(Item):
     """Tool items for various activities"""
 
@@ -411,16 +449,14 @@ def create_fish() -> Consumable:
     )
 
 
-def create_wood() -> Item:
+def create_wood() -> Resource:
     """Create a wood resource item"""
-    return Item(
+    return Resource(
         name="Wood",
         description="Harvested wood from forest trees, useful for crafting",
-        item_type=ItemType.MISC,
         value=2,  # Wood base value
         weight=0.8,
-        stackable=True,
-        max_stack_size=50
+        resource_type="wood"
     )
 
 

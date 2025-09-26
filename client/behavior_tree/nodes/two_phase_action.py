@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from .base import ActionNode, NodeStatus
 from shared.action_constants import DISTANCES, THRESHOLDS
+from shared.position_authority import get_server_position_for_action
 from world.tiles import TileType
 
 try:
@@ -91,8 +92,12 @@ class TwoPhaseActionNode(ActionNode, ABC):
             logger.warning(f"{self.get_action_name()}: Agent {agent.id[:8]} - no valid position found")
             return False
 
-        # Check if already in optimal position
-        agent_pos = (agent.x, agent.y)
+        # Check if already in optimal position using server position for consistency
+        server_pos = get_server_position_for_action(agent.id)
+        if server_pos:
+            agent_pos = server_pos
+        else:
+            agent_pos = (agent.x, agent.y)
         distance_to_optimal = self._distance(agent_pos, self.optimal_agent_position)
 
         if distance_to_optimal <= self.positioning_tolerance:
@@ -141,8 +146,12 @@ class TwoPhaseActionNode(ActionNode, ABC):
             logger.warning(f"⏰ {self.get_action_name()}: Agent {agent.id[:8]} positioning timeout")
             return NodeStatus.FAILURE
 
-        # Check if reached optimal position
-        agent_pos = (agent.x, agent.y)
+        # Check if reached optimal position using server position for consistency
+        server_pos = get_server_position_for_action(agent.id)
+        if server_pos:
+            agent_pos = server_pos
+        else:
+            agent_pos = (agent.x, agent.y)
         distance_to_optimal = self._distance(agent_pos, self.optimal_agent_position)
 
         if distance_to_optimal <= self.positioning_tolerance:
@@ -291,17 +300,24 @@ class TwoPhaseActionNode(ActionNode, ABC):
             logger.warning(f"❌ {self.get_action_name()}: Agent {agent.id[:8]} validation failed - no target position")
             return False
 
-        # SIMPLE FIX: Skip client-side validation entirely
-        # Let the server be the sole authority on action validation
-        # If server rejects, agent will try to reposition
+        # Get server position for better accuracy
+        server_pos = get_server_position_for_action(agent.id)
+        if server_pos:
+            # Use server-authoritative position for validation
+            agent_pos = server_pos
+            logger.info(f"✅ {self.get_action_name()}: Agent {agent.id[:8]} CLIENT validation success - using server position ({server_pos[0]:.3f}, {server_pos[1]:.3f})")
+        else:
+            # Fallback to client position with warning
+            agent_pos = (agent.x, agent.y)
+            logger.warning(f"⚠️ {self.get_action_name()}: Server query failed, using client validation")
 
-        # Log what client thinks for debugging purposes only
-        client_distance = self._distance((agent.x, agent.y), self.target_position)
-        logger.info(f"🎯 {self.get_action_name()}: Agent {agent.id[:8]} ready to attempt action")
-        logger.debug(f"🔍 CLIENT thinks distance is {client_distance:.3f} to target ({self.target_position[0]:.3f}, {self.target_position[1]:.3f})")
+        client_distance = self._distance(agent_pos, self.target_position)
+        is_valid = client_distance <= (self.required_distance + 0.1)  # Add small buffer
 
-        # Always return True - let server decide
-        return True
+        logger.info(f"✅ {self.get_action_name()}: Agent {agent.id[:8]} CLIENT validation {'success' if is_valid else 'failed'} - "
+                   f"client distance {client_distance:.3f} {'≤' if is_valid else '>'} required {self.required_distance:.3f}")
+
+        return is_valid
 
     def _query_server_for_validation(self, agent) -> Optional[Dict[str, Any]]:
         """Query server for authoritative action validation"""

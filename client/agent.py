@@ -68,6 +68,7 @@ class BaseAgent(ABC):
         # Behavior tree system
         self.behavior_tree = None
         self.use_behavior_tree = False
+        self.has_initial_map_data = False  # Flag to ensure map data before behavior tree execution
         self.last_position = (x, y)
         self.last_position_time = time.time()
 
@@ -338,6 +339,11 @@ class BaseAgent(ABC):
         # Discover terrain within vision range
         self.agent_map.discover_area(self.x, self.y, self.vision_range, terrain_data)
 
+        # Mark that we've received initial map data
+        if not self.has_initial_map_data and terrain_data:
+            self.has_initial_map_data = True
+            logger.debug(f"Agent {self.id[:8]} received initial map data")
+
     def get_state(self) -> Dict[str, Any]:
         state = {
             "id": self.id,
@@ -436,6 +442,11 @@ class BaseAgent(ABC):
     def update_behavior_tree(self, delta_time: float):
         """Update the agent using the behavior tree system"""
         if not self.behavior_tree or not self.use_behavior_tree:
+            return
+
+        # Wait for initial map data before executing behavior tree
+        if not self.has_initial_map_data:
+            logger.debug(f"Agent {self.id[:8]} waiting for initial map data before behavior tree execution")
             return
 
         # Update position tracking for stuck detection

@@ -33,6 +33,7 @@ from server.world_objects import get_recipe
 from debug_tracker import track_agent_action, track_agent_position
 from shared.position_sync import get_position_sync, validate_action_position, update_agent_position
 from shared.action_constants import DISTANCES, THRESHOLDS, position_tracker
+from shared.position_authority import server_position_authority
 from shared.position_stats import record_position_discrepancy, record_action_distance_attempt
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,112 @@ class ActionValidator(ABC):
     def get_supported_actions(self) -> Set[ActionType]:
         """Return set of action types this validator handles"""
         pass
+
+
+class ResourceGatheringValidator(ActionValidator):
+    """
+    Abstract base class for all resource gathering validators.
+
+    This provides a consistent OOP structure that mirrors the client-side
+    ResourceActionBase hierarchy, ensuring common validation logic is
+    centralized and extensible.
+    """
+
+    def __init__(self,
+                 resource_name: str,
+                 required_tile_type: TileType,
+                 max_distance: float,
+                 required_tool: Optional[str] = None):
+        self.resource_name = resource_name
+        self.required_tile_type = required_tile_type
+        self.max_distance = max_distance
+        self.required_tool = required_tool
+
+    def validate(self, request: ActionRequest, context: "ActionContext") -> Tuple[bool, str]:
+        """
+        Template method implementing common resource gathering validation flow.
+        """
+        # 1. Check if this validator handles the action type
+        if request.action_type != self.get_supported_action_type():
+            return True, ""  # Not our action, let it pass
+
+        # 2. Basic agent validation
+        agent = context.agent_registry.get_agent(request.agent_id)
+        if not agent or not agent.is_alive:
+            return False, "Agent not found or dead"
+
+        # 3. Get target position
+        target_x = request.parameters.get("target_x", agent.position[0])
+        target_y = request.parameters.get("target_y", agent.position[1])
+
+        # 4. Check required tools (delegated to subclass)
+        if self.required_tool:
+            tool_valid, tool_error = self.check_tool_requirement(agent)
+            if not tool_valid:
+                return False, tool_error
+
+        # 5. Validate target tile type
+        world_map = context.world.world_map
+        tile_x, tile_y = int(target_x), int(target_y)
+
+        if not (0 <= tile_x < world_map.width and 0 <= tile_y < world_map.height):
+            return False, "Target location out of bounds"
+
+        tile_type = world_map.get_tile(tile_x, tile_y)
+        if tile_type != self.required_tile_type:
+            return False, f"Can only {self.resource_name} at {self.required_tile_type.value} locations"
+
+        # 6. Distance validation with server position authority
+        update_agent_position(agent.agent_id, agent.position[0], agent.position[1])
+
+        server_pos = server_position_authority.get_agent_position(agent.agent_id)
+        if server_pos:
+            agent_pos = (server_pos.x, server_pos.y)
+        else:
+            agent_pos = (agent.position[0], agent.position[1])
+
+        target_pos = (target_x, target_y)
+        dx = target_pos[0] - agent_pos[0]
+        dy = target_pos[1] - agent_pos[1]
+        actual_distance = (dx * dx + dy * dy) ** 0.5
+
+        is_valid = actual_distance <= self.max_distance
+        record_action_distance_attempt(self.resource_name, agent_pos, target_pos, self.max_distance, is_valid)
+
+        if not is_valid:
+            # Create readable tile type name for error message
+            tile_name = "water" if self.required_tile_type == TileType.WATER else self.required_tile_type.value
+            error_msg = f"{self.resource_name.capitalize()} failed: distance {actual_distance:.2f} > max {self.max_distance:.2f}. Move closer to the {tile_name}."
+            logger.info(f"🚫 {self.resource_name.capitalize()} rejected for {agent.agent_id[:8]}: {error_msg}")
+
+            record_position_discrepancy(agent.agent_id, agent_pos, agent_pos, f"{self.resource_name}_validation")
+            track_agent_action(agent.agent_id, self.resource_name, target_pos, agent_pos, False, error_msg)
+            return False, error_msg
+
+        # 7. Resource-specific validation (hook for subclasses)
+        specific_valid, specific_error = self.validate_additional_requirements(agent, target_pos, context)
+        if not specific_valid:
+            return False, specific_error
+
+        return True, ""
+
+    @abstractmethod
+    def get_supported_action_type(self) -> ActionType:
+        """Get the ActionType this validator handles"""
+        pass
+
+    @abstractmethod
+    def check_tool_requirement(self, agent) -> Tuple[bool, str]:
+        """Check if agent has required tools for this resource action"""
+        pass
+
+    def validate_additional_requirements(self, agent, target_pos: Tuple[float, float], context: "ActionContext") -> Tuple[bool, str]:
+        """Hook method for resource-specific validation. Override in subclasses if needed."""
+        return True, ""
+
+    def get_supported_actions(self) -> Set[ActionType]:
+        """Return the single action type this validator handles"""
+        return {self.get_supported_action_type()}
 
 
 class ActionContext:
@@ -292,76 +399,74 @@ class InventoryValidator(ActionValidator):
         }
 
 
-class FishingValidator(ActionValidator):
-    """Validates fishing actions"""
+class FishingValidator(ResourceGatheringValidator):
+    """Validates fishing actions using OOP inheritance"""
 
-    def validate(self, request: ActionRequest, context: ActionContext) -> Tuple[bool, str]:
-        if request.action_type != ActionType.FISH:
-            return True, ""
+    def __init__(self):
+        super().__init__(
+            resource_name="fishing",
+            required_tile_type=TileType.WATER,
+            max_distance=DISTANCES.FISHING_RANGE,
+            required_tool="fishing_rod"
+        )
 
-        agent = context.agent_registry.get_agent(request.agent_id)
-        if not agent or not agent.is_alive:
-            return False, "Agent not found or dead"
+    def get_supported_action_type(self) -> ActionType:
+        """Get the ActionType for fishing"""
+        return ActionType.FISH
 
-        # Check if agent has fishing rod
+    def check_tool_requirement(self, agent) -> Tuple[bool, str]:
+        """Check if agent has fishing rod in inventory"""
         fishing_rods = [item for item in agent.inventory.get_items_by_type("tool")
-                      if hasattr(item, 'tool_type') and item.tool_type == "fishing"]
+                       if hasattr(item, 'tool_type') and item.tool_type == "fishing"]
         if not fishing_rods:
             return False, "No fishing rod in inventory"
+        return True, ""
 
-        # Get target position (agent's current position if not specified)
-        target_x = request.parameters.get("target_x", agent.position[0])
-        target_y = request.parameters.get("target_y", agent.position[1])
+    def validate_additional_requirements(self, agent, target_pos: Tuple[float, float], context: "ActionContext") -> Tuple[bool, str]:
+        """Additional fishing-specific validation if needed"""
+        # DEBUG: Log server's view of agent position for fishing (keeping existing debug behavior)
+        server_pos = server_position_authority.get_agent_position(agent.agent_id)
+        if server_pos:
+            agent_pos = (server_pos.x, server_pos.y)
+        else:
+            agent_pos = (agent.position[0], agent.position[1])
 
-        # Update position sync with current agent state
-        update_agent_position(agent.agent_id, agent.position[0], agent.position[1])
-
-        # Check if target location has water
-        world_map = context.world.world_map
-        tile_x, tile_y = int(target_x), int(target_y)
-
-        if not (0 <= tile_x < world_map.width and 0 <= tile_y < world_map.height):
-            return False, "Target location out of bounds"
-
-        tile_type = world_map.get_tile(tile_x, tile_y)
-        if tile_type != TileType.WATER:
-            return False, "Can only fish at water locations"
-
-        # MMO-style distance validation - server is authoritative, no position corrections
-        max_fishing_distance = DISTANCES.FISHING_RANGE
-
-        # Calculate actual distance between agent and target
-        agent_pos = (agent.position[0], agent.position[1])
-        target_pos = (target_x, target_y)
-        dx = target_pos[0] - agent_pos[0]
-        dy = target_pos[1] - agent_pos[1]
-        actual_distance = (dx * dx + dy * dy) ** 0.5
-
-        # DEBUG: Log server's view of agent position for fishing
-        logger.debug(f"🔍 FISHING SERVER position for {agent.agent_id[:8]}: ({agent_pos[0]:.3f}, {agent_pos[1]:.3f})")
-        logger.debug(f"🔍 FISHING SERVER calculating distance to target ({target_pos[0]:.3f}, {target_pos[1]:.3f}): {actual_distance:.3f}")
-
-        # Simple binary validation - no position corrections
-        is_valid = actual_distance <= max_fishing_distance
-
-        # Record distance validation statistics
-        record_action_distance_attempt("fishing", agent_pos, target_pos, max_fishing_distance, is_valid)
-
-        if not is_valid:
-            error_msg = f"Fishing failed: distance {actual_distance:.2f} > max {max_fishing_distance:.2f}. Move closer to the water."
-            logger.info(f"🎣 Fishing rejected for {agent.agent_id[:8]}: {error_msg}")
-
-            # Track client-server position discrepancy for debugging
-            record_position_discrepancy(agent.agent_id, agent_pos, agent_pos, "fishing_validation")
-
-            # Track the failed action for debugging
-            track_agent_action(agent.agent_id, "fishing", target_pos, agent_pos, False, error_msg)
-            return False, error_msg
+        logger.info(f"🔍 FISHING SERVER position for {agent.agent_id[:8]}: ({agent_pos[0]:.3f}, {agent_pos[1]:.3f})")
+        logger.info(f"🔍 FISHING SERVER calculating distance to target ({target_pos[0]:.3f}, {target_pos[1]:.3f})")
 
         return True, ""
 
-    def get_supported_actions(self) -> Set[ActionType]:
-        return {ActionType.FISH}
+
+class WoodHarvestingValidator(ResourceGatheringValidator):
+    """Validates wood harvesting actions using OOP inheritance"""
+
+    def __init__(self):
+        super().__init__(
+            resource_name="wood_harvesting",
+            required_tile_type=TileType.WOOD,
+            max_distance=DISTANCES.WOOD_HARVESTING_RANGE,
+            required_tool=None  # No tool required for basic wood harvesting
+        )
+
+    def get_supported_action_type(self) -> ActionType:
+        """Get the ActionType for wood harvesting"""
+        return ActionType.HARVEST_WOOD
+
+    def check_tool_requirement(self, agent) -> Tuple[bool, str]:
+        """Check if agent has tools for wood harvesting (none required for basic harvesting)"""
+        # For basic wood harvesting, no tool is required
+        # In the future, this could check for axes to improve efficiency
+        return True, ""
+
+    def validate_additional_requirements(self, agent, target_pos: Tuple[float, float], context: "ActionContext") -> Tuple[bool, str]:
+        """Additional wood harvesting-specific validation if needed"""
+        # Could add checks for:
+        # - Forest density (some trees might be too thick to harvest without better tools)
+        # - Environmental factors (weather, time of day)
+        # - Agent stamina/health requirements
+
+        # For now, just basic validation
+        return True, ""
 
 
 class ActionProcessor:
@@ -384,6 +489,7 @@ class ActionProcessor:
             CombatValidator(),
             InventoryValidator(),
             FishingValidator(),
+            WoodHarvestingValidator(),
         ]
 
         # Processing queues by priority
@@ -554,24 +660,72 @@ class ActionProcessor:
             )
 
     async def _execute_move_to(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
-        """Execute MOVE_TO action"""
+        """Execute MOVE_TO action with gradual movement to prevent position jumps"""
         params = request.parameters
         target_x = params["target_x"]
         target_y = params["target_y"]
+        speed_multiplier = params.get("speed_multiplier", 1.0)
 
-        # Move the agent
+        # Get current agent position
+        agent = context.agent_registry.get_agent(request.agent_id)
+        if not agent:
+            return ActionResponse(
+                action_id=request.action_id,
+                agent_id=request.agent_id,
+                action_type=request.action_type,
+                result=ActionResult.REJECTED,
+                message="Agent not found",
+            )
+
+        current_x, current_y = agent.position[0], agent.position[1]
+
+        # Calculate movement direction and distance
+        dx = target_x - current_x
+        dy = target_y - current_y
+        distance = (dx * dx + dy * dy) ** 0.5
+
+        # Maximum movement distance per step to prevent jumping (units per action)
+        max_step_distance = 1.5 * speed_multiplier  # Reasonable movement speed
+
+        if distance <= max_step_distance:
+            # Close enough, move directly to target
+            new_x, new_y = target_x, target_y
+        else:
+            # Move a limited distance towards the target
+            step_factor = max_step_distance / distance
+            new_x = current_x + dx * step_factor
+            new_y = current_y + dy * step_factor
+
+        # Calculate rotation towards movement direction
+        rotation = 0.0
+        if distance > 0.01:  # Avoid division by zero
+            import math
+            rotation = math.atan2(dy, dx)
+
+        # Move the agent to the calculated position
         success = context.world.move_agent(
-            request.agent_id, target_x, target_y, 0.0  # rotation will be calculated
+            request.agent_id, new_x, new_y, rotation
         )
 
         if success:
+            # Check if we reached the target
+            remaining_distance = ((target_x - new_x) ** 2 + (target_y - new_y) ** 2) ** 0.5
+            reached_target = remaining_distance < 0.1
+
             return ActionResponse(
                 action_id=request.action_id,
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.APPROVED,
-                message="Movement successful",
-                approved_parameters=params,
+                message="Movement successful" if reached_target else "Moving towards target",
+                approved_parameters={
+                    "current_x": new_x,
+                    "current_y": new_y,
+                    "target_x": target_x,
+                    "target_y": target_y,
+                    "reached_target": reached_target,
+                    "remaining_distance": remaining_distance
+                },
             )
         else:
             return ActionResponse(
@@ -856,7 +1010,7 @@ class ActionProcessor:
             )
 
     async def _execute_harvest_wood(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
-        """Execute HARVEST_WOOD action"""
+        """Execute HARVEST_WOOD action - validation already done by WoodHarvestingValidator"""
         agent = context.agent_registry.get_agent(request.agent_id)
         target_x = request.parameters.get("target_x", agent.position[0])
         target_y = request.parameters.get("target_y", agent.position[1])
@@ -864,53 +1018,8 @@ class ActionProcessor:
         # Update position sync with current agent state
         update_agent_position(agent.agent_id, agent.position[0], agent.position[1])
 
-        # MMO-style distance validation - server is authoritative, no position corrections
-        max_harvest_distance = DISTANCES.WOOD_HARVESTING_RANGE
-
-        # Calculate actual distance between agent and target
-        agent_pos = (agent.position[0], agent.position[1])
-        target_pos = (target_x, target_y)
-        dx = target_pos[0] - agent_pos[0]
-        dy = target_pos[1] - agent_pos[1]
-        actual_distance = (dx * dx + dy * dy) ** 0.5
-
-        # Simple binary validation - no position corrections
-        is_valid = actual_distance <= max_harvest_distance
-
-        # Record distance validation statistics
-        record_action_distance_attempt("wood_harvesting", agent_pos, target_pos, max_harvest_distance, is_valid)
-
-        if not is_valid:
-            error_msg = f"Wood harvesting failed: distance {actual_distance:.2f} > max {max_harvest_distance:.2f}. Move closer to the trees."
-            logger.info(f"🌲 Wood harvesting rejected for {agent.agent_id[:8]}: {error_msg}")
-
-            # Track client-server position discrepancy for debugging
-            record_position_discrepancy(agent.agent_id, agent_pos, agent_pos, "wood_harvesting_validation")
-
-            # Track the failed action for debugging
-            track_agent_action(agent.agent_id, "harvest_wood", target_pos, agent_pos, False, error_msg)
-            return ActionResponse(
-                action_id=request.action_id,
-                agent_id=request.agent_id,
-                action_type=request.action_type,
-                result=ActionResult.REJECTED,
-                message=error_msg
-            )
-
-        # Check if target tile is forest
-        tile_x, tile_y = int(target_x), int(target_y)
-        tile_type = context.world.world_map.get_tile(tile_x, tile_y)
-        if tile_type != TileType.WOOD:
-            return ActionResponse(
-                action_id=request.action_id,
-                agent_id=request.agent_id,
-                action_type=request.action_type,
-                result=ActionResult.REJECTED,
-                message="Can only harvest wood from forest tiles"
-            )
-
-        # No position corrections - server doesn't move agents during actions
-        # In MMO-style architecture, clients must be positioned correctly before requesting actions
+        # Distance and tile validation is now handled by WoodHarvestingValidator
+        # So we can proceed directly to execution
 
         # Harvesting takes 2-4 seconds
         harvest_time = random.uniform(2.0, 4.0)
@@ -931,6 +1040,8 @@ class ActionProcessor:
                         break
 
         if wood_item and added_count > 0:
+            # Calculate tile coordinates from target position
+            tile_x, tile_y = int(target_x), int(target_y)
             logger.info(f"🌲 Agent {agent.agent_id[:8]} harvested wood at ({tile_x}, {tile_y})")
 
             return ActionResponse(
