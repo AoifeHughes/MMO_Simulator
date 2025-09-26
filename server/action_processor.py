@@ -337,6 +337,10 @@ class FishingValidator(ActionValidator):
         dy = target_pos[1] - agent_pos[1]
         actual_distance = (dx * dx + dy * dy) ** 0.5
 
+        # DEBUG: Log server's view of agent position for fishing
+        logger.debug(f"🔍 FISHING SERVER position for {agent.agent_id[:8]}: ({agent_pos[0]:.3f}, {agent_pos[1]:.3f})")
+        logger.debug(f"🔍 FISHING SERVER calculating distance to target ({target_pos[0]:.3f}, {target_pos[1]:.3f}): {actual_distance:.3f}")
+
         # Simple binary validation - no position corrections
         is_valid = actual_distance <= max_fishing_distance
 

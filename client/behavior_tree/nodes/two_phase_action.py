@@ -286,22 +286,66 @@ class TwoPhaseActionNode(ActionNode, ABC):
             agent.rotation = math.degrees(math.atan2(dy, dx))
 
     def _validate_action_position(self, agent) -> bool:
-        """Check if agent is properly positioned for action"""
+        """Check if agent is properly positioned for action using SERVER AUTHORITY"""
         if not self.target_position:
             logger.warning(f"❌ {self.get_action_name()}: Agent {agent.id[:8]} validation failed - no target position")
             return False
 
+        # SIMPLE FIX: Skip client-side validation entirely
+        # Let the server be the sole authority on action validation
+        # If server rejects, agent will try to reposition
+
+        # Log what client thinks for debugging purposes only
+        client_distance = self._distance((agent.x, agent.y), self.target_position)
+        logger.info(f"🎯 {self.get_action_name()}: Agent {agent.id[:8]} ready to attempt action")
+        logger.debug(f"🔍 CLIENT thinks distance is {client_distance:.3f} to target ({self.target_position[0]:.3f}, {self.target_position[1]:.3f})")
+
+        # Always return True - let server decide
+        return True
+
+    def _query_server_for_validation(self, agent) -> Optional[Dict[str, Any]]:
+        """Query server for authoritative action validation"""
+        if not hasattr(agent, 'action_manager') or not agent.action_manager:
+            return None
+
+        try:
+            # Create validation query
+            from shared.server_queries import create_action_validation_query
+            import uuid
+
+            query = create_action_validation_query(
+                query_id=str(uuid.uuid4())[:8],
+                agent_id=agent.id,
+                action_name=self.get_action_name(),
+                target_x=self.target_position[0],
+                target_y=self.target_position[1]
+            )
+
+            # TODO: Implement server query mechanism
+            # For now, return None to use fallback
+            return None
+
+        except Exception as e:
+            logger.error(f"Server query error: {e}")
+            return None
+
+    def _validate_action_position_client_side(self, agent) -> bool:
+        """Fallback client-side validation (original implementation)"""
         distance = self._distance((agent.x, agent.y), self.target_position)
         # Add small buffer to handle floating point precision issues
         is_valid = distance <= (self.required_distance + self.validation_buffer)
 
+        # DEBUG: Log client's view of agent position
+        logger.debug(f"🔍 CLIENT position for {agent.id[:8]}: ({agent.x:.3f}, {agent.y:.3f})")
+        logger.debug(f"🔍 CLIENT calculating distance to target ({self.target_position[0]:.3f}, {self.target_position[1]:.3f}): {distance:.3f}")
+
         if not is_valid:
-            logger.warning(f"❌ {self.get_action_name()}: Agent {agent.id[:8]} validation failed - "
-                          f"distance {distance:.3f} > required {self.required_distance:.3f}")
+            logger.warning(f"❌ {self.get_action_name()}: Agent {agent.id[:8]} CLIENT validation failed - "
+                          f"client distance {distance:.3f} > required {self.required_distance:.3f}")
             logger.info(f"   Agent at ({agent.x:.3f}, {agent.y:.3f}), target at ({self.target_position[0]:.3f}, {self.target_position[1]:.3f})")
         else:
-            logger.info(f"✅ {self.get_action_name()}: Agent {agent.id[:8]} validation success - "
-                       f"distance {distance:.3f} ≤ required {self.required_distance:.3f}")
+            logger.info(f"✅ {self.get_action_name()}: Agent {agent.id[:8]} CLIENT validation success - "
+                       f"client distance {distance:.3f} ≤ required {self.required_distance:.3f}")
 
         return is_valid
 
