@@ -4,32 +4,22 @@ Tests for the wood harvesting system implementation.
 
 import pytest
 from unittest.mock import Mock, AsyncMock
-from shared.actions import ActionType, create_harvest_wood_action
+from shared.actions import ActionType, ActionResult, ActionRequest, harvest_wood_params
 from shared.items import create_wood
-from server.action_processor import ActionProcessor, ActionRequest, ActionContext
+from server.action_processor import ActionProcessor, ActionContext
 from server.agent_state import ServerAgentState
 from server.database import DatabaseManager
 from world.tiles import TileType
+from tests.action_test_base import ActionTestBase
 
 
-class TestWoodHarvesting:
-    @pytest.fixture
-    def mock_server(self):
-        server = Mock()
-        server.world = Mock()
-        server.world.world_map = Mock()
-        server.agent_registry = Mock()
-        server.database_manager = AsyncMock(spec=DatabaseManager)
-        return server
-
-    @pytest.fixture
-    def action_processor(self, mock_server):
-        return ActionProcessor(mock_server)
+class TestWoodHarvesting(ActionTestBase):
 
     @pytest.fixture
     def agent_near_forest(self):
         """Create agent positioned near a forest tile"""
-        agent = ServerAgentState("harvester1", "explorer", 5.0, 5.0)
+        agent = ServerAgentState("harvester1", "explorer")
+        agent.position = (5.0, 5.0)  # Explicitly set position
         # Add starting items including hatchet
         agent.add_starting_items()
         return agent
@@ -39,25 +29,20 @@ class TestWoodHarvesting:
         """Test successful wood harvesting from forest tile"""
         agent = agent_near_forest
 
-        # Setup mocks for forest tile at agent's position
-        mock_server.agent_registry.get_agent.return_value = agent
-        mock_server.world.get_agent.return_value = Mock(x=5.0, y=5.0)
-        mock_server.world.world_map.get_tile.return_value = TileType.FOREST
+        # Setup mocks using OOP helper method
+        self.setup_harvest_mocks(mock_server, agent)
 
-        action = create_harvest_wood_action()
-        request = ActionRequest("harvester1", action)
-        context = ActionContext()
+        request = self.create_harvest_request("harvester1", 5.0, 5.0)
+        initial_wood_count = self.get_wood_count(agent)
 
-        initial_wood_count = agent.inventory.get_item_count("Wood")
+        response = await action_processor.submit_action(request)
 
-        response = await action_processor.execute_action(request, context)
-
-        assert response.success
+        self.assert_approved(response)
         assert "harvested" in response.message.lower()
         assert "wood" in response.message.lower()
 
         # Verify wood was added to inventory (1-3 pieces based on random)
-        final_wood_count = agent.inventory.get_item_count("Wood")
+        final_wood_count = self.get_wood_count(agent)
         assert final_wood_count > initial_wood_count
         assert final_wood_count <= initial_wood_count + 3
 
@@ -69,16 +54,14 @@ class TestWoodHarvesting:
         mock_server.agent_registry.get_agent.return_value = agent
         mock_server.world.get_agent.return_value = Mock(x=5.0, y=5.0)
         # Not a forest tile
-        mock_server.world.world_map.get_tile.return_value = TileType.GRASSLAND
+        mock_server.world.world_map.get_tile.return_value = TileType.GRASS
 
-        action = create_harvest_wood_action()
-        request = ActionRequest("harvester1", action)
-        context = ActionContext()
+        request = self.create_harvest_request("harvester1", 5.0, 5.0)
 
-        response = await action_processor.execute_action(request, context)
+        response = await action_processor.submit_action(request)
 
-        assert not response.success
-        assert "forest" in response.message.lower()
+        self.assert_rejected(response)
+        assert "wood" in response.message.lower() or "forest" in response.message.lower()
 
     @pytest.mark.asyncio
     async def test_harvest_wood_full_inventory(self, action_processor, mock_server, agent_near_forest):
@@ -87,25 +70,23 @@ class TestWoodHarvesting:
 
         # Fill inventory to capacity
         wood_item = create_wood()
-        slots_to_fill = agent.inventory.max_slots
+        from shared.inventory import Inventory
+        slots_to_fill = Inventory.MAX_SLOTS
         for i in range(slots_to_fill):
             agent.inventory.add_item(wood_item, 1)
 
         mock_server.agent_registry.get_agent.return_value = agent
         mock_server.world.get_agent.return_value = Mock(x=5.0, y=5.0)
-        mock_server.world.world_map.get_tile.return_value = TileType.FOREST
+        mock_server.world.world_map.get_tile.return_value = TileType.WOOD
 
-        action = create_harvest_wood_action()
-        request = ActionRequest("harvester1", action)
-        context = ActionContext()
+        request = self.create_harvest_request("harvester1", 5.0, 5.0)
+        initial_wood_count = self.get_wood_count(agent)
 
-        initial_wood_count = agent.inventory.get_item_count("Wood")
-
-        response = await action_processor.execute_action(request, context)
+        response = await action_processor.submit_action(request)
 
         # Should still succeed if wood can stack
-        if response.success:
-            assert agent.inventory.get_item_count("Wood") > initial_wood_count
+        if response.result == ActionResult.APPROVED:
+            assert self.get_wood_count(agent) > initial_wood_count
         else:
             assert "inventory" in response.message.lower()
 
@@ -116,19 +97,17 @@ class TestWoodHarvesting:
 
         mock_server.agent_registry.get_agent.return_value = agent
         mock_server.world.get_agent.return_value = Mock(x=5.0, y=5.0)
-        mock_server.world.world_map.get_tile.return_value = TileType.FOREST
+        mock_server.world.world_map.get_tile.return_value = TileType.WOOD
 
-        action = create_harvest_wood_action()
-        request = ActionRequest("harvester1", action)
-        context = ActionContext()
+        request = self.create_harvest_request("harvester1", 5.0, 5.0)
 
         # First harvest should succeed
-        response1 = await action_processor.execute_action(request, context)
-        assert response1.success
+        response1 = await action_processor.submit_action(request)
+        self.assert_approved(response1)
 
         # Immediate second harvest should fail due to cooldown
-        response2 = await action_processor.execute_action(request, context)
-        assert not response2.success
+        response2 = await action_processor.submit_action(request)
+        self.assert_rejected(response2)
         assert "cooldown" in response2.message.lower()
 
     @pytest.mark.asyncio
@@ -136,13 +115,11 @@ class TestWoodHarvesting:
         """Test wood harvesting failure when agent not found"""
         mock_server.agent_registry.get_agent.return_value = None
 
-        action = create_harvest_wood_action()
-        request = ActionRequest("nonexistent_agent", action)
-        context = ActionContext()
+        request = self.create_harvest_request("nonexistent_agent", 5.0, 5.0)
 
-        response = await action_processor.execute_action(request, context)
+        response = await action_processor.submit_action(request)
 
-        assert not response.success
+        self.assert_rejected(response)
         assert "not found" in response.message.lower()
 
     @pytest.mark.asyncio
@@ -152,14 +129,15 @@ class TestWoodHarvesting:
 
         mock_server.agent_registry.get_agent.return_value = agent
         mock_server.world.get_agent.return_value = Mock(x=5.0, y=5.0)
-        mock_server.world.world_map.get_tile.return_value = TileType.FOREST
+        mock_server.world.world_map.get_tile.return_value = TileType.WOOD
 
         # Test multiple harvests to verify randomness
         wood_amounts = set()
 
         for i in range(10):
             # Reset agent for each test
-            agent = ServerAgentState(f"harvester_{i}", "explorer", 5.0, 5.0)
+            agent = ServerAgentState(f"harvester_{i}", "explorer")
+            agent.position = (5.0, 5.0)  # Explicitly set position
             # Add starting items including hatchet
             agent.add_starting_items()
             mock_server.agent_registry.get_agent.return_value = agent
@@ -168,14 +146,12 @@ class TestWoodHarvesting:
             if hasattr(action_processor, 'action_cooldowns'):
                 action_processor.action_cooldowns.clear()
 
-            action = create_harvest_wood_action()
-            request = ActionRequest(f"harvester_{i}", action)
-            context = ActionContext()
+            request = self.create_harvest_request(f"harvester_{i}", 5.0, 5.0)
 
-            response = await action_processor.execute_action(request, context)
+            response = await action_processor.submit_action(request)
 
-            if response.success:
-                wood_count = agent.inventory.get_item_count("Wood")
+            if response.result == ActionResult.APPROVED:
+                wood_count = self.get_wood_count(agent)
                 wood_amounts.add(wood_count)
 
         # Should have gotten different amounts (1, 2, or 3)
@@ -185,7 +161,8 @@ class TestWoodHarvesting:
     @pytest.mark.asyncio
     async def test_harvest_wood_tile_proximity(self, action_processor, mock_server):
         """Test that harvesting checks the tile the agent is actually on"""
-        agent = ServerAgentState("harvester_proximity", "explorer", 5.7, 5.3)  # Between tiles
+        agent = ServerAgentState("harvester_proximity", "explorer")  # Between tiles
+        agent.position = (5.7, 5.3)  # Explicitly set position
         # Add starting items including hatchet
         agent.add_starting_items()
 
@@ -195,20 +172,18 @@ class TestWoodHarvesting:
         # Mock get_tile to return different tiles for different coordinates
         def mock_get_tile(x, y):
             if x == 5 and y == 5:  # int(5.7) = 5, int(5.3) = 5
-                return TileType.FOREST
+                return TileType.WOOD
             else:
-                return TileType.GRASSLAND
+                return TileType.GRASS
 
         mock_server.world.world_map.get_tile.side_effect = mock_get_tile
 
-        action = create_harvest_wood_action()
-        request = ActionRequest("harvester_proximity", action)
-        context = ActionContext()
+        request = self.create_harvest_request("harvester_proximity", 5.0, 5.0)
 
-        response = await action_processor.execute_action(request, context)
+        response = await action_processor.submit_action(request)
 
         # Should succeed because agent is on tile (5,5) which is forest
-        assert response.success
+        self.assert_approved(response)
 
         # Verify get_tile was called with the correct coordinates (int conversion)
         mock_server.world.world_map.get_tile.assert_called_with(5, 5)

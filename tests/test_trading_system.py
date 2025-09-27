@@ -4,7 +4,7 @@ Tests for the trading system implementation.
 
 import pytest
 from unittest.mock import Mock, AsyncMock
-from shared.actions import ActionType, create_trade_request_action, create_trade_accept_action, create_trade_decline_action
+from shared.actions import ActionType, ActionResult, create_trade_request_action, create_trade_accept_action, create_trade_decline_action
 from shared.items import create_wood, create_fish, ItemType
 from server.action_processor import ActionProcessor, ActionRequest, ActionContext
 from server.agent_state import ServerAgentState
@@ -23,7 +23,9 @@ class TestTradingSystem:
 
     @pytest.fixture
     def action_processor(self, mock_server):
-        return ActionProcessor(mock_server)
+        # Create mock attack system
+        mock_attack_system = Mock()
+        return ActionProcessor(mock_server.world, mock_server.agent_registry, mock_attack_system)
 
     @pytest.fixture
     def agent_states(self):
@@ -50,18 +52,16 @@ class TestTradingSystem:
         mock_server.world.get_agent.side_effect = lambda aid: Mock(x=10.0, y=10.0) if aid == "agent1" else Mock(x=11.0, y=11.0)
 
         # Create trade request action
-        action = create_trade_request_action(
+        request = create_trade_request_action(
             "agent2",  # target agent
-            [{"item_name": "Wood", "quantity": 2}],  # offering
+            [{"item_name": "wood", "quantity": 2}],  # offering
             [{"item_name": "Fresh Fish", "quantity": 1}]  # requesting
         )
+        request.agent_id = "agent1"
 
-        request = ActionRequest("agent1", action)
-        context = ActionContext()
+        response = await action_processor.submit_action(request)
 
-        response = await action_processor.execute_action(request, context)
-
-        assert response.success
+        assert response.result == ActionResult.APPROVED
         assert "trade request sent" in response.message.lower()
         assert len(action_processor.active_trades) == 1
 
@@ -74,18 +74,16 @@ class TestTradingSystem:
         mock_server.world.get_agent.side_effect = lambda aid: Mock(x=10.0, y=10.0) if aid == "agent1" else Mock(x=11.0, y=11.0)
 
         # Request more wood than agent1 has (has 5, requesting 10)
-        action = create_trade_request_action(
+        request = create_trade_request_action(
             "agent2",
-            [{"item_name": "Wood", "quantity": 10}],
+            [{"item_name": "wood", "quantity": 10}],
             [{"item_name": "Fresh Fish", "quantity": 1}]
         )
+        request.agent_id = "agent1"
 
-        request = ActionRequest("agent1", action)
-        context = ActionContext()
+        response = await action_processor.submit_action(request)
 
-        response = await action_processor.execute_action(request, context)
-
-        assert not response.success
+        assert response.result == ActionResult.REJECTED
         assert "insufficient" in response.message.lower()
 
     @pytest.mark.asyncio
@@ -101,32 +99,31 @@ class TestTradingSystem:
         action_processor.active_trades[trade_id] = {
             "initiator_id": "agent1",
             "target_id": "agent2",
-            "initiator_items": [{"item_name": "Wood", "quantity": 2}],
+            "initiator_items": [{"item_name": "wood", "quantity": 2}],
             "target_items": [{"item_name": "Fresh Fish", "quantity": 1}],
             "created_time": 1000.0
         }
 
         # Record initial inventories
-        initial_agent1_wood = agent1.inventory.get_item_count("Wood")
-        initial_agent1_fish = agent1.inventory.get_item_count("Fresh Fish")
-        initial_agent2_wood = agent2.inventory.get_item_count("Wood")
-        initial_agent2_fish = agent2.inventory.get_item_count("Fresh Fish")
+        initial_agent1_wood = agent1.inventory.get_item_quantity("wood")
+        initial_agent1_fish = agent1.inventory.get_item_quantity("Fresh Fish")
+        initial_agent2_wood = agent2.inventory.get_item_quantity("wood")
+        initial_agent2_fish = agent2.inventory.get_item_quantity("Fresh Fish")
 
         # Accept the trade
-        action = create_trade_accept_action(trade_id)
-        request = ActionRequest("agent2", action)
-        context = ActionContext()
+        request = create_trade_accept_action(trade_id)
+        request.agent_id = "agent2"
 
-        response = await action_processor.execute_action(request, context)
+        response = await action_processor.submit_action(request)
 
-        assert response.success
+        assert response.result == ActionResult.APPROVED
         assert "trade completed" in response.message.lower()
 
         # Verify inventory changes
-        assert agent1.inventory.get_item_count("Wood") == initial_agent1_wood - 2
-        assert agent1.inventory.get_item_count("Fresh Fish") == initial_agent1_fish + 1
-        assert agent2.inventory.get_item_count("Wood") == initial_agent2_wood + 2
-        assert agent2.inventory.get_item_count("Fresh Fish") == initial_agent2_fish - 1
+        assert agent1.inventory.get_item_quantity("wood") == initial_agent1_wood - 2
+        assert agent1.inventory.get_item_quantity("Fresh Fish") == initial_agent1_fish + 1
+        assert agent2.inventory.get_item_quantity("wood") == initial_agent2_wood + 2
+        assert agent2.inventory.get_item_quantity("Fresh Fish") == initial_agent2_fish - 1
 
         # Verify trade is removed from active trades
         assert trade_id not in action_processor.active_trades
@@ -143,19 +140,18 @@ class TestTradingSystem:
         action_processor.active_trades[trade_id] = {
             "initiator_id": "agent1",
             "target_id": "agent2",
-            "initiator_items": [{"item_name": "Wood", "quantity": 1}],
+            "initiator_items": [{"item_name": "wood", "quantity": 1}],
             "target_items": [{"item_name": "Fresh Fish", "quantity": 1}],
             "created_time": 1000.0
         }
 
         # Decline the trade
-        action = create_trade_decline_action(trade_id)
-        request = ActionRequest("agent2", action)
-        context = ActionContext()
+        request = create_trade_decline_action(trade_id)
+        request.agent_id = "agent2"
 
-        response = await action_processor.execute_action(request, context)
+        response = await action_processor.submit_action(request)
 
-        assert response.success
+        assert response.result == ActionResult.APPROVED
         assert "declined" in response.message.lower()
         assert trade_id not in action_processor.active_trades
 
@@ -168,18 +164,16 @@ class TestTradingSystem:
         # Agents too far apart (distance > 5)
         mock_server.world.get_agent.side_effect = lambda aid: Mock(x=0.0, y=0.0) if aid == "agent1" else Mock(x=10.0, y=10.0)
 
-        action = create_trade_request_action(
+        request = create_trade_request_action(
             "agent2",
-            [{"item_name": "Wood", "quantity": 1}],
+            [{"item_name": "wood", "quantity": 1}],
             [{"item_name": "Fresh Fish", "quantity": 1}]
         )
+        request.agent_id = "agent1"
 
-        request = ActionRequest("agent1", action)
-        context = ActionContext()
+        response = await action_processor.submit_action(request)
 
-        response = await action_processor.execute_action(request, context)
-
-        assert not response.success
+        assert response.result == ActionResult.REJECTED
         assert "too far" in response.message.lower()
 
     @pytest.mark.asyncio

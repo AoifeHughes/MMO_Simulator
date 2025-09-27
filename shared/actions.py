@@ -144,6 +144,16 @@ class ActionRequest:
             rollback_data=data.get("rollback_data"),
         )
 
+    def __hash__(self) -> int:
+        """Make ActionRequest hashable based on action_id"""
+        return hash(self.action_id)
+
+    def __eq__(self, other) -> bool:
+        """Equality based on action_id"""
+        if not isinstance(other, ActionRequest):
+            return False
+        return self.action_id == other.action_id
+
 
 @dataclass
 class ActionResponse:

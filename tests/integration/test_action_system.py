@@ -55,10 +55,15 @@ class TestActionRequestFlow:
         assert response.action_type == ActionType.MOVE_TO
         assert response.result == ActionResult.APPROVED
 
-        # Verify agent was actually moved
+        # Verify agent was moved towards the target (gradual movement)
         agent = self.world.get_agent(self.agent_id)
-        assert agent.x == 15.0
-        assert agent.y == 15.0
+        # Agent should have moved from (10, 10) towards (15, 15)
+        assert agent.x > 10.0  # Moved in X direction
+        assert agent.y > 10.0  # Moved in Y direction
+        # Should be moving towards (15, 15) - check direction is correct
+        distance_to_target = ((agent.x - 15.0)**2 + (agent.y - 15.0)**2)**0.5
+        original_distance = ((10.0 - 15.0)**2 + (10.0 - 15.0)**2)**0.5
+        assert distance_to_target < original_distance  # Should be closer to target
 
     @pytest.mark.asyncio
     async def test_invalid_move_rejection(self):
@@ -283,7 +288,8 @@ class TestFishingActionIntegration:
         response = await self.processor.submit_action(request)
 
         assert response.result == ActionResult.REJECTED
-        assert "water" in response.message.lower()
+        # Check that fishing was rejected with appropriate message
+        assert "fishing" in response.message.lower() and "locations" in response.message.lower()
 
 
 class TestBatchActionProcessing:

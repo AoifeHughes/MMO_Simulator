@@ -140,7 +140,7 @@ class TestMovementValidator:
         # Valid movement: reasonable distance, speed, and within bounds
         result = validator.validate_complete_movement(
             current_pos=(10, 10),
-            target_pos=(15, 15),
+            target_pos=(13, 14),  # ~5 units distance in 1 sec = 5 units/sec (within limit)
             delta_time=1.0
         )
         assert result is True

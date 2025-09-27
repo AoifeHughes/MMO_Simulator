@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 import asyncio
 import logging
+import pytest
 from server.mmo_server import MMOGameServer
 from world.terrain_generator import TerrainType
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+@pytest.mark.asyncio
 async def test():
     print("Creating server...")
     server = MMOGameServer(10, 10, TerrainType.MIXED, 42)

@@ -48,12 +48,12 @@ class TestCollisionDetector:
         detector = CollisionDetector(100, 100)
 
         # Check collision between two distant positions
-        result = detector.check_agent_collision(10, 10, 20, 20)
+        result = detector.check_agent_collision((10, 10), (20, 20))
         assert result.collided is False
         assert result.correction_x == 0.0
         assert result.correction_y == 0.0
 
-    def test_check_entity_collision_touching(self):
+    def test_check_agent_collision_touching(self):
         """Test entities that are just touching."""
         detector = CollisionDetector(100, 100)
 
@@ -61,11 +61,11 @@ class TestCollisionDetector:
         entity1 = CollisionBounds(10, 10, 1)
         entity2 = CollisionBounds(12, 10, 1)
 
-        result = detector.check_entity_collision(entity1, entity2)
+        result = detector.check_agent_collision((entity1.x, entity1.y), (entity2.x, entity2.y), entity1.radius, entity2.radius)
         # Touching should not count as collision for most physics systems
         assert result.collided is False
 
-    def test_check_entity_collision_overlapping(self):
+    def test_check_agent_collision_overlapping(self):
         """Test entities that overlap."""
         detector = CollisionDetector(100, 100)
 
@@ -73,21 +73,21 @@ class TestCollisionDetector:
         entity1 = CollisionBounds(10, 10, 1)
         entity2 = CollisionBounds(11.5, 10, 1)
 
-        result = detector.check_entity_collision(entity1, entity2)
+        result = detector.check_agent_collision((entity1.x, entity1.y), (entity2.x, entity2.y), entity1.radius, entity2.radius)
         assert result.collided is True
         assert result.correction_x != 0.0  # Should have correction
 
-    def test_check_entity_collision_same_position(self):
+    def test_check_agent_collision_same_position(self):
         """Test entities at exactly the same position."""
         detector = CollisionDetector(100, 100)
 
         entity1 = CollisionBounds(10, 10, 1)
         entity2 = CollisionBounds(10, 10, 1)
 
-        result = detector.check_entity_collision(entity1, entity2)
+        result = detector.check_agent_collision((entity1.x, entity1.y), (entity2.x, entity2.y), entity1.radius, entity2.radius)
         assert result.collided is True
 
-    def test_check_entity_collision_different_radii(self):
+    def test_check_agent_collision_different_radii(self):
         """Test entities with different collision radii."""
         detector = CollisionDetector(100, 100)
 
@@ -95,27 +95,27 @@ class TestCollisionDetector:
         large_entity = CollisionBounds(10, 10, 5)
         small_entity = CollisionBounds(14, 10, 1)  # 4 units away
 
-        result = detector.check_entity_collision(large_entity, small_entity)
+        result = detector.check_agent_collision((large_entity.x, large_entity.y), (small_entity.x, small_entity.y), large_entity.radius, small_entity.radius)
         assert result.collided is True  # 4 < (5 + 1)
 
-    def test_check_entity_collision_vertical_separation(self):
+    def test_check_agent_collision_vertical_separation(self):
         """Test entities separated vertically."""
         detector = CollisionDetector(100, 100)
 
         entity1 = CollisionBounds(10, 10, 1)
         entity2 = CollisionBounds(10, 15, 1)  # 5 units vertically apart
 
-        result = detector.check_entity_collision(entity1, entity2)
+        result = detector.check_agent_collision((entity1.x, entity1.y), (entity2.x, entity2.y), entity1.radius, entity2.radius)
         assert result.collided is False  # 5 > (1 + 1)
 
-    def test_check_entity_collision_diagonal(self):
+    def test_check_agent_collision_diagonal(self):
         """Test entities separated diagonally."""
         detector = CollisionDetector(100, 100)
 
         entity1 = CollisionBounds(0, 0, 1)
         entity2 = CollisionBounds(3, 4, 1)  # 5 units away (3-4-5 triangle)
 
-        result = detector.check_entity_collision(entity1, entity2)
+        result = detector.check_agent_collision((entity1.x, entity1.y), (entity2.x, entity2.y), entity1.radius, entity2.radius)
         assert result.collided is False  # 5 > (1 + 1)
 
     def test_check_boundary_collision_valid_positions(self):
@@ -124,7 +124,7 @@ class TestCollisionDetector:
 
         # Entity well within bounds
         entity = CollisionBounds(50, 25, 5)
-        result = detector.check_boundary_collision(entity)
+        result = detector.check_boundary_collision(entity.x, entity.y, entity.radius)
         assert result.collided is False
 
     def test_check_boundary_collision_edge_positions(self):
@@ -133,7 +133,7 @@ class TestCollisionDetector:
 
         # Entity at left edge (radius extends beyond boundary)
         entity = CollisionBounds(2, 25, 5)  # x=2, radius=5, so extends to x=-3
-        result = detector.check_boundary_collision(entity)
+        result = detector.check_boundary_collision(entity.x, entity.y, entity.radius)
         assert result.collided is True
         assert result.correction_x > 0  # Should push right
 
@@ -143,7 +143,7 @@ class TestCollisionDetector:
 
         # Entity at bottom-left corner
         entity = CollisionBounds(3, 3, 5)  # Extends beyond both boundaries
-        result = detector.check_boundary_collision(entity)
+        result = detector.check_boundary_collision(entity.x, entity.y, entity.radius)
         assert result.collided is True
         assert result.correction_x > 0  # Push right
         assert result.correction_y > 0  # Push up
@@ -163,7 +163,7 @@ class TestCollisionDetector:
         collisions = []
         for i in range(len(entities)):
             for j in range(i + 1, len(entities)):
-                result = detector.check_entity_collision(entities[i], entities[j])
+                result = detector.check_agent_collision((entities[i].x, entities[i].y), (entities[j].x, entities[j].y), entities[i].radius, entities[j].radius)
                 if result.collided:
                     collisions.append((i, j))
 
@@ -239,16 +239,22 @@ class TestCollisionDetectorEdgeCases:
         assert detector.world_width == 0
         assert detector.world_height == 0
 
-        # Any position should be out of bounds
-        assert detector.is_within_bounds(0, 0) is True  # 0,0 might be valid
-        assert detector.is_within_bounds(1, 1) is False
+        # Any position should be out of bounds in a zero-size world
+        # Check if 0,0 is within bounds (no collision means within bounds)
+        result = detector.check_boundary_collision(0, 0)
+        assert result.collided is True  # 0,0 should be invalid in zero-size world
+        result = detector.check_boundary_collision(1, 1)
+        assert result.collided is True  # 1,1 should be out of bounds for zero-size world
 
     def test_very_large_world(self):
         """Test collision detector with very large world."""
         detector = CollisionDetector(10000, 10000)
-        assert detector.is_within_bounds(5000, 5000) is True
-        assert detector.is_within_bounds(9999, 9999) is True
-        assert detector.is_within_bounds(10000, 10000) is False
+        result = detector.check_boundary_collision(5000, 5000)
+        assert result.collided is False  # Should be within bounds
+        result = detector.check_boundary_collision(9999, 9999)
+        assert result.collided is False  # Should be within bounds
+        result = detector.check_boundary_collision(10000, 10000)
+        assert result.collided is True  # Should be out of bounds
 
     def test_floating_point_precision(self):
         """Test collision detection with floating point precision."""
@@ -258,7 +264,7 @@ class TestCollisionDetectorEdgeCases:
         entity1 = CollisionBounds(10.0, 10.0, 1.0)
         entity2 = CollisionBounds(12.000001, 10.0, 1.0)  # Just over 2 units apart
 
-        result = detector.check_entity_collision(entity1, entity2)
+        result = detector.check_agent_collision((entity1.x, entity1.y), (entity2.x, entity2.y), entity1.radius, entity2.radius)
         assert result.collided is False
 
     def test_very_small_radii(self):
@@ -268,5 +274,5 @@ class TestCollisionDetectorEdgeCases:
         entity1 = CollisionBounds(10, 10, 0.001)
         entity2 = CollisionBounds(10.001, 10, 0.001)
 
-        result = detector.check_entity_collision(entity1, entity2)
+        result = detector.check_agent_collision((entity1.x, entity1.y), (entity2.x, entity2.y), entity1.radius, entity2.radius)
         assert result.collided is True  # 0.001 < (0.001 + 0.001)

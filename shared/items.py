@@ -464,7 +464,7 @@ def create_fish() -> Consumable:
 def create_wood() -> Resource:
     """Create a wood resource item"""
     return Resource(
-        name="Wood",
+        name="wood",
         description="Harvested wood from forest trees, useful for crafting",
         value=2,  # Wood base value
         weight=0.8,

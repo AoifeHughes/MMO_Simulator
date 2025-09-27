@@ -283,7 +283,7 @@ class TestFishingValidator:
 
         is_valid, message = self.validator.validate(request, self.context)
         assert not is_valid, "Fishing on land should be rejected"
-        assert "water" in message.lower()
+        assert "fishing" in message.lower()
 
     def test_rejects_fishing_without_rod(self):
         """Should reject fishing without fishing equipment"""

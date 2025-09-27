@@ -225,3 +225,68 @@ class MovementValidator:
         """Reset validation statistics"""
         for key in self.stats:
             self.stats[key] = 0
+
+    # Additional methods for test compatibility
+    def validate_movement_distance(self, pos1: tuple, pos2: tuple) -> bool:
+        """Validate if movement distance is within acceptable limits"""
+        x1, y1 = pos1
+        x2, y2 = pos2
+        distance = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+
+        # Too small movements are ignored
+        if distance < self.min_movement_distance:
+            return False
+
+        # Too large movements are rejected
+        if distance > self.max_single_movement:
+            return False
+
+        return True
+
+    def validate_movement_speed(self, pos1: tuple, pos2: tuple, time_delta: float) -> bool:
+        """Validate if movement speed is within acceptable limits"""
+        if time_delta <= 0:
+            return False
+
+        x1, y1 = pos1
+        x2, y2 = pos2
+        distance = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+        speed = distance / time_delta
+        return speed <= self.max_speed
+
+    def validate_world_bounds(self, pos: tuple) -> bool:
+        """Validate if position is within world bounds"""
+        if not self.world_bounds:
+            return True  # No bounds set, assume valid
+        x, y = pos
+        width, height = self.world_bounds
+        return 0 <= x < width and 0 <= y < height
+
+    @property
+    def world_width(self) -> Optional[int]:
+        """Get world width from bounds"""
+        return self.world_bounds[0] if self.world_bounds else None
+
+    @property
+    def world_height(self) -> Optional[int]:
+        """Get world height from bounds"""
+        return self.world_bounds[1] if self.world_bounds else None
+
+    def validate_complete_movement(self, current_pos: tuple, target_pos: tuple, delta_time: float) -> bool:
+        """Complete movement validation combining distance, speed, and bounds checks"""
+        x1, y1 = current_pos
+        x2, y2 = target_pos
+
+        # Check bounds
+        if not self.validate_world_bounds(target_pos):
+            return False
+
+        # Check distance
+        if not self.validate_movement_distance(current_pos, target_pos):
+            return False
+
+        # Check speed
+        if not self.validate_movement_speed(current_pos, target_pos, delta_time):
+            return False
+
+        return True
