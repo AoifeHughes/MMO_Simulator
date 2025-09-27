@@ -27,11 +27,15 @@ class NPCAgent(BaseAgent):
                 wander_radius=self.wander_radius
             )
             if success:
-                logger.info(f"NPC {self.id[:8]} initialized with custom scenario behavior tree")
+                logger.info(
+                    f"NPC {self.id[:8]} initialized with custom scenario behavior tree"
+                )
                 self.behavior_tree_initialized = True
                 return
             else:
-                logger.warning(f"NPC {self.id[:8]} provider failed, falling back to TreeFactory")
+                logger.warning(
+                    f"NPC {self.id[:8]} provider failed, falling back to TreeFactory"
+                )
 
         # Fallback to TreeFactory
         tree = TreeFactory.create_tree_for_agent_type(

@@ -5,21 +5,23 @@ These tests measure system performance under various load conditions
 using lightweight mocks to avoid network overhead.
 """
 
-import pytest
 import asyncio
-import time
 import statistics
-from typing import List, Dict
+import time
 from dataclasses import dataclass
+from typing import Dict, List
 
+import pytest
+
+from shared.actions import ActionRequest, ActionType, move_to_params
 from tests.fixtures.mock_server import FastTestFixture
 from tests.fixtures.test_maps import TestMaps
-from shared.actions import ActionRequest, ActionType, move_to_params
 
 
 @dataclass
 class PerformanceMetrics:
     """Performance measurement results"""
+
     avg_response_time: float
     max_response_time: float
     min_response_time: float
@@ -29,9 +31,11 @@ class PerformanceMetrics:
     test_duration: float
 
     def __str__(self):
-        return (f"Performance: {self.throughput:.1f} actions/sec, "
-                f"avg latency: {self.avg_response_time*1000:.1f}ms, "
-                f"success rate: {self.success_rate*100:.1f}%")
+        return (
+            f"Performance: {self.throughput:.1f} actions/sec, "
+            f"avg latency: {self.avg_response_time*1000:.1f}ms, "
+            f"success rate: {self.success_rate*100:.1f}%"
+        )
 
 
 class TestActionSystemPerformance:
@@ -62,7 +66,7 @@ class TestActionSystemPerformance:
                 action_id=f"perf_{i}",
                 agent_id=client.agent_id,
                 action_type=action_type,
-                parameters=params
+                parameters=params,
             )
 
             action_start = time.time()
@@ -82,15 +86,21 @@ class TestActionSystemPerformance:
             throughput=action_count / total_time,
             success_rate=successful_actions / action_count,
             total_actions=action_count,
-            test_duration=total_time
+            test_duration=total_time,
         )
 
         print(f"\nSingle agent throughput: {metrics}")
 
         # Performance assertions
-        assert metrics.avg_response_time < 0.1, f"Average response time too high: {metrics.avg_response_time:.3f}s"
-        assert metrics.throughput > 20, f"Throughput too low: {metrics.throughput:.1f} actions/sec"
-        assert metrics.success_rate > 0.8, f"Success rate too low: {metrics.success_rate:.2%}"
+        assert (
+            metrics.avg_response_time < 0.1
+        ), f"Average response time too high: {metrics.avg_response_time:.3f}s"
+        assert (
+            metrics.throughput > 20
+        ), f"Throughput too low: {metrics.throughput:.1f} actions/sec"
+        assert (
+            metrics.success_rate > 0.8
+        ), f"Success rate too low: {metrics.success_rate:.2%}"
 
     @pytest.mark.asyncio
     async def test_multi_agent_concurrent_actions(self):
@@ -118,9 +128,8 @@ class TestActionSystemPerformance:
                     agent_id=client.agent_id,
                     action_type=ActionType.MOVE_TO,
                     parameters=move_to_params(
-                        15 + (action_index % 10),
-                        15 + (action_index % 10)
-                    )
+                        15 + (action_index % 10), 15 + (action_index % 10)
+                    ),
                 )
 
                 start = time.time()
@@ -160,15 +169,21 @@ class TestActionSystemPerformance:
             throughput=total_actions / total_time,
             success_rate=total_successful / total_actions,
             total_actions=total_actions,
-            test_duration=total_time
+            test_duration=total_time,
         )
 
         print(f"\nMulti-agent concurrent: {metrics}")
 
         # Performance assertions for concurrent load
-        assert metrics.avg_response_time < 0.2, f"Concurrent avg response too high: {metrics.avg_response_time:.3f}s"
-        assert metrics.throughput > 50, f"Concurrent throughput too low: {metrics.throughput:.1f} actions/sec"
-        assert metrics.success_rate > 0.7, f"Concurrent success rate too low: {metrics.success_rate:.2%}"
+        assert (
+            metrics.avg_response_time < 0.2
+        ), f"Concurrent avg response too high: {metrics.avg_response_time:.3f}s"
+        assert (
+            metrics.throughput > 50
+        ), f"Concurrent throughput too low: {metrics.throughput:.1f} actions/sec"
+        assert (
+            metrics.success_rate > 0.7
+        ), f"Concurrent success rate too low: {metrics.success_rate:.2%}"
 
     @pytest.mark.asyncio
     async def test_action_validation_performance(self):
@@ -193,7 +208,7 @@ class TestActionSystemPerformance:
                     action_id=f"{case_name}_{i}",
                     agent_id=client.agent_id,
                     action_type=action_type,
-                    parameters=params
+                    parameters=params,
                 )
 
                 start = time.time()
@@ -203,25 +218,32 @@ class TestActionSystemPerformance:
                 times.append(end - start)
 
             validation_times[case_name] = {
-                'avg': statistics.mean(times),
-                'max': max(times),
-                'min': min(times)
+                "avg": statistics.mean(times),
+                "max": max(times),
+                "min": min(times),
             }
 
         print(f"\nValidation performance:")
         for case, metrics in validation_times.items():
-            print(f"  {case}: avg={metrics['avg']*1000:.2f}ms, max={metrics['max']*1000:.2f}ms")
+            print(
+                f"  {case}: avg={metrics['avg']*1000:.2f}ms, max={metrics['max']*1000:.2f}ms"
+            )
 
         # All validation should be very fast
         for case, metrics in validation_times.items():
-            assert metrics['avg'] < 0.05, f"{case} validation too slow: {metrics['avg']:.3f}s"
-            assert metrics['max'] < 0.1, f"{case} max validation too slow: {metrics['max']:.3f}s"
+            assert (
+                metrics["avg"] < 0.05
+            ), f"{case} validation too slow: {metrics['avg']:.3f}s"
+            assert (
+                metrics["max"] < 0.1
+            ), f"{case} max validation too slow: {metrics['max']:.3f}s"
 
     @pytest.mark.asyncio
     async def test_memory_usage_stability(self):
         """Test that memory usage remains stable under load"""
-        import psutil
         import os
+
+        import psutil
 
         process = psutil.Process(os.getpid())
         initial_memory = process.memory_info().rss / 1024 / 1024  # MB
@@ -237,7 +259,7 @@ class TestActionSystemPerformance:
                     action_id=f"memory_test_{batch}_{i}",
                     agent_id=client.agent_id,
                     action_type=ActionType.MOVE_TO,
-                    parameters=move_to_params(10 + (i % 8), 10 + (i % 8))
+                    parameters=move_to_params(10 + (i % 8), 10 + (i % 8)),
                 )
                 task = asyncio.create_task(
                     fixture.server.action_processor.submit_action(request)
@@ -250,7 +272,9 @@ class TestActionSystemPerformance:
             current_memory = process.memory_info().rss / 1024 / 1024  # MB
             memory_growth = current_memory - initial_memory
 
-            print(f"Batch {batch}: Memory usage = {current_memory:.1f}MB (growth: +{memory_growth:.1f}MB)")
+            print(
+                f"Batch {batch}: Memory usage = {current_memory:.1f}MB (growth: +{memory_growth:.1f}MB)"
+            )
 
             # Small delay to allow garbage collection
             await asyncio.sleep(0.1)
@@ -258,7 +282,9 @@ class TestActionSystemPerformance:
         final_memory = process.memory_info().rss / 1024 / 1024  # MB
         total_growth = final_memory - initial_memory
 
-        print(f"\nMemory usage: {initial_memory:.1f}MB -> {final_memory:.1f}MB (growth: +{total_growth:.1f}MB)")
+        print(
+            f"\nMemory usage: {initial_memory:.1f}MB -> {final_memory:.1f}MB (growth: +{total_growth:.1f}MB)"
+        )
 
         # Memory growth should be reasonable
         assert total_growth < 50, f"Excessive memory growth: {total_growth:.1f}MB"
@@ -281,7 +307,7 @@ class TestActionSystemPerformance:
                 action_id=f"burst_{i}",
                 agent_id=client.agent_id,
                 action_type=ActionType.MOVE_TO,
-                parameters=move_to_params(10 + (i % 3), 10)
+                parameters=move_to_params(10 + (i % 3), 10),
             )
 
             action_start = time.time()
@@ -303,10 +329,14 @@ class TestActionSystemPerformance:
         print(f"  Total time: {total_time:.2f}s")
 
         # Rate limiting should be fast and effective
-        assert avg_response_time < 0.015, f"Rate limiting adds too much latency: {avg_response_time:.3f}s"
+        assert (
+            avg_response_time < 0.015
+        ), f"Rate limiting adds too much latency: {avg_response_time:.3f}s"
         # Note: Rate limiting may not trigger in mock environment
         if rate_limited_count > 0:
-            assert rate_limited_count < burst_size, "Rate limiting shouldn't block everything"
+            assert (
+                rate_limited_count < burst_size
+            ), "Rate limiting shouldn't block everything"
 
     @pytest.mark.asyncio
     async def test_complex_scenario_performance(self):
@@ -345,7 +375,7 @@ class TestActionSystemPerformance:
                         action_id=f"complex_{client.agent_id}_{actions_completed}",
                         agent_id=client.agent_id,
                         action_type=ActionType.MOVE_TO,
-                        parameters=move_to_params(target_x, target_y)
+                        parameters=move_to_params(target_x, target_y),
                     )
                 elif action_choice == 1:
                     # Inventory query
@@ -353,7 +383,7 @@ class TestActionSystemPerformance:
                         action_id=f"complex_{client.agent_id}_{actions_completed}",
                         agent_id=client.agent_id,
                         action_type=ActionType.QUERY_INVENTORY,
-                        parameters={}
+                        parameters={},
                     )
                 elif action_choice == 2:
                     # Stop movement
@@ -361,7 +391,7 @@ class TestActionSystemPerformance:
                         action_id=f"complex_{client.agent_id}_{actions_completed}",
                         agent_id=client.agent_id,
                         action_type=ActionType.STOP_MOVEMENT,
-                        parameters={}
+                        parameters={},
                     )
                 else:
                     # Another movement
@@ -369,7 +399,7 @@ class TestActionSystemPerformance:
                         action_id=f"complex_{client.agent_id}_{actions_completed}",
                         agent_id=client.agent_id,
                         action_type=ActionType.MOVE_TO,
-                        parameters=move_to_params(client.agent.x + 1, client.agent.y)
+                        parameters=move_to_params(client.agent.x + 1, client.agent.y),
                     )
 
                 await fixture.server.action_processor.submit_action(request)
@@ -383,8 +413,7 @@ class TestActionSystemPerformance:
         # Run complex scenario
         scenario_start = time.time()
         tasks = [
-            asyncio.create_task(complex_agent_behavior(client))
-            for client in clients
+            asyncio.create_task(complex_agent_behavior(client)) for client in clients
         ]
         results = await asyncio.gather(*tasks)
         scenario_time = time.time() - scenario_start
@@ -400,13 +429,19 @@ class TestActionSystemPerformance:
         print(f"  Per-agent throughput: {throughput/len(clients):.1f} actions/sec")
 
         # Complex scenario should still perform reasonably
-        assert throughput > 30, f"Complex scenario throughput too low: {throughput:.1f} actions/sec"
-        assert scenario_time < 5.0, f"Complex scenario took too long: {scenario_time:.2f}s"
+        assert (
+            throughput > 30
+        ), f"Complex scenario throughput too low: {throughput:.1f} actions/sec"
+        assert (
+            scenario_time < 5.0
+        ), f"Complex scenario took too long: {scenario_time:.2f}s"
 
         # Get final stats
         stats = fixture.server.action_processor.get_stats()
-        print(f"  Final processor stats: {stats['total_processed']} processed, "
-              f"{stats['total_approved']} approved, {stats['total_rejected']} rejected")
+        print(
+            f"  Final processor stats: {stats['total_processed']} processed, "
+            f"{stats['total_approved']} approved, {stats['total_rejected']} rejected"
+        )
 
 
 class TestBehaviorTreePerformance:
@@ -420,7 +455,7 @@ class TestBehaviorTreePerformance:
         # Create agents with behavior trees
         clients = []
         for i in range(5):
-            client = await fixture.add_client("explorer", 10 + i*2, 10)
+            client = await fixture.add_client("explorer", 10 + i * 2, 10)
             clients.append(client)
 
         # Time behavior tree updates
@@ -431,7 +466,7 @@ class TestBehaviorTreePerformance:
             cycle_start = time.time()
 
             for client in clients:
-                if client.agent and hasattr(client.agent, 'update'):
+                if client.agent and hasattr(client.agent, "update"):
                     client.agent.update(0.1)  # 100ms delta
 
             cycle_end = time.time()
@@ -451,8 +486,12 @@ class TestBehaviorTreePerformance:
         print(f"  Per-agent update time: {(avg_update_time/len(clients))*1000:.2f}ms")
 
         # Behavior tree updates should be fast
-        assert avg_update_time < 0.01, f"Behavior tree updates too slow: {avg_update_time:.4f}s"
-        assert max_update_time < 0.05, f"Worst-case update too slow: {max_update_time:.4f}s"
+        assert (
+            avg_update_time < 0.01
+        ), f"Behavior tree updates too slow: {avg_update_time:.4f}s"
+        assert (
+            max_update_time < 0.05
+        ), f"Worst-case update too slow: {max_update_time:.4f}s"
 
 
 if __name__ == "__main__":

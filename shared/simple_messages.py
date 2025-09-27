@@ -20,36 +20,40 @@ from typing import Any, Dict, List, Optional
 
 class SimpleMessageType(Enum):
     """Simplified core message types"""
+
     # Connection management
     CONNECT = "connect"
     DISCONNECT = "disconnect"
 
     # World state
-    WORLD_UPDATE = "world_update"          # Periodic world state from server
+    WORLD_UPDATE = "world_update"  # Periodic world state from server
 
     # Actions
-    ACTION_REQUEST = "action_request"      # Client requests action
-    ACTION_RESPONSE = "action_response"    # Server responds to action
+    ACTION_REQUEST = "action_request"  # Client requests action
+    ACTION_RESPONSE = "action_response"  # Server responds to action
 
     # Events
-    GAME_EVENT = "game_event"             # Deaths, respawns, damage, etc.
+    GAME_EVENT = "game_event"  # Deaths, respawns, damage, etc.
 
 
 @dataclass
 class SimpleMessage:
     """Simplified message structure"""
+
     type: SimpleMessageType
     payload: Dict[str, Any]
     timestamp: float = field(default_factory=time.time)
     sequence: int = 0  # For ordering if needed
 
     def to_json(self) -> str:
-        return json.dumps({
-            "type": self.type.value,
-            "payload": self.payload,
-            "timestamp": self.timestamp,
-            "sequence": self.sequence,
-        })
+        return json.dumps(
+            {
+                "type": self.type.value,
+                "payload": self.payload,
+                "timestamp": self.timestamp,
+                "sequence": self.sequence,
+            }
+        )
 
     @classmethod
     def from_json(cls, json_str: str) -> "SimpleMessage":
@@ -66,17 +70,13 @@ class SimpleMessage:
 def create_connect_message(agent_type: str) -> SimpleMessage:
     """Create connection request"""
     return SimpleMessage(
-        type=SimpleMessageType.CONNECT,
-        payload={"agent_type": agent_type}
+        type=SimpleMessageType.CONNECT, payload={"agent_type": agent_type}
     )
 
 
 def create_disconnect_message() -> SimpleMessage:
     """Create disconnect message"""
-    return SimpleMessage(
-        type=SimpleMessageType.DISCONNECT,
-        payload={}
-    )
+    return SimpleMessage(type=SimpleMessageType.DISCONNECT, payload={})
 
 
 def create_world_update_message(agents: List[Dict], world_info: Dict) -> SimpleMessage:
@@ -86,13 +86,14 @@ def create_world_update_message(agents: List[Dict], world_info: Dict) -> SimpleM
         payload={
             "agents": agents,
             "world_info": world_info,
-            "server_time": time.time()
-        }
+            "server_time": time.time(),
+        },
     )
 
 
-def create_action_request_message(action_type: str, parameters: Dict[str, Any],
-                                 agent_id: str, request_id: str = None) -> SimpleMessage:
+def create_action_request_message(
+    action_type: str, parameters: Dict[str, Any], agent_id: str, request_id: str = None
+) -> SimpleMessage:
     """Create action request from client"""
     if request_id is None:
         request_id = str(int(time.time() * 1000) % 100000)  # Simple ID
@@ -103,42 +104,36 @@ def create_action_request_message(action_type: str, parameters: Dict[str, Any],
             "action_type": action_type,
             "parameters": parameters,
             "agent_id": agent_id,
-            "request_id": request_id
-        }
+            "request_id": request_id,
+        },
     )
 
 
-def create_action_response_message(request_id: str, success: bool,
-                                  message: str, result_data: Dict = None) -> SimpleMessage:
+def create_action_response_message(
+    request_id: str, success: bool, message: str, result_data: Dict = None
+) -> SimpleMessage:
     """Create action response from server"""
-    payload = {
-        "request_id": request_id,
-        "success": success,
-        "message": message
-    }
+    payload = {"request_id": request_id, "success": success, "message": message}
     if result_data:
         payload["result"] = result_data
 
-    return SimpleMessage(
-        type=SimpleMessageType.ACTION_RESPONSE,
-        payload=payload
-    )
+    return SimpleMessage(type=SimpleMessageType.ACTION_RESPONSE, payload=payload)
 
 
-def create_game_event_message(event_type: str, event_data: Dict[str, Any]) -> SimpleMessage:
+def create_game_event_message(
+    event_type: str, event_data: Dict[str, Any]
+) -> SimpleMessage:
     """Create game event message"""
     return SimpleMessage(
         type=SimpleMessageType.GAME_EVENT,
-        payload={
-            "event_type": event_type,
-            "data": event_data
-        }
+        payload={"event_type": event_type, "data": event_data},
     )
 
 
 # Common action types (simplified)
 class SimpleActionType:
     """Simplified action types for client requests"""
+
     MOVE_TO = "move_to"
     ATTACK = "attack"
     FISH = "fish"
@@ -151,6 +146,7 @@ class SimpleActionType:
 # Common event types
 class SimpleEventType:
     """Simplified event types for server notifications"""
+
     AGENT_DEATH = "agent_death"
     AGENT_RESPAWN = "agent_respawn"
     DAMAGE_DEALT = "damage_dealt"

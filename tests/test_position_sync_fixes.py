@@ -9,18 +9,24 @@ This test suite validates that the comprehensive fixes prevent the original issu
 Run with: pytest tests/test_position_sync_fixes.py -v
 """
 
-import pytest
 import asyncio
 import time
-from unittest.mock import Mock, patch
 from typing import Tuple
+from unittest.mock import Mock, patch
 
-# Import the modules we're testing
-from shared.position_sync import PositionSyncManager, PositionPredictor, validate_action_position
+import pytest
+
 from client.behavior_tree.nodes.fishing_action import FishAtWater, WaterNearby
 from client.behavior_tree.nodes.wood_harvesting_action import HarvestWood, WoodNearby
-from server.action_processor import ActionProcessor, ActionRequest, ActionType
 from scenarios.forest_fisher_cooperation import ForestFisherCooperationScenario
+from server.action_processor import ActionProcessor, ActionRequest, ActionType
+
+# Import the modules we're testing
+from shared.position_sync import (
+    PositionPredictor,
+    PositionSyncManager,
+    validate_action_position,
+)
 
 
 class TestPositionSynchronization:
@@ -34,9 +40,7 @@ class TestPositionSynchronization:
         """Test position prediction accuracy"""
         # Test case: Agent moving at 1 unit/second for 0.5 seconds
         predicted_x, predicted_y = PositionPredictor.predict_position(
-            current_x=10.0, current_y=10.0,
-            velocity_x=1.0, velocity_y=0.5,
-            dt=0.5
+            current_x=10.0, current_y=10.0, velocity_x=1.0, velocity_y=0.5, dt=0.5
         )
 
         assert predicted_x == 10.5
@@ -47,9 +51,11 @@ class TestPositionSynchronization:
         """Test optimal action position calculation"""
         # Test case: Agent at (5, 5) targeting (10, 5) with max approach 1.0
         approach_x, approach_y = PositionPredictor.get_action_position(
-            agent_x=5.0, agent_y=5.0,
-            target_x=10.0, target_y=5.0,
-            max_approach_distance=1.0
+            agent_x=5.0,
+            agent_y=5.0,
+            target_x=10.0,
+            target_y=5.0,
+            max_approach_distance=1.0,
         )
 
         # Should move to within 1.0 unit of target
@@ -63,9 +69,11 @@ class TestPositionSynchronization:
         """Test action position when already within range"""
         # Test case: Agent already within range
         approach_x, approach_y = PositionPredictor.get_action_position(
-            agent_x=10.5, agent_y=10.5,
-            target_x=10.0, target_y=10.0,
-            max_approach_distance=1.0
+            agent_x=10.5,
+            agent_y=10.5,
+            target_x=10.0,
+            target_y=10.0,
+            max_approach_distance=1.0,
         )
 
         # Should stay at current position
@@ -80,7 +88,11 @@ class TestPositionSynchronization:
         self.position_sync.update_agent_position(agent_id, 10.0, 10.0)
 
         # Test valid action (within range)
-        is_valid, error_msg, suggested_pos = self.position_sync.validate_action_position(
+        (
+            is_valid,
+            error_msg,
+            suggested_pos,
+        ) = self.position_sync.validate_action_position(
             agent_id, 10.5, 10.5, max_distance=1.0, action_name="fishing"
         )
 
@@ -97,7 +109,11 @@ class TestPositionSynchronization:
         self.position_sync.update_agent_position(agent_id, 10.0, 10.0)
 
         # Test invalid action (out of range)
-        is_valid, error_msg, suggested_pos = self.position_sync.validate_action_position(
+        (
+            is_valid,
+            error_msg,
+            suggested_pos,
+        ) = self.position_sync.validate_action_position(
             agent_id, 15.0, 15.0, max_distance=1.0, action_name="fishing"
         )
 
@@ -135,7 +151,7 @@ class TestPositionSynchronization:
 
         # Should be partially corrected (70% of the way)
         expected_distance = 2.0 * 0.7  # 70% of 2.0 unit correction
-        actual_distance = ((corrected_x - 10.0)**2 + (corrected_y - 10.0)**2)**0.5
+        actual_distance = ((corrected_x - 10.0) ** 2 + (corrected_y - 10.0) ** 2) ** 0.5
 
         assert abs(actual_distance - expected_distance) < 0.1
 
@@ -156,12 +172,14 @@ class TestBehaviorTreeFixes:
 
     def test_water_nearby_detection(self):
         """Test that WaterNearby correctly detects nearby water"""
+
         # Mock the agent map to have water at (11, 10)
         def mock_is_tile_known(x, y):
             return True
 
         def mock_get_tile_type(x, y):
             from world.tiles import TileType
+
             if x == 11 and y == 10:
                 return TileType.WATER
             return TileType.GRASS
@@ -176,12 +194,14 @@ class TestBehaviorTreeFixes:
 
     def test_water_not_nearby(self):
         """Test WaterNearby returns False when no water is nearby"""
+
         # Mock the agent map to have no water tiles
         def mock_is_tile_known(x, y):
             return True
 
         def mock_get_tile_type(x, y):
             from world.tiles import TileType
+
             return TileType.GRASS
 
         self.mock_agent.agent_map.is_tile_known = mock_is_tile_known
@@ -194,12 +214,14 @@ class TestBehaviorTreeFixes:
 
     def test_wood_nearby_detection(self):
         """Test that WoodNearby correctly detects nearby wood"""
+
         # Mock the agent map to have wood at (11, 10)
         def mock_is_tile_known(x, y):
             return True
 
         def mock_get_tile_type(x, y):
             from world.tiles import TileType
+
             if x == 11 and y == 10:
                 return TileType.WOOD
             return TileType.GRASS
@@ -215,12 +237,14 @@ class TestBehaviorTreeFixes:
     @pytest.mark.skip(reason="Test needs update for new action system")
     def test_fish_at_water_finds_closest_water(self):
         """Test FishAtWater finds the closest water tile"""
+
         # Mock the agent map with multiple water tiles
         def mock_is_tile_known(x, y):
             return True
 
         def mock_get_tile_type(x, y):
             from world.tiles import TileType
+
             if (x, y) in [(11, 10), (15, 10)]:  # Two water tiles at different distances
                 return TileType.WATER
             return TileType.GRASS
@@ -237,12 +261,14 @@ class TestBehaviorTreeFixes:
     @pytest.mark.skip(reason="Test needs update for new action system")
     def test_harvest_wood_finds_closest_wood(self):
         """Test HarvestWood finds the closest wood tile"""
+
         # Mock the agent map with multiple wood tiles
         def mock_is_tile_known(x, y):
             return True
 
         def mock_get_tile_type(x, y):
             from world.tiles import TileType
+
             if (x, y) in [(11, 10), (15, 10)]:  # Two wood tiles at different distances
                 return TileType.WOOD
             return TileType.GRASS
@@ -288,7 +314,7 @@ class TestActionProcessorFixes:
 
     def test_fishing_validator_with_position_sync(self):
         """Test that fishing validator uses position synchronization"""
-        from server.action_processor import FishingValidator, ActionContext
+        from server.action_processor import ActionContext, FishingValidator
 
         validator = FishingValidator()
         context = ActionContext(self.action_processor)
@@ -298,7 +324,9 @@ class TestActionProcessorFixes:
         mock_agent.agent_id = "test_agent"
         mock_agent.position = (10.0, 10.0)
         mock_agent.inventory = Mock()
-        mock_agent.inventory.get_items_by_type.return_value = [Mock()]  # Has fishing rod
+        mock_agent.inventory.get_items_by_type.return_value = [
+            Mock()
+        ]  # Has fishing rod
         mock_agent.is_alive = True
 
         # Mock request
@@ -315,6 +343,7 @@ class TestActionProcessorFixes:
 
         def mock_get_tile(x, y):
             from world.tiles import TileType
+
             return TileType.WATER
 
         context.world.world_map.get_tile = mock_get_tile
@@ -334,7 +363,7 @@ def test_integration_no_position_jumps():
     # and checks that position changes are smooth and reasonable
 
     # For now, we verify the components exist and can be imported
-    from debug_tracker import track_agent_position, track_agent_action
+    from debug_tracker import track_agent_action, track_agent_position
     from shared.position_sync import get_position_sync
 
     # Test that debug tracking functions don't crash

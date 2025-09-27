@@ -13,28 +13,35 @@ Architecture:
 """
 
 import logging
-import time
 import math
+import time
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple, Set
 from enum import Enum
+from typing import Any, Dict, List, Optional, Set, Tuple
 
+from shared.action_constants import DISTANCES, THRESHOLDS
 from shared.actions import ActionRequest, ActionType
 from world.tiles import TileType
+
 from .base import ActionNode, ConditionNode, NodeStatus
-from shared.action_constants import DISTANCES, THRESHOLDS
 
 try:
-    from debug_tracker import track_resource_event, track_agent_position
+    from debug_tracker import track_agent_position, track_resource_event
 except ImportError:
-    def track_resource_event(*args, **kwargs): pass
-    def track_agent_position(*args, **kwargs): pass
+
+    def track_resource_event(*args, **kwargs):
+        pass
+
+    def track_agent_position(*args, **kwargs):
+        pass
+
 
 logger = logging.getLogger(__name__)
 
 
 class ResourceType(Enum):
     """Types of resources that can be gathered"""
+
     WATER = "water"
     WOOD = "wood"
     STONE = "stone"
@@ -45,7 +52,12 @@ class ResourceType(Enum):
 class ActionValidationResult:
     """Result of validating whether an action can be performed"""
 
-    def __init__(self, valid: bool, reason: str = "", suggested_position: Optional[Tuple[float, float]] = None):
+    def __init__(
+        self,
+        valid: bool,
+        reason: str = "",
+        suggested_position: Optional[Tuple[float, float]] = None,
+    ):
         self.valid = valid
         self.reason = reason
         self.suggested_position = suggested_position
@@ -70,16 +82,22 @@ class ServerQueryMixin:
         current_time = time.time()
 
         # Use cached data if recent enough
-        if (current_time - self.last_server_query_time) < self.server_data_cache_duration:
-            cached_pos = self.cached_server_data.get('position')
+        if (
+            current_time - self.last_server_query_time
+        ) < self.server_data_cache_duration:
+            cached_pos = self.cached_server_data.get("position")
             if cached_pos:
-                logger.debug(f"Using cached server position for {agent.id[:8]}: ({cached_pos[0]:.3f}, {cached_pos[1]:.3f})")
+                logger.debug(
+                    f"Using cached server position for {agent.id[:8]}: ({cached_pos[0]:.3f}, {cached_pos[1]:.3f})"
+                )
                 return cached_pos
 
         # Query server for fresh position using new client query method
-        if hasattr(agent, 'client') and agent.client:
+        if hasattr(agent, "client") and agent.client:
             try:
-                logger.debug(f"Querying server for fresh position data for {agent.id[:8]}")
+                logger.debug(
+                    f"Querying server for fresh position data for {agent.id[:8]}"
+                )
                 response_data = await agent.client.query_position(timeout=1.0)
 
                 if response_data and response_data.get("success"):
@@ -88,11 +106,15 @@ class ServerQueryMixin:
 
                     if server_pos[0] is not None and server_pos[1] is not None:
                         self.last_server_query_time = current_time
-                        self.cached_server_data['position'] = server_pos
-                        logger.info(f"✅ Retrieved fresh server position for {agent.id[:8]}: ({server_pos[0]:.3f}, {server_pos[1]:.3f})")
+                        self.cached_server_data["position"] = server_pos
+                        logger.info(
+                            f"✅ Retrieved fresh server position for {agent.id[:8]}: ({server_pos[0]:.3f}, {server_pos[1]:.3f})"
+                        )
                         return server_pos
                     else:
-                        logger.warning(f"Invalid position data from server for {agent.id[:8]}")
+                        logger.warning(
+                            f"Invalid position data from server for {agent.id[:8]}"
+                        )
                 else:
                     logger.warning(f"Server position query failed for {agent.id[:8]}")
 
@@ -102,22 +124,29 @@ class ServerQueryMixin:
         # Fallback to position authority system
         try:
             from shared.position_authority import get_server_position_for_action
+
             server_pos = get_server_position_for_action(agent.id)
 
             if server_pos:
                 self.last_server_query_time = current_time
-                self.cached_server_data['position'] = server_pos
-                logger.debug(f"Retrieved position authority data for {agent.id[:8]}: ({server_pos[0]:.3f}, {server_pos[1]:.3f})")
+                self.cached_server_data["position"] = server_pos
+                logger.debug(
+                    f"Retrieved position authority data for {agent.id[:8]}: ({server_pos[0]:.3f}, {server_pos[1]:.3f})"
+                )
                 return server_pos
 
         except Exception as e:
             logger.debug(f"Position authority fallback failed for {agent.id[:8]}: {e}")
 
         # Final fallback to client position
-        logger.warning(f"Using client position as final fallback for {agent.id[:8]}: ({agent.x:.3f}, {agent.y:.3f})")
+        logger.warning(
+            f"Using client position as final fallback for {agent.id[:8]}: ({agent.x:.3f}, {agent.y:.3f})"
+        )
         return (agent.x, agent.y)
 
-    async def get_fresh_environment_data(self, agent, scan_radius: float = 5.0) -> Dict[str, Any]:
+    async def get_fresh_environment_data(
+        self, agent, scan_radius: float = 5.0
+    ) -> Dict[str, Any]:
         """
         Get fresh environment data from server (resources, terrain, etc.)
 
@@ -129,48 +158,64 @@ class ServerQueryMixin:
             Dictionary containing environment data
         """
         current_time = time.time()
-        cache_key = f'environment_{scan_radius}'
+        cache_key = f"environment_{scan_radius}"
 
         # Use cached data if recent enough
-        if (current_time - self.last_server_query_time) < self.server_data_cache_duration:
+        if (
+            current_time - self.last_server_query_time
+        ) < self.server_data_cache_duration:
             cached_env = self.cached_server_data.get(cache_key)
             if cached_env:
                 logger.debug(f"Using cached environment data for {agent.id[:8]}")
                 return cached_env
 
         # Try server environment query first
-        if hasattr(agent, 'client') and agent.client:
+        if hasattr(agent, "client") and agent.client:
             try:
-                logger.debug(f"Querying server for fresh environment data for {agent.id[:8]} (radius: {scan_radius})")
-                response_data = await agent.client.query_environment(scan_radius=scan_radius, timeout=1.5)
+                logger.debug(
+                    f"Querying server for fresh environment data for {agent.id[:8]} (radius: {scan_radius})"
+                )
+                response_data = await agent.client.query_environment(
+                    scan_radius=scan_radius, timeout=1.5
+                )
 
                 if response_data and response_data.get("success"):
                     env_data = {
-                        'timestamp': current_time,
-                        'agent_position': tuple(response_data.get("agent_position", [agent.x, agent.y])),
-                        'visible_resources': response_data.get("resources", []),
-                        'scan_radius': scan_radius,
-                        'server_timestamp': response_data.get("server_timestamp", current_time)
+                        "timestamp": current_time,
+                        "agent_position": tuple(
+                            response_data.get("agent_position", [agent.x, agent.y])
+                        ),
+                        "visible_resources": response_data.get("resources", []),
+                        "scan_radius": scan_radius,
+                        "server_timestamp": response_data.get(
+                            "server_timestamp", current_time
+                        ),
                     }
 
                     self.cached_server_data[cache_key] = env_data
                     self.last_server_query_time = current_time
 
-                    logger.info(f"✅ Retrieved fresh environment data for {agent.id[:8]}: {len(env_data['visible_resources'])} resources")
+                    logger.info(
+                        f"✅ Retrieved fresh environment data for {agent.id[:8]}: {len(env_data['visible_resources'])} resources"
+                    )
                     return env_data
                 else:
-                    logger.warning(f"Server environment query failed for {agent.id[:8]}")
+                    logger.warning(
+                        f"Server environment query failed for {agent.id[:8]}"
+                    )
 
             except Exception as e:
-                logger.error(f"Failed to query server environment for {agent.id[:8]}: {e}")
+                logger.error(
+                    f"Failed to query server environment for {agent.id[:8]}: {e}"
+                )
 
         # Fallback to local scanning
         logger.debug(f"Using local environment scanning fallback for {agent.id[:8]}")
         env_data = {
-            'timestamp': current_time,
-            'agent_position': await self.get_fresh_position_data(agent),
-            'visible_resources': self._scan_local_resources(agent, scan_radius),
-            'scan_radius': scan_radius
+            "timestamp": current_time,
+            "agent_position": await self.get_fresh_position_data(agent),
+            "visible_resources": self._scan_local_resources(agent, scan_radius),
+            "scan_radius": scan_radius,
         }
 
         self.cached_server_data[cache_key] = env_data
@@ -180,7 +225,7 @@ class ServerQueryMixin:
 
     def _scan_local_resources(self, agent, scan_radius: float) -> List[Dict[str, Any]]:
         """Scan for resources using local agent map data"""
-        if not hasattr(agent, 'agent_map') or not agent.agent_map:
+        if not hasattr(agent, "agent_map") or not agent.agent_map:
             return []
 
         resources = []
@@ -200,18 +245,23 @@ class ServerQueryMixin:
                     if resource_type:
                         tile_center_x = check_x + 0.5
                         tile_center_y = check_y + 0.5
-                        distance = math.sqrt((tile_center_x - agent_x)**2 + (tile_center_y - agent_y)**2)
+                        distance = math.sqrt(
+                            (tile_center_x - agent_x) ** 2
+                            + (tile_center_y - agent_y) ** 2
+                        )
 
                         if distance <= scan_radius:
-                            resources.append({
-                                'type': resource_type.value,
-                                'tile_type': tile_type.value,
-                                'position': (tile_center_x, tile_center_y),
-                                'tile_coordinates': (check_x, check_y),
-                                'distance': distance
-                            })
+                            resources.append(
+                                {
+                                    "type": resource_type.value,
+                                    "tile_type": tile_type.value,
+                                    "position": (tile_center_x, tile_center_y),
+                                    "tile_coordinates": (check_x, check_y),
+                                    "distance": distance,
+                                }
+                            )
 
-        return sorted(resources, key=lambda r: r['distance'])
+        return sorted(resources, key=lambda r: r["distance"])
 
     def _tile_to_resource_type(self, tile_type: TileType) -> Optional[ResourceType]:
         """Convert tile type to resource type"""
@@ -231,7 +281,9 @@ class DistanceValidatedAction:
         self.max_action_distance = max_action_distance
         self.validation_buffer = THRESHOLDS.VALIDATION_BUFFER
 
-    def validate_distance(self, agent_pos: Tuple[float, float], target_pos: Tuple[float, float]) -> ActionValidationResult:
+    def validate_distance(
+        self, agent_pos: Tuple[float, float], target_pos: Tuple[float, float]
+    ) -> ActionValidationResult:
         """
         Validate if the agent is close enough to perform the action.
 
@@ -250,7 +302,7 @@ class DistanceValidatedAction:
         if distance <= self.max_action_distance + self.validation_buffer:
             return ActionValidationResult(
                 valid=True,
-                reason=f"Within action range: {distance:.2f} ≤ {self.max_action_distance:.2f}"
+                reason=f"Within action range: {distance:.2f} ≤ {self.max_action_distance:.2f}",
             )
         else:
             # Calculate suggested position
@@ -267,10 +319,12 @@ class DistanceValidatedAction:
             return ActionValidationResult(
                 valid=False,
                 reason=f"Too far from target: {distance:.2f} > {self.max_action_distance:.2f}. Move closer.",
-                suggested_position=suggested_position
+                suggested_position=suggested_position,
             )
 
-    def find_optimal_action_position(self, agent_pos: Tuple[float, float], target_pos: Tuple[float, float]) -> Tuple[float, float]:
+    def find_optimal_action_position(
+        self, agent_pos: Tuple[float, float], target_pos: Tuple[float, float]
+    ) -> Tuple[float, float]:
         """
         Find the optimal position for the agent to perform the action.
 
@@ -317,7 +371,7 @@ class InventoryManagedAction:
         Returns:
             True if agent has space, False otherwise
         """
-        if not hasattr(agent, 'inventory'):
+        if not hasattr(agent, "inventory"):
             return True  # Assume space if no inventory system
 
         try:
@@ -326,11 +380,13 @@ class InventoryManagedAction:
             total_space_needed = quantity
 
             # If item is stackable, check if we can stack with existing items
-            if hasattr(agent.inventory, 'can_stack_item'):
+            if hasattr(agent.inventory, "can_stack_item"):
                 existing_quantity = agent.inventory.get_item_count(item_name)
                 if existing_quantity > 0 and agent.inventory.can_stack_item(item_name):
-                    max_stack = getattr(agent.inventory, 'max_stack_size', 64)
-                    space_in_existing_stacks = max_stack - (existing_quantity % max_stack)
+                    max_stack = getattr(agent.inventory, "max_stack_size", 64)
+                    space_in_existing_stacks = max_stack - (
+                        existing_quantity % max_stack
+                    )
                     if space_in_existing_stacks >= quantity:
                         return True  # Can fit in existing stacks
                     total_space_needed = quantity - space_in_existing_stacks
@@ -339,10 +395,12 @@ class InventoryManagedAction:
 
         except (AttributeError, TypeError):
             # Fallback for basic inventory systems
-            if hasattr(agent.inventory, 'is_full'):
+            if hasattr(agent.inventory, "is_full"):
                 return not agent.inventory.is_full()
-            elif hasattr(agent.inventory, 'slots'):
-                used_slots = len([slot for slot in agent.inventory.slots if slot is not None])
+            elif hasattr(agent.inventory, "slots"):
+                used_slots = len(
+                    [slot for slot in agent.inventory.slots if slot is not None]
+                )
                 total_slots = len(agent.inventory.slots)
                 return used_slots < total_slots
             else:
@@ -360,7 +418,7 @@ class InventoryManagedAction:
         Returns:
             True if agent has the required tool, False otherwise
         """
-        if not hasattr(agent, 'inventory'):
+        if not hasattr(agent, "inventory"):
             # Fallback: assume tools are available based on agent type
             if tool_type == "fishing_rod":
                 return agent.agent_type == "explorer"
@@ -370,24 +428,31 @@ class InventoryManagedAction:
 
         try:
             # Check if tool is in inventory
-            if hasattr(agent.inventory, 'has_item'):
+            if hasattr(agent.inventory, "has_item"):
                 return agent.inventory.has_item(tool_type)
 
             # Check equipped tools if equipment system exists
-            if hasattr(agent.inventory, 'get_equipped_item'):
-                equipped_tool = agent.inventory.get_equipped_item('tool')
+            if hasattr(agent.inventory, "get_equipped_item"):
+                equipped_tool = agent.inventory.get_equipped_item("tool")
                 if equipped_tool and equipped_tool.item_type == tool_type:
                     return True
 
             # Check all inventory slots for the tool
-            if hasattr(agent.inventory, 'items'):
+            if hasattr(agent.inventory, "items"):
                 for item in agent.inventory.items:
-                    if item and hasattr(item, 'item_type') and item.item_type == tool_type:
+                    if (
+                        item
+                        and hasattr(item, "item_type")
+                        and item.item_type == tool_type
+                    ):
                         return True
-            elif hasattr(agent.inventory, 'slots'):
+            elif hasattr(agent.inventory, "slots"):
                 for slot in agent.inventory.slots:
-                    if slot and hasattr(slot, 'item') and slot.item:
-                        if hasattr(slot.item, 'item_type') and slot.item.item_type == tool_type:
+                    if slot and hasattr(slot, "item") and slot.item:
+                        if (
+                            hasattr(slot.item, "item_type")
+                            and slot.item.item_type == tool_type
+                        ):
                             return True
 
             # Tool not found in inventory
@@ -414,25 +479,29 @@ class InventoryManagedAction:
         Returns:
             Efficiency multiplier (1.0 = normal, >1.0 = better, <1.0 = worse)
         """
-        if not hasattr(agent, 'inventory'):
+        if not hasattr(agent, "inventory"):
             return 1.0  # Default efficiency without inventory
 
         try:
             # Check for equipped tools with efficiency ratings
-            if hasattr(agent.inventory, 'get_equipped_item'):
-                equipped_tool = agent.inventory.get_equipped_item('tool')
-                if equipped_tool and hasattr(equipped_tool, 'item_type') and equipped_tool.item_type == tool_type:
+            if hasattr(agent.inventory, "get_equipped_item"):
+                equipped_tool = agent.inventory.get_equipped_item("tool")
+                if (
+                    equipped_tool
+                    and hasattr(equipped_tool, "item_type")
+                    and equipped_tool.item_type == tool_type
+                ):
                     # Check for efficiency attribute
-                    if hasattr(equipped_tool, 'efficiency'):
+                    if hasattr(equipped_tool, "efficiency"):
                         return equipped_tool.efficiency
-                    elif hasattr(equipped_tool, 'quality'):
+                    elif hasattr(equipped_tool, "quality"):
                         # Convert quality to efficiency (basic mapping)
                         quality_map = {
-                            'poor': 0.8,
-                            'common': 1.0,
-                            'good': 1.2,
-                            'excellent': 1.5,
-                            'legendary': 2.0
+                            "poor": 0.8,
+                            "common": 1.0,
+                            "good": 1.2,
+                            "excellent": 1.5,
+                            "legendary": 2.0,
                         }
                         return quality_map.get(equipped_tool.quality.lower(), 1.0)
 
@@ -440,37 +509,47 @@ class InventoryManagedAction:
             best_efficiency = 1.0
             found_tool = False
 
-            if hasattr(agent.inventory, 'items'):
+            if hasattr(agent.inventory, "items"):
                 for item in agent.inventory.items:
-                    if item and hasattr(item, 'item_type') and item.item_type == tool_type:
+                    if (
+                        item
+                        and hasattr(item, "item_type")
+                        and item.item_type == tool_type
+                    ):
                         found_tool = True
                         efficiency = 1.0
-                        if hasattr(item, 'efficiency'):
+                        if hasattr(item, "efficiency"):
                             efficiency = item.efficiency
-                        elif hasattr(item, 'quality'):
+                        elif hasattr(item, "quality"):
                             quality_map = {
-                                'poor': 0.8,
-                                'common': 1.0,
-                                'good': 1.2,
-                                'excellent': 1.5,
-                                'legendary': 2.0
+                                "poor": 0.8,
+                                "common": 1.0,
+                                "good": 1.2,
+                                "excellent": 1.5,
+                                "legendary": 2.0,
                             }
                             efficiency = quality_map.get(item.quality.lower(), 1.0)
                         best_efficiency = max(best_efficiency, efficiency)
 
             # Agent type efficiency modifiers
             if found_tool:
-                agent_bonus = self._get_agent_type_efficiency_bonus(agent.agent_type, tool_type)
+                agent_bonus = self._get_agent_type_efficiency_bonus(
+                    agent.agent_type, tool_type
+                )
                 return best_efficiency * agent_bonus
             else:
                 # No tool found - check if agent type can work without tools
-                return self._get_agent_type_efficiency_bonus(agent.agent_type, tool_type)
+                return self._get_agent_type_efficiency_bonus(
+                    agent.agent_type, tool_type
+                )
 
         except (AttributeError, TypeError):
             # Fallback to agent type efficiency
             return self._get_agent_type_efficiency_bonus(agent.agent_type, tool_type)
 
-    def _get_agent_type_efficiency_bonus(self, agent_type: str, tool_type: str) -> float:
+    def _get_agent_type_efficiency_bonus(
+        self, agent_type: str, tool_type: str
+    ) -> float:
         """Get efficiency bonus based on agent type and tool type."""
         # Agent type specialization bonuses
         specializations = {
@@ -478,32 +557,34 @@ class InventoryManagedAction:
                 "fishing_rod": 1.1,  # Explorers are versatile
                 "axe": 1.1,
                 "woodcutting": 1.1,  # Hatchets
-                "pickaxe": 1.1
+                "pickaxe": 1.1,
             },
             "fisher": {
                 "fishing_rod": 1.5,  # Fishers excel at fishing
                 "axe": 0.8,
                 "woodcutting": 0.8,  # Hatchets
-                "pickaxe": 0.8
+                "pickaxe": 0.8,
             },
             "lumberjack": {
                 "fishing_rod": 0.8,
                 "axe": 1.5,  # Lumberjacks excel at woodcutting
                 "woodcutting": 1.5,  # Hatchets
-                "pickaxe": 0.9
+                "pickaxe": 0.9,
             },
             "miner": {
                 "fishing_rod": 0.8,
                 "axe": 0.9,
                 "woodcutting": 0.9,  # Hatchets
-                "pickaxe": 1.5  # Miners excel at mining
-            }
+                "pickaxe": 1.5,  # Miners excel at mining
+            },
         }
 
         return specializations.get(agent_type, {}).get(tool_type, 1.0)
 
 
-class ResourceActionBase(ServerQueryMixin, DistanceValidatedAction, InventoryManagedAction, ActionNode, ABC):
+class ResourceActionBase(
+    ServerQueryMixin, DistanceValidatedAction, InventoryManagedAction, ActionNode, ABC
+):
     """
     Base class for all resource gathering actions.
 
@@ -515,14 +596,16 @@ class ResourceActionBase(ServerQueryMixin, DistanceValidatedAction, InventoryMan
     - Action execution flow
     """
 
-    def __init__(self,
-                 name: str,
-                 resource_type: ResourceType,
-                 target_tile_types: Set[TileType],
-                 max_action_distance: float,
-                 required_tool: Optional[str] = None,
-                 action_duration_range: Tuple[float, float] = (2.0, 5.0),
-                 success_rate: float = 0.8):
+    def __init__(
+        self,
+        name: str,
+        resource_type: ResourceType,
+        target_tile_types: Set[TileType],
+        max_action_distance: float,
+        required_tool: Optional[str] = None,
+        action_duration_range: Tuple[float, float] = (2.0, 5.0),
+        success_rate: float = 0.8,
+    ):
         super().__init__(max_action_distance=max_action_distance)
         ActionNode.__init__(self, name)
 
@@ -539,11 +622,17 @@ class ResourceActionBase(ServerQueryMixin, DistanceValidatedAction, InventoryMan
 
     async def start_action(self, agent) -> bool:
         """Start the resource gathering action"""
-        logger.info(f"🎯 Starting {self.resource_type.value} gathering for agent {agent.id[:8]}")
+        logger.info(
+            f"🎯 Starting {self.resource_type.value} gathering for agent {agent.id[:8]}"
+        )
 
         # Check required tools
-        if self.required_tool and not self.check_required_tools(agent, self.required_tool):
-            logger.warning(f"Agent {agent.id[:8]} missing required tool: {self.required_tool}")
+        if self.required_tool and not self.check_required_tools(
+            agent, self.required_tool
+        ):
+            logger.warning(
+                f"Agent {agent.id[:8]} missing required tool: {self.required_tool}"
+            )
             return False
 
         # Get fresh server data
@@ -561,21 +650,27 @@ class ResourceActionBase(ServerQueryMixin, DistanceValidatedAction, InventoryMan
         # Find suitable target
         target = self._find_best_target(agent_pos, env_data)
         if not target:
-            logger.debug(f"No suitable {self.resource_type.value} target found for agent {agent.id[:8]}")
+            logger.debug(
+                f"No suitable {self.resource_type.value} target found for agent {agent.id[:8]}"
+            )
             return False
 
         self.current_target = target
 
         # Validate distance
-        validation = self.validate_distance(agent_pos, target['position'])
+        validation = self.validate_distance(agent_pos, target["position"])
         if not validation.valid:
-            logger.debug(f"Distance validation failed for {agent.id[:8]}: {validation.reason}")
+            logger.debug(
+                f"Distance validation failed for {agent.id[:8]}: {validation.reason}"
+            )
             # TODO: Implement movement to optimal position
             return False
 
         # Check inventory space
         if not self.check_inventory_space(agent, self.get_result_item_name()):
-            logger.warning(f"Agent {agent.id[:8]} has no inventory space for {self.resource_type.value}")
+            logger.warning(
+                f"Agent {agent.id[:8]} has no inventory space for {self.resource_type.value}"
+            )
             return False
 
         # Start action execution
@@ -586,10 +681,18 @@ class ResourceActionBase(ServerQueryMixin, DistanceValidatedAction, InventoryMan
         await self._send_action_request(agent)
 
         # Track action start
-        track_resource_event(agent.id, "start", self.resource_type.value,
-                           target['position'], agent_pos, self.name)
+        track_resource_event(
+            agent.id,
+            "start",
+            self.resource_type.value,
+            target["position"],
+            agent_pos,
+            self.name,
+        )
 
-        logger.info(f"✅ Started {self.resource_type.value} action for agent {agent.id[:8]} at {target['position']}")
+        logger.info(
+            f"✅ Started {self.resource_type.value} action for agent {agent.id[:8]} at {target['position']}"
+        )
         return True
 
     def update_action(self, agent, dt: float) -> NodeStatus:
@@ -602,7 +705,9 @@ class ResourceActionBase(ServerQueryMixin, DistanceValidatedAction, InventoryMan
 
         # Check for timeout
         if elapsed_time > max_duration:
-            logger.info(f"⏰ {self.resource_type.value} action timed out for agent {agent.id[:8]}")
+            logger.info(
+                f"⏰ {self.resource_type.value} action timed out for agent {agent.id[:8]}"
+            )
             self.is_executing = False
             return NodeStatus.SUCCESS  # Consider timeout as completion
 
@@ -612,11 +717,13 @@ class ResourceActionBase(ServerQueryMixin, DistanceValidatedAction, InventoryMan
     def stop_action(self, agent):
         """Stop the current action"""
         if self.is_executing:
-            logger.info(f"🛑 Stopping {self.resource_type.value} action for agent {agent.id[:8]}")
+            logger.info(
+                f"🛑 Stopping {self.resource_type.value} action for agent {agent.id[:8]}"
+            )
             self.is_executing = False
 
         # Stop agent movement if moving
-        if hasattr(agent, 'stop_movement'):
+        if hasattr(agent, "stop_movement"):
             agent.stop_movement()
 
     def reset(self):
@@ -627,7 +734,9 @@ class ResourceActionBase(ServerQueryMixin, DistanceValidatedAction, InventoryMan
         self.is_executing = False
         self.cached_server_data.clear()
 
-    def _find_best_target(self, agent_pos: Tuple[float, float], env_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _find_best_target(
+        self, agent_pos: Tuple[float, float], env_data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """
         Find the best target for this resource action.
 
@@ -638,12 +747,14 @@ class ResourceActionBase(ServerQueryMixin, DistanceValidatedAction, InventoryMan
         Returns:
             Target information dict or None if no suitable target
         """
-        resources = env_data.get('visible_resources', [])
+        resources = env_data.get("visible_resources", [])
 
         # Filter for our resource type
         suitable_resources = [
-            r for r in resources
-            if r['type'] == self.resource_type.value and r['distance'] <= self.max_action_distance
+            r
+            for r in resources
+            if r["type"] == self.resource_type.value
+            and r["distance"] <= self.max_action_distance
         ]
 
         if not suitable_resources:
@@ -662,8 +773,8 @@ class ResourceActionBase(ServerQueryMixin, DistanceValidatedAction, InventoryMan
 
         # Prepare parameters
         parameters = {
-            'target_x': self.current_target['position'][0],
-            'target_y': self.current_target['position'][1],
+            "target_x": self.current_target["position"][0],
+            "target_y": self.current_target["position"][1],
         }
 
         # Add any action-specific parameters
@@ -671,14 +782,16 @@ class ResourceActionBase(ServerQueryMixin, DistanceValidatedAction, InventoryMan
         parameters.update(additional_params)
 
         # Send request via action manager
-        if hasattr(agent, 'action_manager') and agent.action_manager:
+        if hasattr(agent, "action_manager") and agent.action_manager:
             try:
                 action_id = await agent.action_manager.request_action(
                     action_type=action_type,
                     parameters=parameters,
-                    predict=False  # Don't predict resource actions
+                    predict=False,  # Don't predict resource actions
                 )
-                logger.debug(f"Sent {action_type.value} request for agent {agent.id[:8]}: {action_id}")
+                logger.debug(
+                    f"Sent {action_type.value} request for agent {agent.id[:8]}: {action_id}"
+                )
             except Exception as e:
                 logger.error(f"Failed to send action request for {agent.id[:8]}: {e}")
 
@@ -707,10 +820,7 @@ class ResourceConditionBase(ServerQueryMixin, ConditionNode, ABC):
     server-authoritative approach.
     """
 
-    def __init__(self,
-                 name: str,
-                 resource_type: ResourceType,
-                 max_distance: float):
+    def __init__(self, name: str, resource_type: ResourceType, max_distance: float):
         ServerQueryMixin.__init__(self)
         ConditionNode.__init__(self, name)
 
@@ -725,17 +835,27 @@ class ResourceConditionBase(ServerQueryMixin, ConditionNode, ABC):
 
             # Check for resources of our type
             suitable_resources = [
-                r for r in resources
-                if r['type'] == self.resource_type.value and r['distance'] <= self.max_distance
+                r
+                for r in resources
+                if r["type"] == self.resource_type.value
+                and r["distance"] <= self.max_distance
             ]
 
             found = len(suitable_resources) > 0
-            closest_distance = suitable_resources[0]['distance'] if suitable_resources else float('inf')
+            closest_distance = (
+                suitable_resources[0]["distance"]
+                if suitable_resources
+                else float("inf")
+            )
 
-            logger.info(f"🔍 {self.name}: Agent {agent.id[:8]} {self.resource_type.value} within {self.max_distance}: {found} (closest: {closest_distance:.2f})")
+            logger.info(
+                f"🔍 {self.name}: Agent {agent.id[:8]} {self.resource_type.value} within {self.max_distance}: {found} (closest: {closest_distance:.2f})"
+            )
 
             return found
 
         except Exception as e:
-            logger.error(f"Error checking {self.resource_type.value} condition for {agent.id[:8]}: {e}")
+            logger.error(
+                f"Error checking {self.resource_type.value} condition for {agent.id[:8]}: {e}"
+            )
             return False

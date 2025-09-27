@@ -2,9 +2,11 @@
 Tests for the world objects management system.
 """
 
-import pytest
 import time
 from unittest.mock import Mock
+
+import pytest
+
 from server.world_objects import WorldObject, WorldObjectManager, WorldObjectType
 
 
@@ -12,9 +14,7 @@ class TestWorldObject:
     def test_world_object_creation(self):
         """Test WorldObject creation with default values"""
         obj = WorldObject(
-            object_type=WorldObjectType.FIRE,
-            position=(10.5, 20.3),
-            duration=300.0
+            object_type=WorldObjectType.FIRE, position=(10.5, 20.3), duration=300.0
         )
 
         assert obj.object_type == WorldObjectType.FIRE
@@ -30,7 +30,7 @@ class TestWorldObject:
         obj = WorldObject(
             object_type=WorldObjectType.FIRE,
             position=(0, 0),
-            duration=0.1  # 0.1 seconds
+            duration=0.1,  # 0.1 seconds
         )
 
         # Should not be expired immediately
@@ -45,9 +45,7 @@ class TestWorldObject:
     def test_world_object_time_remaining(self):
         """Test WorldObject time remaining calculation"""
         obj = WorldObject(
-            object_type=WorldObjectType.CAMPFIRE,
-            position=(0, 0),
-            duration=100.0
+            object_type=WorldObjectType.CAMPFIRE, position=(0, 0), duration=100.0
         )
 
         time_remaining = obj.time_remaining()
@@ -63,11 +61,7 @@ class TestWorldObjectManager:
         """Test creating a basic fire"""
         manager = WorldObjectManager()
 
-        fire_obj = manager.create_fire(
-            x=15.0,
-            y=25.0,
-            duration=300.0
-        )
+        fire_obj = manager.create_fire(x=15.0, y=25.0, duration=300.0)
 
         assert fire_obj is not None
         assert fire_obj.object_id in manager.objects
@@ -80,10 +74,7 @@ class TestWorldObjectManager:
         """Test creating a campfire"""
         manager = WorldObjectManager()
 
-        campfire_obj = manager.create_campfire(
-            x=30.0,
-            y=40.0
-        )
+        campfire_obj = manager.create_campfire(x=30.0, y=40.0)
 
         assert campfire_obj is not None
         assert campfire_obj.object_type == WorldObjectType.CAMPFIRE
@@ -119,11 +110,7 @@ class TestWorldObjectManager:
         manager = WorldObjectManager()
 
         # Create fire with very short duration
-        fire_obj = manager.create_fire(
-            x=5.0,
-            y=5.0,
-            duration=0.1  # 0.1 seconds
-        )
+        fire_obj = manager.create_fire(x=5.0, y=5.0, duration=0.1)  # 0.1 seconds
 
         assert len(manager.objects) == 1
 
@@ -143,11 +130,7 @@ class TestWorldObjectManager:
         manager = WorldObjectManager()
 
         # Create fire with long duration
-        fire_obj = manager.create_fire(
-            x=5.0,
-            y=5.0,
-            duration=300.0  # 5 minutes
-        )
+        fire_obj = manager.create_fire(x=5.0, y=5.0, duration=300.0)  # 5 minutes
 
         assert len(manager.objects) == 1
 

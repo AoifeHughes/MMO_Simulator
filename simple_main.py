@@ -32,8 +32,13 @@ logger = logging.getLogger(__name__)
 class SimplifiedSimulatorApp:
     """Simplified MMO simulator using the new architecture"""
 
-    def __init__(self, mode: str = "both", visualize: bool = True,
-                 num_agents: int = 5, timeout: Optional[int] = None):
+    def __init__(
+        self,
+        mode: str = "both",
+        visualize: bool = True,
+        num_agents: int = 5,
+        timeout: Optional[int] = None,
+    ):
         self.mode = mode
         self.visualize = visualize
         self.num_agents = num_agents
@@ -85,7 +90,9 @@ class SimplifiedSimulatorApp:
 
             if connected:
                 self.clients.append(client)
-                logger.info(f"Connected client {i} as {agent_type} agent {client.agent_id[:8]}")
+                logger.info(
+                    f"Connected client {i} as {agent_type} agent {client.agent_id[:8]}"
+                )
             else:
                 logger.error(f"Failed to connect client {i}")
 
@@ -256,23 +263,14 @@ def main():
         "--mode",
         choices=["server", "both"],
         default="both",
-        help="Run mode (simplified - no pure client mode)"
+        help="Run mode (simplified - no pure client mode)",
     )
     parser.add_argument(
-        "--agents",
-        type=int,
-        default=5,
-        help="Number of AI agents to spawn"
+        "--agents", type=int, default=5, help="Number of AI agents to spawn"
     )
+    parser.add_argument("--no-viz", action="store_true", help="Disable visualization")
     parser.add_argument(
-        "--no-viz",
-        action="store_true",
-        help="Disable visualization"
-    )
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        help="Automatic shutdown timeout in seconds"
+        "--timeout", type=int, help="Automatic shutdown timeout in seconds"
     )
 
     args = parser.parse_args()
@@ -282,7 +280,7 @@ def main():
         mode=args.mode,
         visualize=not args.no_viz,
         num_agents=args.agents,
-        timeout=args.timeout
+        timeout=args.timeout,
     )
 
     # Run the simplified system
@@ -294,6 +292,7 @@ def main():
     except Exception as e:
         logger.error(f"Application error: {e}")
         import traceback
+
         traceback.print_exc()
 
 

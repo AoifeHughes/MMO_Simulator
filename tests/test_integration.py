@@ -2,15 +2,22 @@
 Integration tests for the complete MMO simulator with new features.
 """
 
-import pytest
 import asyncio
-from unittest.mock import Mock, AsyncMock, patch
-from shared.actions import ActionResult, create_harvest_wood_action, create_craft_item_action, create_trade_request_action
-from shared.items import create_wood, create_hatchet
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
+
 from server.action_processor import ActionProcessor, ActionRequest
-from server.agent_state import ServerAgentState, AgentRegistry
+from server.agent_state import AgentRegistry, ServerAgentState
 from server.database import DatabaseManager
 from server.world_objects import WorldObjectManager
+from shared.actions import (
+    ActionResult,
+    create_craft_item_action,
+    create_harvest_wood_action,
+    create_trade_request_action,
+)
+from shared.items import create_hatchet, create_wood
 from world.tiles import TileType
 
 
@@ -30,7 +37,9 @@ class TestIntegration:
     def action_processor(self, mock_server):
         # Create mock attack system
         mock_attack_system = Mock()
-        return ActionProcessor(mock_server.world, mock_server.agent_registry, mock_attack_system)
+        return ActionProcessor(
+            mock_server.world, mock_server.agent_registry, mock_attack_system
+        )
 
     @pytest.fixture
     def cooperation_agents(self):
@@ -59,7 +68,9 @@ class TestIntegration:
         return woodcutter, fisher
 
     @pytest.mark.asyncio
-    async def test_full_cooperation_workflow(self, action_processor, mock_server, cooperation_agents):
+    async def test_full_cooperation_workflow(
+        self, action_processor, mock_server, cooperation_agents
+    ):
         """Test complete cooperation workflow: harvest wood -> craft fire -> trade"""
         woodcutter, fisher = cooperation_agents
 
@@ -72,7 +83,11 @@ class TestIntegration:
             return None
 
         mock_server.agent_registry.get_agent.side_effect = get_agent_mock
-        mock_server.world.get_agent.side_effect = lambda aid: Mock(x=10.0, y=10.0) if aid == "woodcutter" else Mock(x=12.0, y=12.0)
+        mock_server.world.get_agent.side_effect = (
+            lambda aid: Mock(x=10.0, y=10.0)
+            if aid == "woodcutter"
+            else Mock(x=12.0, y=12.0)
+        )
         mock_server.world.world_map.width = 100
         mock_server.world.world_map.height = 100
         mock_server.world.world_map.get_tile.return_value = TileType.WOOD
@@ -96,16 +111,18 @@ class TestIntegration:
             # Clear cooldowns between harvests
             if i == 0:  # Only clear after first harvest, not after second
                 for validator in action_processor.validators:
-                    if hasattr(validator, 'last_use'):
+                    if hasattr(validator, "last_use"):
                         validator.last_use.clear()
 
         # Verify enough wood was harvested
         wood_count = woodcutter.inventory.get_item_quantity("wood")
-        assert wood_count >= 2, f"Expected at least 2 wood to be harvested, wood count: {wood_count}"
+        assert (
+            wood_count >= 2
+        ), f"Expected at least 2 wood to be harvested, wood count: {wood_count}"
 
         # Clear cooldowns for next action
         for validator in action_processor.validators:
-            if hasattr(validator, 'last_use'):
+            if hasattr(validator, "last_use"):
                 validator.last_use.clear()
 
         # Step 2: Woodcutter crafts fire
@@ -118,18 +135,20 @@ class TestIntegration:
 
         # Clear cooldowns for next action
         for validator in action_processor.validators:
-            if hasattr(validator, 'last_use'):
+            if hasattr(validator, "last_use"):
                 validator.last_use.clear()
 
         # Step 3: Fisher requests trade (fish for fire access)
         # Note: In real scenario, fisher would seek fire, but we'll simulate a trade
         wood_item = create_wood()
-        woodcutter.inventory.add_item(wood_item, 2)  # Give woodcutter some wood to trade
+        woodcutter.inventory.add_item(
+            wood_item, 2
+        )  # Give woodcutter some wood to trade
 
         trade_request = create_trade_request_action(
             "woodcutter",
             [{"item_name": "Fresh Fish", "quantity": 1}],  # Fisher offers fish
-            [{"item_name": "wood", "quantity": 1}]  # Fisher wants wood
+            [{"item_name": "wood", "quantity": 1}],  # Fisher wants wood
         )
         trade_request.agent_id = "fisher"
         trade_response = await action_processor.submit_action(trade_request)
@@ -173,7 +192,7 @@ class TestIntegration:
 
         # Clear cooldowns
         for validator in action_processor.validators:
-            if hasattr(validator, 'last_use'):
+            if hasattr(validator, "last_use"):
                 validator.last_use.clear()
 
         # Step 2: Use wood to craft fire (if enough wood)
@@ -209,22 +228,30 @@ class TestIntegration:
 
         response = await action_processor.submit_action(harvest_request)
         assert response.result == ActionResult.REJECTED
-        assert "wood_harvesting" in response.message.lower() and "locations" in response.message.lower()
+        assert (
+            "wood_harvesting" in response.message.lower()
+            and "locations" in response.message.lower()
+        )
 
         # Test 2: Craft without materials (change to correct tile type first)
-        mock_server.world.world_map.get_tile.return_value = TileType.GRASS  # Valid crafting location
+        mock_server.world.world_map.get_tile.return_value = (
+            TileType.GRASS
+        )  # Valid crafting location
         craft_request = create_craft_item_action("basic_fire", 20.0, 20.0)
         craft_request.agent_id = "error_agent"
 
         craft_response = await action_processor.submit_action(craft_request)
         assert craft_response.result == ActionResult.REJECTED
-        assert "missing required items" in craft_response.message.lower() or "insufficient" in craft_response.message.lower()
+        assert (
+            "missing required items" in craft_response.message.lower()
+            or "insufficient" in craft_response.message.lower()
+        )
 
         # Test 3: Trade with non-existent agent
         trade_request = create_trade_request_action(
             "nonexistent_agent",
             [{"item_name": "wood", "quantity": 1}],
-            [{"item_name": "Fish", "quantity": 1}]
+            [{"item_name": "Fish", "quantity": 1}],
         )
         trade_request.agent_id = "error_agent"
 
@@ -244,16 +271,28 @@ class TestIntegration:
         agent2.inventory.add_item(wood_item, 5)
 
         def get_agent_mock(agent_id):
-            return agent1 if agent_id == "concurrent1" else agent2 if agent_id == "concurrent2" else None
+            return (
+                agent1
+                if agent_id == "concurrent1"
+                else agent2
+                if agent_id == "concurrent2"
+                else None
+            )
 
         mock_server.agent_registry.get_agent.side_effect = get_agent_mock
-        mock_server.world.get_agent.side_effect = lambda aid: Mock(x=5.0, y=5.0) if aid == "concurrent1" else Mock(x=6.0, y=6.0)
+        mock_server.world.get_agent.side_effect = (
+            lambda aid: Mock(x=5.0, y=5.0)
+            if aid == "concurrent1"
+            else Mock(x=6.0, y=6.0)
+        )
+
         # Mock fire object creation
         def create_fire_mock(*args, **kwargs):
             mock_fire = Mock()
             mock_fire.object_type = Mock()
             mock_fire.object_type.value = "fire"
             return mock_fire
+
         mock_server.world.world_objects.create_fire.side_effect = create_fire_mock
         # Make sure world.server points to the mock_server for database calls
         mock_server.world.server = mock_server
@@ -267,7 +306,7 @@ class TestIntegration:
         # Execute concurrently
         response1, response2 = await asyncio.gather(
             action_processor.submit_action(request1),
-            action_processor.submit_action(request2)
+            action_processor.submit_action(request2),
         )
 
         # Both should succeed (no shared state conflicts)
@@ -301,7 +340,9 @@ class TestIntegration:
 
         # Verify database record_craft was called
         mock_server.database_manager.record_craft.assert_called_once()
-        call_args = mock_server.database_manager.record_craft.call_args[0]  # Positional args
+        call_args = mock_server.database_manager.record_craft.call_args[
+            0
+        ]  # Positional args
 
         assert call_args[0] == "db_agent"  # agent_id
         assert call_args[1] == "campfire"  # recipe_name
@@ -338,7 +379,7 @@ class TestIntegration:
         import asyncio
         from unittest.mock import patch
 
-        with patch('asyncio.sleep', return_value=None):
+        with patch("asyncio.sleep", return_value=None):
             harvest_request1 = create_harvest_wood_action(30.0, 30.0)
             harvest_request1.agent_id = "cooldown_agent"
 
@@ -354,7 +395,7 @@ class TestIntegration:
 
         # Test craft cooldown (clear harvest cooldown first)
         for validator in action_processor.validators:
-            if hasattr(validator, 'last_use'):
+            if hasattr(validator, "last_use"):
                 validator.last_use.clear()
 
         craft_request = create_craft_item_action("basic_fire", 30.0, 30.0)
@@ -394,4 +435,7 @@ class TestIntegration:
 
         # Should handle inventory limits gracefully
         if response.result != ActionResult.APPROVED:
-            assert "inventory" in response.message.lower() or response.result == ActionResult.APPROVED
+            assert (
+                "inventory" in response.message.lower()
+                or response.result == ActionResult.APPROVED
+            )

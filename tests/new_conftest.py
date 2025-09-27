@@ -7,11 +7,12 @@ that don't require full server startup for most tests.
 
 import asyncio
 import logging
-import pytest
-from typing import Dict, Any
+from typing import Any, Dict
 
-from tests.fixtures.mock_server import FastTestFixture, MockWorld, MockGameServer
-from tests.fixtures.test_maps import TestMaps, TestMapBuilder
+import pytest
+
+from tests.fixtures.mock_server import FastTestFixture, MockGameServer, MockWorld
+from tests.fixtures.test_maps import TestMapBuilder, TestMaps
 
 # Configure logging for tests
 logging.basicConfig(level=logging.INFO)
@@ -38,11 +39,13 @@ async def fast_test_env():
     # No cleanup needed for mocks
 
 
-@pytest.fixture(params=[
-    ("empty_arena", TestMaps.get_empty_arena),
-    ("combat_arena", TestMaps.get_combat_arena),
-    ("fishing_pond", TestMaps.get_fishing_pond),
-])
+@pytest.fixture(
+    params=[
+        ("empty_arena", TestMaps.get_empty_arena),
+        ("combat_arena", TestMaps.get_combat_arena),
+        ("fishing_pond", TestMaps.get_fishing_pond),
+    ]
+)
 def test_terrain(request):
     """Parameterized terrain fixtures"""
     terrain_name, terrain_func = request.param
@@ -69,18 +72,14 @@ pytest_plugins = []
 
 def pytest_configure(config):
     """Configure pytest with custom settings"""
-    config.addinivalue_line(
-        "markers", "unit: Unit tests (fast, isolated components)"
-    )
+    config.addinivalue_line("markers", "unit: Unit tests (fast, isolated components)")
     config.addinivalue_line(
         "markers", "integration: Integration tests (component interactions)"
     )
     config.addinivalue_line(
         "markers", "behavior: Behavior tests (agent AI and decision making)"
     )
-    config.addinivalue_line(
-        "markers", "performance: Performance and load tests"
-    )
+    config.addinivalue_line("markers", "performance: Performance and load tests")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -104,19 +103,27 @@ class TestHelpers:
     @staticmethod
     def assert_agent_moved(start_pos: tuple, end_pos: tuple, min_distance: float = 1.0):
         """Assert agent moved minimum distance"""
-        distance = ((end_pos[0] - start_pos[0]) ** 2 + (end_pos[1] - start_pos[1]) ** 2) ** 0.5
-        assert distance >= min_distance, f"Agent moved only {distance:.2f}, expected >= {min_distance}"
+        distance = (
+            (end_pos[0] - start_pos[0]) ** 2 + (end_pos[1] - start_pos[1]) ** 2
+        ) ** 0.5
+        assert (
+            distance >= min_distance
+        ), f"Agent moved only {distance:.2f}, expected >= {min_distance}"
 
     @staticmethod
     def assert_position_in_bounds(pos: tuple, width: int, height: int):
         """Assert position is within world bounds"""
         x, y = pos
-        assert 0 <= x < width and 0 <= y < height, f"Position {pos} out of bounds ({width}x{height})"
+        assert (
+            0 <= x < width and 0 <= y < height
+        ), f"Position {pos} out of bounds ({width}x{height})"
 
     @staticmethod
     def assert_response_time(response_time: float, max_time: float = 0.1):
         """Assert response time is acceptable"""
-        assert response_time <= max_time, f"Response time {response_time:.3f}s exceeds limit {max_time:.3f}s"
+        assert (
+            response_time <= max_time
+        ), f"Response time {response_time:.3f}s exceeds limit {max_time:.3f}s"
 
 
 @pytest.fixture
@@ -147,12 +154,16 @@ def setup_test_logging(caplog):
 def pytest_addoption(parser):
     """Add command line options"""
     parser.addoption(
-        "--run-slow", action="store_true", default=False,
-        help="Run slow tests (performance, network simulation)"
+        "--run-slow",
+        action="store_true",
+        default=False,
+        help="Run slow tests (performance, network simulation)",
     )
     parser.addoption(
-        "--run-performance", action="store_true", default=False,
-        help="Run performance tests"
+        "--run-performance",
+        action="store_true",
+        default=False,
+        help="Run performance tests",
     )
 
 
@@ -161,5 +172,7 @@ def pytest_runtest_setup(item):
     if item.get_closest_marker("slow") and not item.config.getoption("--run-slow"):
         pytest.skip("need --run-slow option to run")
 
-    if item.get_closest_marker("performance") and not item.config.getoption("--run-performance"):
+    if item.get_closest_marker("performance") and not item.config.getoption(
+        "--run-performance"
+    ):
         pytest.skip("need --run-performance option to run")

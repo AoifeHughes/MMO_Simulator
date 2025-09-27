@@ -312,7 +312,9 @@ class AgentRegistry:
         self.world_width = width
         self.world_height = height
 
-    def process_agent_vision_update(self, agent_id: str, discovered_tiles: List[Tuple[int, int]]):
+    def process_agent_vision_update(
+        self, agent_id: str, discovered_tiles: List[Tuple[int, int]]
+    ):
         """Process vision update from agent to track server-side exploration"""
         agent = self.get_agent(agent_id)
         if not agent:
@@ -322,5 +324,7 @@ class AgentRegistry:
             agent.add_explored_tile(x, y)
 
         # Update the exploration percentage in stats
-        exploration_percent = agent.get_exploration_percentage(self.world_width, self.world_height)
+        exploration_percent = agent.get_exploration_percentage(
+            self.world_width, self.world_height
+        )
         agent.update_exploration(exploration_percent)

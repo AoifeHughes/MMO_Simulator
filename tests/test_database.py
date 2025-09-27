@@ -5,13 +5,19 @@ Test suite for SQLite database functionality in MMO simulator scenarios.
 import asyncio
 import os
 import tempfile
-import pytest
-import pytest_asyncio
 from datetime import datetime, timedelta
 from typing import List
 
-from server.database import DatabaseManager, PeriodicDataCollector, ScenarioRun, AgentSnapshot
+import pytest
+import pytest_asyncio
+
 from server.agent_state import AgentRegistry, ServerAgentState
+from server.database import (
+    AgentSnapshot,
+    DatabaseManager,
+    PeriodicDataCollector,
+    ScenarioRun,
+)
 from shared.inventory import Inventory
 from shared.items import create_item
 
@@ -159,6 +165,7 @@ class TestDatabaseManager:
         async with db_manager.session_factory() as session:
             # Check inventory items
             from sqlalchemy import text
+
             inventory_query = text("SELECT * FROM inventory_snapshots")
             cursor = await session.execute(inventory_query)
             inventory_results = cursor.fetchall()
@@ -395,7 +402,9 @@ async def test_integration_with_server():
         await asyncio.sleep(0.3)
 
         # Add exploration data
-        registry.process_agent_vision_update("explorer_1", [(24, 24), (25, 25), (26, 26)])
+        registry.process_agent_vision_update(
+            "explorer_1", [(24, 24), (25, 25), (26, 26)]
+        )
 
         # Let collector save data
         await asyncio.sleep(0.2)

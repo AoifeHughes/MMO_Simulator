@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PositionState:
     """Tracks position state for reconciliation"""
+
     # Current display position (what we show)
     display_x: float = 0.0
     display_y: float = 0.0
@@ -68,10 +69,12 @@ class PositionReconciler:
             "corrections_applied": 0,
             "reconciliations_started": 0,
             "reconciliations_completed": 0,
-            "position_jumps_prevented": 0
+            "position_jumps_prevented": 0,
         }
 
-    def set_server_position(self, x: float, y: float, rotation: float, timestamp: float):
+    def set_server_position(
+        self, x: float, y: float, rotation: float, timestamp: float
+    ):
         """Update with authoritative server position"""
         old_server_x, old_server_y = self.state.server_x, self.state.server_y
 
@@ -83,12 +86,16 @@ class PositionReconciler:
 
         # Check if this is a significant correction
         if old_server_x != 0.0 or old_server_y != 0.0:  # Not first update
-            correction_distance = ((x - self.state.display_x) ** 2 + (y - self.state.display_y) ** 2) ** 0.5
+            correction_distance = (
+                (x - self.state.display_x) ** 2 + (y - self.state.display_y) ** 2
+            ) ** 0.5
 
             if correction_distance > self.correction_threshold:
-                logger.info(f"🔄 Position correction detected for {self.agent_id[:8]}: "
-                           f"display=({self.state.display_x:.2f}, {self.state.display_y:.2f}) "
-                           f"server=({x:.2f}, {y:.2f}) distance={correction_distance:.2f}")
+                logger.info(
+                    f"🔄 Position correction detected for {self.agent_id[:8]}: "
+                    f"display=({self.state.display_x:.2f}, {self.state.display_y:.2f}) "
+                    f"server=({x:.2f}, {y:.2f}) distance={correction_distance:.2f}"
+                )
 
                 self._start_reconciliation(x, y, rotation)
                 self.stats["corrections_applied"] += 1
@@ -104,7 +111,9 @@ class PositionReconciler:
 
         return False
 
-    def _start_reconciliation(self, target_x: float, target_y: float, target_rotation: float):
+    def _start_reconciliation(
+        self, target_x: float, target_y: float, target_rotation: float
+    ):
         """Start smooth reconciliation to server position"""
         current_time = time.time()
 
@@ -115,12 +124,20 @@ class PositionReconciler:
 
         self.stats["reconciliations_started"] += 1
 
-        logger.debug(f"🔄 Started position reconciliation for {self.agent_id[:8]}: "
-                    f"from ({self.state.display_x:.2f}, {self.state.display_y:.2f}) "
-                    f"to ({target_x:.2f}, {target_y:.2f})")
+        logger.debug(
+            f"🔄 Started position reconciliation for {self.agent_id[:8]}: "
+            f"from ({self.state.display_x:.2f}, {self.state.display_y:.2f}) "
+            f"to ({target_x:.2f}, {target_y:.2f})"
+        )
 
-    def update_prediction(self, predicted_x: float, predicted_y: float, predicted_rotation: float,
-                         velocity_x: float = 0.0, velocity_y: float = 0.0):
+    def update_prediction(
+        self,
+        predicted_x: float,
+        predicted_y: float,
+        predicted_rotation: float,
+        velocity_x: float = 0.0,
+        velocity_y: float = 0.0,
+    ):
         """Update client-side prediction"""
         self.state.predicted_x = predicted_x
         self.state.predicted_y = predicted_y
@@ -161,7 +178,10 @@ class PositionReconciler:
         start_x, start_y = self.state.reconcile_start_pos
         target_x, target_y = self.state.reconcile_target_pos
 
-        distance_to_target = ((target_x - self.state.display_x) ** 2 + (target_y - self.state.display_y) ** 2) ** 0.5
+        distance_to_target = (
+            (target_x - self.state.display_x) ** 2
+            + (target_y - self.state.display_y) ** 2
+        ) ** 0.5
 
         # Complete if we're close enough
         if distance_to_target < 0.1:
@@ -204,10 +224,14 @@ class PositionReconciler:
         self.state.is_reconciling = False
         self.stats["reconciliations_completed"] += 1
 
-        logger.debug(f"✅ Completed position reconciliation for {self.agent_id[:8]} "
-                    f"at ({target_x:.2f}, {target_y:.2f})")
+        logger.debug(
+            f"✅ Completed position reconciliation for {self.agent_id[:8]} "
+            f"at ({target_x:.2f}, {target_y:.2f})"
+        )
 
-    def validate_movement(self, intended_x: float, intended_y: float) -> Tuple[bool, str]:
+    def validate_movement(
+        self, intended_x: float, intended_y: float
+    ) -> Tuple[bool, str]:
         """
         Validate if a movement is likely to be accepted by server
 
@@ -216,11 +240,17 @@ class PositionReconciler:
         """
         # Check if we're too far from server position
         if self.state.server_timestamp > 0:  # Have server data
-            server_distance = ((intended_x - self.state.server_x) ** 2 + (intended_y - self.state.server_y) ** 2) ** 0.5
+            server_distance = (
+                (intended_x - self.state.server_x) ** 2
+                + (intended_y - self.state.server_y) ** 2
+            ) ** 0.5
 
             # Allow some prediction error but flag large discrepancies
             if server_distance > 5.0:  # More than 5 units from server position
-                return False, f"Too far from server position (distance: {server_distance:.2f})"
+                return (
+                    False,
+                    f"Too far from server position (distance: {server_distance:.2f})",
+                )
 
         return True, "Movement valid"
 
@@ -256,7 +286,10 @@ class PositionReconciler:
         if self.state.server_timestamp == 0:
             return 0.0
 
-        return ((self.state.display_x - self.state.server_x) ** 2 + (self.state.display_y - self.state.server_y) ** 2) ** 0.5
+        return (
+            (self.state.display_x - self.state.server_x) ** 2
+            + (self.state.display_y - self.state.server_y) ** 2
+        ) ** 0.5
 
     def get_stats(self) -> dict:
         """Get reconciliation statistics"""
@@ -264,5 +297,5 @@ class PositionReconciler:
             **self.stats,
             "is_reconciling": self.state.is_reconciling,
             "position_error": self.get_position_error(),
-            "last_server_update": self.state.server_timestamp
+            "last_server_update": self.state.server_timestamp,
         }

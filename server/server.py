@@ -12,8 +12,11 @@ from server.game_loop import GameLoop
 from server.world import ServerWorld
 from shared.constants import MAX_CLIENTS, SERVER_PORT, UDP_PORT
 from shared.messages import AgentData, Message, MessageType, WorldState
+from shared.position_authority import (
+    create_position_broadcast,
+    should_broadcast_positions,
+)
 from world.terrain_generator import TerrainType
-from shared.position_authority import should_broadcast_positions, create_position_broadcast
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -42,6 +45,7 @@ class GameServer:
     - TCP for reliable messages (connections, actions)
     - UDP for high-frequency updates (positions, world state)
     """
+
     def __init__(
         self,
         world_width: int = 100,
@@ -59,6 +63,7 @@ class GameServer:
 
         # Initialize new action processing system
         from server.action_processor import ActionProcessor
+
         self.action_processor = ActionProcessor(
             world=self.world,
             agent_registry=self.agent_registry,
@@ -72,6 +77,7 @@ class GameServer:
 
         # Database system
         from server.database import DatabaseManager, PeriodicDataCollector
+
         self.database_manager = DatabaseManager()
         self.data_collector: Optional[PeriodicDataCollector] = None
 
@@ -120,6 +126,7 @@ class GameServer:
     async def handle_udp_messages(self):
         # Ensure logger is available in this async context
         import logging
+
         udp_logger = logging.getLogger(__name__)
 
         loop = asyncio.get_event_loop()
@@ -140,6 +147,7 @@ class GameServer:
                     # Fallback to print if logger fails
                     print(f"UDP error (logger failed): {e}")
                     import traceback
+
                     traceback.print_exc()
 
             await asyncio.sleep(0.001)
@@ -161,8 +169,11 @@ class GameServer:
                 # Use module-level logger if available
                 logger.error(f"Error processing UDP message from {client_id}: {e}")
             except:
-                print(f"Error processing UDP message from {client_id} (logger failed): {e}")
+                print(
+                    f"Error processing UDP message from {client_id} (logger failed): {e}"
+                )
                 import traceback
+
                 traceback.print_exc()
 
     def find_uncontrolled_agent(self, agent_type: str) -> Optional[str]:
@@ -186,7 +197,9 @@ class GameServer:
 
                 agent_state.stats["exploration_percent"] = exploration_percent
                 agent_state.stats["explored_tiles_count"] = explored_tiles
-                logger.debug(f"Updated exploration stats for {agent_id[:8]}: {exploration_percent:.1f}%")
+                logger.debug(
+                    f"Updated exploration stats for {agent_id[:8]}: {exploration_percent:.1f}%"
+                )
         else:
             logger.warning(
                 f"Unknown action type from agent {agent_id[:8]}: {action_type}"
@@ -315,7 +328,9 @@ class GameServer:
 
         # Check if respawn_time is set
         if agent.respawn_time is None or agent.respawn_time <= 0:
-            logger.debug(f"Agent {agent_id[:8]} has no respawn time set, skipping respawn scheduling")
+            logger.debug(
+                f"Agent {agent_id[:8]} has no respawn time set, skipping respawn scheduling"
+            )
             return
 
         respawn_delay = agent.respawn_time - time.time()
@@ -486,13 +501,17 @@ class GameServer:
             # Enhanced logging: check what positions are being broadcast
             if position_message.payload and "positions" in position_message.payload:
                 positions_data = position_message.payload["positions"]
-                logger.debug(f"Broadcasting {len(positions_data)} agent positions to {len(self.clients)} clients")
+                logger.debug(
+                    f"Broadcasting {len(positions_data)} agent positions to {len(self.clients)} clients"
+                )
 
                 # Log a sample position for debugging
                 if positions_data:
                     sample_agent_id = next(iter(positions_data))
                     sample_pos = positions_data[sample_agent_id]
-                    logger.debug(f"Sample position - Agent {sample_agent_id[:8]}: ({sample_pos['x']:.2f}, {sample_pos['y']:.2f})")
+                    logger.debug(
+                        f"Sample position - Agent {sample_agent_id[:8]}: ({sample_pos['x']:.2f}, {sample_pos['y']:.2f})"
+                    )
             else:
                 logger.warning("Position broadcast message has no position data")
 
@@ -517,9 +536,16 @@ class GameServer:
         visible_agents = self.world.get_visible_agents(client.agent_id)
 
         # Debug: Log visibility data being sent to client (reduced verbosity)
-        logger.debug(f"[VISIBILITY] Client {client_id} (agent {client.agent_id[:8]}) can see {len(visible_agents)} entities")
+        logger.debug(
+            f"[VISIBILITY] Client {client_id} (agent {client.agent_id[:8]}) can see {len(visible_agents)} entities"
+        )
         if len(visible_agents) > 0:
-            enemy_count = sum(1 for a in visible_agents if a.agent_type != getattr(self.world.get_agent(client.agent_id), 'agent_type', ''))
+            enemy_count = sum(
+                1
+                for a in visible_agents
+                if a.agent_type
+                != getattr(self.world.get_agent(client.agent_id), "agent_type", "")
+            )
             logger.debug(f"[VISIBILITY] - Including {enemy_count} potential targets")
 
         # Get terrain data within vision range
@@ -587,15 +613,12 @@ class GameServer:
         # Initialize database and start scenario
         await self.database_manager.initialize()
         await self.database_manager.start_scenario(
-            scenario_name,
-            self.world.world_map.width,
-            self.world.world_map.height
+            scenario_name, self.world.world_map.width, self.world.world_map.height
         )
 
         # Start periodic data collection
         self.data_collector = PeriodicDataCollector(
-            self.database_manager,
-            self.agent_registry
+            self.database_manager, self.agent_registry
         )
         await self.data_collector.start()
 
@@ -681,7 +704,7 @@ class ClientConnection:
 
             # Check if agent has personality configuration from scenario
             personality_config = None
-            if agent_state and hasattr(agent_state, 'personality_config'):
+            if agent_state and hasattr(agent_state, "personality_config"):
                 personality_config = agent_state.personality_config
 
             response_payload = {
@@ -691,7 +714,9 @@ class ClientConnection:
                 "y": agent.y,
                 "rotation": agent.rotation,
                 "attack_data": attack_data,
-                "exploration_mode": agent_state.exploration_mode if agent_state else "frontier",
+                "exploration_mode": agent_state.exploration_mode
+                if agent_state
+                else "frontier",
             }
 
             # Add personality configuration if available
@@ -744,14 +769,15 @@ class ClientConnection:
                         payload={
                             "success": False,
                             "error": "Agent is dead and cannot perform actions",
-                            "request_id": message.payload.get("request_id")
+                            "request_id": message.payload.get("request_id"),
                         },
-                        timestamp=time.time()
+                        timestamp=time.time(),
                     )
                     await self.send_message(error_response)
                     return
 
                 from shared.actions import ActionRequest
+
                 request = ActionRequest.from_dict(message.payload)
                 response = await self.server.action_processor.submit_action(request)
 
@@ -767,6 +793,7 @@ class ClientConnection:
             # Handle batch action request
             if self.agent_id:
                 from shared.actions import ActionBatch
+
                 batch = ActionBatch.from_dict(message.payload)
                 responses = await self.server.action_processor.submit_batch(batch)
 
@@ -802,15 +829,16 @@ class ClientConnection:
                     payload={
                         "success": False,
                         "error": "Agent not found",
-                        "query_id": message.payload.get("query_id")
+                        "query_id": message.payload.get("query_id"),
                     },
-                    timestamp=time.time()
+                    timestamp=time.time(),
                 )
                 await self.send_message(error_response)
                 return
 
             # Get server position authority data if available
             from shared.position_authority import server_position_authority
+
             server_pos = server_position_authority.get_agent_position(self.agent_id)
 
             if server_pos:
@@ -820,7 +848,7 @@ class ClientConnection:
                     "rotation": server_pos.rotation,
                     "velocity_x": server_pos.velocity_x,
                     "velocity_y": server_pos.velocity_y,
-                    "timestamp": server_pos.timestamp
+                    "timestamp": server_pos.timestamp,
                 }
             else:
                 # Fallback to agent object data
@@ -828,9 +856,9 @@ class ClientConnection:
                     "x": agent.x,
                     "y": agent.y,
                     "rotation": agent.rotation,
-                    "velocity_x": getattr(agent, 'velocity_x', 0.0),
-                    "velocity_y": getattr(agent, 'velocity_y', 0.0),
-                    "timestamp": time.time()
+                    "velocity_x": getattr(agent, "velocity_x", 0.0),
+                    "velocity_y": getattr(agent, "velocity_y", 0.0),
+                    "timestamp": time.time(),
                 }
 
             # Send position response
@@ -841,14 +869,16 @@ class ClientConnection:
                     "agent_id": self.agent_id,
                     "position": position_data,
                     "query_id": message.payload.get("query_id"),
-                    "server_timestamp": time.time()
+                    "server_timestamp": time.time(),
                 },
-                timestamp=time.time()
+                timestamp=time.time(),
             )
             await self.send_message(response)
 
-            logger.debug(f"Sent position data to client {self.client_id} for agent {self.agent_id[:8]}: "
-                        f"({position_data['x']:.2f}, {position_data['y']:.2f})")
+            logger.debug(
+                f"Sent position data to client {self.client_id} for agent {self.agent_id[:8]}: "
+                f"({position_data['x']:.2f}, {position_data['y']:.2f})"
+            )
 
         except Exception as e:
             logger.error(f"Error handling position query for {self.client_id}: {e}")
@@ -857,9 +887,9 @@ class ClientConnection:
                 payload={
                     "success": False,
                     "error": str(e),
-                    "query_id": message.payload.get("query_id")
+                    "query_id": message.payload.get("query_id"),
                 },
-                timestamp=time.time()
+                timestamp=time.time(),
             )
             await self.send_message(error_response)
 
@@ -873,9 +903,9 @@ class ClientConnection:
                     payload={
                         "success": False,
                         "error": "Agent not found",
-                        "query_id": message.payload.get("query_id")
+                        "query_id": message.payload.get("query_id"),
                     },
-                    timestamp=time.time()
+                    timestamp=time.time(),
                 )
                 await self.send_message(error_response)
                 return
@@ -886,6 +916,7 @@ class ClientConnection:
 
             # Get agent position
             from shared.position_authority import server_position_authority
+
             server_pos = server_position_authority.get_agent_position(self.agent_id)
             if server_pos:
                 agent_x, agent_y = server_pos.x, server_pos.y
@@ -902,29 +933,37 @@ class ClientConnection:
                     check_y = int(agent_y) + dy
 
                     # Check bounds
-                    if (0 <= check_x < self.server.world.world_map.width and
-                        0 <= check_y < self.server.world.world_map.height):
-
-                        tile_type = self.server.world.world_map.get_tile(check_x, check_y)
+                    if (
+                        0 <= check_x < self.server.world.world_map.width
+                        and 0 <= check_y < self.server.world.world_map.height
+                    ):
+                        tile_type = self.server.world.world_map.get_tile(
+                            check_x, check_y
+                        )
 
                         # Map tile types to resource types
                         resource_type = self._tile_to_resource_type(tile_type)
                         if resource_type:
                             tile_center_x = check_x + 0.5
                             tile_center_y = check_y + 0.5
-                            distance = ((tile_center_x - agent_x) ** 2 + (tile_center_y - agent_y) ** 2) ** 0.5
+                            distance = (
+                                (tile_center_x - agent_x) ** 2
+                                + (tile_center_y - agent_y) ** 2
+                            ) ** 0.5
 
                             if distance <= scan_radius:
-                                resources.append({
-                                    'type': resource_type,
-                                    'tile_type': tile_type.value,
-                                    'position': [tile_center_x, tile_center_y],
-                                    'tile_coordinates': [check_x, check_y],
-                                    'distance': distance
-                                })
+                                resources.append(
+                                    {
+                                        "type": resource_type,
+                                        "tile_type": tile_type.value,
+                                        "position": [tile_center_x, tile_center_y],
+                                        "tile_coordinates": [check_x, check_y],
+                                        "distance": distance,
+                                    }
+                                )
 
             # Sort by distance
-            resources.sort(key=lambda r: r['distance'])
+            resources.sort(key=lambda r: r["distance"])
 
             # Send environment response
             response = Message(
@@ -936,14 +975,16 @@ class ClientConnection:
                     "scan_radius": scan_radius,
                     "resources": resources,
                     "query_id": message.payload.get("query_id"),
-                    "server_timestamp": time.time()
+                    "server_timestamp": time.time(),
                 },
-                timestamp=time.time()
+                timestamp=time.time(),
             )
             await self.send_message(response)
 
-            logger.debug(f"Sent environment data to client {self.client_id} for agent {self.agent_id[:8]}: "
-                        f"{len(resources)} resources within {scan_radius} units")
+            logger.debug(
+                f"Sent environment data to client {self.client_id} for agent {self.agent_id[:8]}: "
+                f"{len(resources)} resources within {scan_radius} units"
+            )
 
         except Exception as e:
             logger.error(f"Error handling environment query for {self.client_id}: {e}")
@@ -952,15 +993,16 @@ class ClientConnection:
                 payload={
                     "success": False,
                     "error": str(e),
-                    "query_id": message.payload.get("query_id")
+                    "query_id": message.payload.get("query_id"),
                 },
-                timestamp=time.time()
+                timestamp=time.time(),
             )
             await self.send_message(error_response)
 
     def _tile_to_resource_type(self, tile_type):
         """Convert tile type to resource type string"""
         from world.tiles import TileType
+
         mapping = {
             TileType.WATER: "water",
             TileType.WOOD: "wood",

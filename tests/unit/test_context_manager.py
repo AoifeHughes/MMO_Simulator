@@ -5,13 +5,18 @@ Tests environmental awareness, danger assessment, and contextual decision-making
 """
 
 import math
-import pytest
 import time
 from unittest.mock import Mock
 
+import pytest
+
 from client.context_manager import (
-    ContextManager, EnvironmentAnalyzer, ContextualArea, ContextSnapshot,
-    DangerLevel, ContextType
+    ContextManager,
+    ContextSnapshot,
+    ContextType,
+    ContextualArea,
+    DangerLevel,
+    EnvironmentAnalyzer,
 )
 
 
@@ -32,7 +37,7 @@ class TestEnvironmentAnalyzer:
         """Test analysis of safe environment with no threats"""
         visible_entities = [
             {"id": "wood_1", "type": "wood", "x": 12.0, "y": 11.0},
-            {"id": "fish_1", "type": "fish", "x": 8.0, "y": 9.0}
+            {"id": "fish_1", "type": "fish", "x": 8.0, "y": 9.0},
         ]
 
         snapshot = self.analyzer.analyze_position(10.0, 10.0, visible_entities)
@@ -47,7 +52,7 @@ class TestEnvironmentAnalyzer:
         visible_entities = [
             {"id": "enemy_1", "agent_type": "enemy", "x": 12.0, "y": 11.0},
             {"id": "enemy_2", "agent_type": "enemy", "x": 8.0, "y": 9.0},
-            {"id": "enemy_3", "agent_type": "enemy", "x": 11.0, "y": 12.0}
+            {"id": "enemy_3", "agent_type": "enemy", "x": 11.0, "y": 12.0},
         ]
 
         snapshot = self.analyzer.analyze_position(10.0, 10.0, visible_entities)
@@ -60,7 +65,7 @@ class TestEnvironmentAnalyzer:
         """Test analysis of social environment with allies"""
         visible_entities = [
             {"id": "player_1", "agent_type": "player", "x": 12.0, "y": 11.0},
-            {"id": "npc_1", "agent_type": "npc", "x": 8.0, "y": 9.0}
+            {"id": "npc_1", "agent_type": "npc", "x": 8.0, "y": 9.0},
         ]
 
         snapshot = self.analyzer.analyze_position(10.0, 10.0, visible_entities)
@@ -84,7 +89,7 @@ class TestEnvironmentAnalyzer:
         entities = [
             {"id": "enemy_1", "agent_type": "enemy", "x": 11.0, "y": 11.0},
             {"id": "enemy_2", "agent_type": "enemy", "x": 9.0, "y": 9.0},
-            {"id": "enemy_3", "agent_type": "enemy", "x": 12.0, "y": 8.0}
+            {"id": "enemy_3", "agent_type": "enemy", "x": 12.0, "y": 8.0},
         ]
         snapshot = self.analyzer.analyze_position(10.0, 10.0, entities)
         assert snapshot.local_danger in [DangerLevel.HIGH, DangerLevel.CRITICAL]
@@ -110,7 +115,7 @@ class TestEnvironmentAnalyzer:
         """Test calculation of resource directions"""
         entities = [
             {"id": "wood_1", "type": "wood", "x": 15.0, "y": 10.0},  # East
-            {"id": "fish_1", "type": "fish", "x": 5.0, "y": 10.0}   # West
+            {"id": "fish_1", "type": "fish", "x": 5.0, "y": 10.0},  # West
         ]
 
         snapshot = self.analyzer.analyze_position(10.0, 10.0, entities)
@@ -133,7 +138,7 @@ class TestContextualArea:
             area_id="test_area",
             center=(10.0, 10.0),
             radius=5.0,
-            context_type=ContextType.DANGER
+            context_type=ContextType.DANGER,
         )
 
         assert area.area_id == "test_area"
@@ -147,7 +152,7 @@ class TestContextualArea:
             area_id="test_area",
             center=(10.0, 10.0),
             radius=5.0,
-            context_type=ContextType.RESOURCE
+            context_type=ContextType.RESOURCE,
         )
 
         # Position inside
@@ -164,7 +169,7 @@ class TestContextualArea:
             area_id="test_area",
             center=(0.0, 0.0),
             radius=5.0,
-            context_type=ContextType.SOCIAL
+            context_type=ContextType.SOCIAL,
         )
 
         # Test known distances
@@ -177,7 +182,7 @@ class TestContextualArea:
             area_id="test_area",
             center=(10.0, 10.0),
             radius=5.0,
-            context_type=ContextType.DANGER
+            context_type=ContextType.DANGER,
         )
 
         # Should not be expired immediately
@@ -193,7 +198,7 @@ class TestContextualArea:
             area_id="test_area",
             center=(10.0, 10.0),
             radius=5.0,
-            context_type=ContextType.DANGER
+            context_type=ContextType.DANGER,
         )
 
         # Entities with various types
@@ -201,7 +206,7 @@ class TestContextualArea:
             {"id": "enemy_1", "agent_type": "enemy", "x": 11.0, "y": 11.0},
             {"id": "enemy_2", "agent_type": "enemy", "x": 9.0, "y": 9.0},
             {"id": "wood_1", "type": "wood", "x": 12.0, "y": 10.0},
-            {"id": "player_1", "agent_type": "player", "x": 8.0, "y": 12.0}
+            {"id": "player_1", "agent_type": "player", "x": 8.0, "y": 12.0},
         ]
 
         initial_time = area.last_updated
@@ -219,10 +224,7 @@ class TestContextSnapshot:
 
     def test_snapshot_creation(self):
         """Test basic snapshot creation"""
-        snapshot = ContextSnapshot(
-            timestamp=time.time(),
-            position=(10.0, 10.0)
-        )
+        snapshot = ContextSnapshot(timestamp=time.time(), position=(10.0, 10.0))
 
         assert snapshot.position == (10.0, 10.0)
         assert snapshot.local_danger == DangerLevel.SAFE
@@ -246,7 +248,7 @@ class TestContextManager:
         """Test basic context update functionality"""
         visible_entities = [
             {"id": "wood_1", "type": "wood", "x": 12.0, "y": 11.0},
-            {"id": "enemy_1", "agent_type": "enemy", "x": 15.0, "y": 15.0}
+            {"id": "enemy_1", "agent_type": "enemy", "x": 15.0, "y": 15.0},
         ]
 
         snapshot = self.context_manager.update_context(10.0, 10.0, visible_entities)
@@ -257,9 +259,7 @@ class TestContextManager:
 
     def test_context_history_tracking(self):
         """Test that context history is properly tracked"""
-        visible_entities = [
-            {"id": "wood_1", "type": "wood", "x": 12.0, "y": 11.0}
-        ]
+        visible_entities = [{"id": "wood_1", "type": "wood", "x": 12.0, "y": 11.0}]
 
         # Update multiple times
         for _ in range(3):
@@ -277,7 +277,7 @@ class TestContextManager:
             center=(15.0, 15.0),
             radius=5.0,
             context_type=ContextType.DANGER,
-            danger_level=DangerLevel.HIGH
+            danger_level=DangerLevel.HIGH,
         )
         self.context_manager.contextual_areas["danger_zone"] = danger_area
 
@@ -296,7 +296,7 @@ class TestContextManager:
             center=(10.0, 10.0),
             radius=5.0,
             context_type=ContextType.RESOURCE,
-            resource_density=0.8
+            resource_density=0.8,
         )
         self.context_manager.contextual_areas["resource_zone"] = resource_area
 
@@ -311,7 +311,7 @@ class TestContextManager:
             center=(10.0, 10.0),
             radius=8.0,
             context_type=ContextType.SOCIAL,
-            social_activity=0.6
+            social_activity=0.6,
         )
         self.context_manager.contextual_areas["social_zone"] = social_area
 
@@ -324,10 +324,12 @@ class TestContextManager:
         self.context_manager.last_snapshot = ContextSnapshot(
             timestamp=time.time(),
             position=(10.0, 10.0),
-            safe_directions=[90, 180, 270]  # East, South, West
+            safe_directions=[90, 180, 270],  # East, South, West
         )
 
-        safe_pos = self.context_manager.find_safe_position(10.0, 10.0, search_radius=15.0)
+        safe_pos = self.context_manager.find_safe_position(
+            10.0, 10.0, search_radius=15.0
+        )
 
         # Should find some safe position
         if safe_pos:
@@ -345,21 +347,27 @@ class TestContextManager:
             social_density=0.3,
             nearby_enemies=2,
             nearby_resources=3,
-            nearby_allies=1
+            nearby_allies=1,
         )
 
         # Test combat behavior factors
-        combat_factors = self.context_manager.get_context_factors_for_behavior("combat_action")
+        combat_factors = self.context_manager.get_context_factors_for_behavior(
+            "combat_action"
+        )
         assert "danger_level" in combat_factors
         assert "enemy_count" in combat_factors
 
         # Test resource behavior factors
-        resource_factors = self.context_manager.get_context_factors_for_behavior("resource_gathering")
+        resource_factors = self.context_manager.get_context_factors_for_behavior(
+            "resource_gathering"
+        )
         assert "resource_availability" in resource_factors
         assert "danger_modifier" in resource_factors
 
         # Test social behavior factors
-        social_factors = self.context_manager.get_context_factors_for_behavior("social_interaction")
+        social_factors = self.context_manager.get_context_factors_for_behavior(
+            "social_interaction"
+        )
         assert "social_density" in social_factors
         assert "ally_count" in social_factors
 
@@ -371,14 +379,12 @@ class TestContextManager:
             center=(20.0, 20.0),
             radius=5.0,
             context_type=ContextType.DANGER,
-            danger_level=DangerLevel.HIGH
+            danger_level=DangerLevel.HIGH,
         )
         self.context_manager.contextual_areas["danger_zone"] = danger_area
 
         self.context_manager.last_snapshot = ContextSnapshot(
-            timestamp=time.time(),
-            position=(10.0, 10.0),
-            safe_directions=[90, 180, 270]
+            timestamp=time.time(), position=(10.0, 10.0), safe_directions=[90, 180, 270]
         )
 
         # Test movement to safe area
@@ -386,7 +392,9 @@ class TestContextManager:
         assert safe_recommendation["recommended"] is True
 
         # Test movement to dangerous area
-        dangerous_recommendation = self.context_manager.get_movement_recommendation(20.0, 20.0)
+        dangerous_recommendation = self.context_manager.get_movement_recommendation(
+            20.0, 20.0
+        )
         assert dangerous_recommendation["recommended"] is False
         assert dangerous_recommendation["danger_level"] == "high"
 
@@ -395,7 +403,7 @@ class TestContextManager:
         visible_entities = [
             {"id": "enemy_1", "agent_type": "enemy", "x": 12.0, "y": 11.0},
             {"id": "wood_1", "type": "wood", "x": 8.0, "y": 9.0},
-            {"id": "player_1", "agent_type": "player", "x": 15.0, "y": 15.0}
+            {"id": "player_1", "agent_type": "player", "x": 15.0, "y": 15.0},
         ]
 
         # Update context
@@ -405,7 +413,9 @@ class TestContextManager:
         assert len(self.context_manager.contextual_areas) > 0
 
         # Should have different types of areas
-        area_types = {area.context_type for area in self.context_manager.contextual_areas.values()}
+        area_types = {
+            area.context_type for area in self.context_manager.contextual_areas.values()
+        }
         assert ContextType.DANGER in area_types
 
     def test_area_cleanup(self):
@@ -415,7 +425,7 @@ class TestContextManager:
             area_id="old_area",
             center=(10.0, 10.0),
             radius=5.0,
-            context_type=ContextType.DANGER
+            context_type=ContextType.DANGER,
         )
         old_area.last_updated = time.time() - 400.0  # Very old
         self.context_manager.contextual_areas["old_area"] = old_area
@@ -425,7 +435,7 @@ class TestContextManager:
             area_id="recent_area",
             center=(15.0, 15.0),
             radius=5.0,
-            context_type=ContextType.RESOURCE
+            context_type=ContextType.RESOURCE,
         )
         self.context_manager.contextual_areas["recent_area"] = recent_area
 

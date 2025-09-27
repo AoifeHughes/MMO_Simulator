@@ -17,6 +17,7 @@ import time
 from typing import Any, Dict, Optional
 
 from shared.actions import ActionPriority, ActionType
+
 from .base import ActionNode, NodeStatus
 
 logger = logging.getLogger(__name__)
@@ -64,8 +65,10 @@ class RequestAction(ActionNode):
 
     def start_action(self, agent) -> bool:
         """Start the action request"""
-        if not hasattr(agent, 'action_manager'):
-            logger.error(f"Agent {agent.id} does not have action_manager - cannot request actions")
+        if not hasattr(agent, "action_manager"):
+            logger.error(
+                f"Agent {agent.id} does not have action_manager - cannot request actions"
+            )
             return False
 
         # Reset state
@@ -87,7 +90,7 @@ class RequestAction(ActionNode):
 
     async def update_action(self, agent, delta_time: float) -> NodeStatus:
         """Update the action request"""
-        if not hasattr(agent, 'action_manager'):
+        if not hasattr(agent, "action_manager"):
             logger.error(f"Agent {agent.id} does not have action_manager")
             return NodeStatus.FAILURE
 
@@ -110,8 +113,7 @@ class RequestAction(ActionNode):
 
                 # Register callback to get notified when this action completes
                 agent.action_manager.register_action_callback(
-                    self.action_type,
-                    self._make_response_callback()
+                    self.action_type, self._make_response_callback()
                 )
 
             except Exception as e:
@@ -136,14 +138,17 @@ class RequestAction(ActionNode):
 
     def _make_response_callback(self):
         """Create callback for action response"""
+
         def callback(request, response, prediction):
             # Only handle responses for our specific action
             if request.action_id == self.action_id:
                 self.response_received = True
 
-                if response.result.value in ['approved', 'modified']:
+                if response.result.value in ["approved", "modified"]:
                     self.final_result = NodeStatus.SUCCESS
-                    logger.debug(f"Action {self.action_id} succeeded: {response.message}")
+                    logger.debug(
+                        f"Action {self.action_id} succeeded: {response.message}"
+                    )
                 else:
                     self.final_result = NodeStatus.FAILURE
                     logger.debug(f"Action {self.action_id} failed: {response.message}")
@@ -184,24 +189,34 @@ class RequestMoveTo(RequestAction):
 
     def _make_response_callback(self):
         """Create callback for movement action response with position sync handling"""
+
         def callback(request, response, prediction):
             # Only handle responses for our specific action
             if request.action_id == self.action_id:
                 self.response_received = True
 
-                if response.result.value in ['approved', 'modified']:
+                if response.result.value in ["approved", "modified"]:
                     self.final_result = NodeStatus.SUCCESS
-                    logger.debug(f"Movement {self.action_id} succeeded: {response.message}")
+                    logger.debug(
+                        f"Movement {self.action_id} succeeded: {response.message}"
+                    )
                 else:
                     self.final_result = NodeStatus.FAILURE
-                    logger.debug(f"Movement {self.action_id} rejected: {response.message}")
+                    logger.debug(
+                        f"Movement {self.action_id} rejected: {response.message}"
+                    )
 
                     # Handle position sync for rejected movements
-                    if hasattr(response, 'approved_parameters') and response.approved_parameters:
-                        server_x = response.approved_parameters.get('server_position_x')
-                        server_y = response.approved_parameters.get('server_position_y')
+                    if (
+                        hasattr(response, "approved_parameters")
+                        and response.approved_parameters
+                    ):
+                        server_x = response.approved_parameters.get("server_position_x")
+                        server_y = response.approved_parameters.get("server_position_y")
                         if server_x is not None and server_y is not None:
-                            logger.debug(f"Server reports agent position as ({server_x:.2f}, {server_y:.2f})")
+                            logger.debug(
+                                f"Server reports agent position as ({server_x:.2f}, {server_y:.2f})"
+                            )
                             # Note: Position reconciliation will happen through normal position sync
 
         return callback
@@ -299,6 +314,7 @@ class RequestStopMovement(RequestAction):
 
 # Helper functions for creating common action nodes
 
+
 def create_move_to_entity(entity_types: list, distance: float = 1.0) -> RequestMoveTo:
     """Create a RequestMoveTo that targets the nearest entity of specified types"""
 
@@ -317,7 +333,9 @@ def create_move_to_entity(entity_types: list, distance: float = 1.0) -> RequestM
     )
 
 
-def create_attack_nearest(enemy_types: list, attack_name: str = "punch") -> RequestAttack:
+def create_attack_nearest(
+    enemy_types: list, attack_name: str = "punch"
+) -> RequestAttack:
     """Create a RequestAttack that targets the nearest enemy"""
 
     def select_target(agent):
@@ -330,7 +348,9 @@ def create_attack_nearest(enemy_types: list, attack_name: str = "punch") -> Requ
     )
 
 
-def create_chase_and_attack(enemy_types: list, attack_name: str = "punch", attack_range: float = 2.0):
+def create_chase_and_attack(
+    enemy_types: list, attack_name: str = "punch", attack_range: float = 2.0
+):
     """Create a composite behavior that chases then attacks enemies"""
     from .composite import PrioritySelector, Sequence
     from .condition import DistanceToTarget
@@ -345,9 +365,9 @@ def create_chase_and_attack(enemy_types: list, attack_name: str = "punch", attac
                     # Check if enemy is in range (would need to be updated for new system)
                     # DistanceToTarget(enemy_types, attack_range),
                     create_attack_nearest(enemy_types, attack_name),
-                ]
+                ],
             ),
             # Otherwise chase
             create_move_to_entity(enemy_types),
-        ]
+        ],
     )

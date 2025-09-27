@@ -34,10 +34,12 @@ class DynamicEnemyInRange(ConditionNode):
         # Get attack range from server data
         attack_data = agent.get_attack_data(self.attack_name)
         if not attack_data:
-            logger.warning(f"[DYNAMIC] Agent {agent.id[:8]} has no server data for attack '{self.attack_name}'")
+            logger.warning(
+                f"[DYNAMIC] Agent {agent.id[:8]} has no server data for attack '{self.attack_name}'"
+            )
             return False
 
-        base_attack_range = attack_data.get('max_range', 1.0)
+        base_attack_range = attack_data.get("max_range", 1.0)
 
         # Apply hysteresis to prevent oscillation
         if self.last_result:
@@ -169,12 +171,14 @@ class HasServerGameData(ConditionNode):
 
     def check_condition(self, agent) -> bool:
         has_data = (
-            hasattr(agent, 'server_game_data') and
-            agent.server_game_data is not None and
-            'attacks' in agent.server_game_data
+            hasattr(agent, "server_game_data")
+            and agent.server_game_data is not None
+            and "attacks" in agent.server_game_data
         )
 
         if not has_data:
-            logger.warning(f"[DYNAMIC] Agent {agent.id[:8]} has no server game data - using fallback behavior")
+            logger.warning(
+                f"[DYNAMIC] Agent {agent.id[:8]} has no server game data - using fallback behavior"
+            )
 
         return has_data

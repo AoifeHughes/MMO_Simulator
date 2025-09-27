@@ -163,8 +163,19 @@ class Renderer:
                 vision_surface = pygame.Surface(
                     (self.screen_width, self.screen_height), pygame.SRCALPHA
                 )
-                pygame.draw.circle(vision_surface, (255, 165, 0, 40), (int(x), int(y)), int(vision_range))
-                pygame.draw.circle(self.screen, (255, 165, 0, 100), (int(x), int(y)), int(vision_range), 2)
+                pygame.draw.circle(
+                    vision_surface,
+                    (255, 165, 0, 40),
+                    (int(x), int(y)),
+                    int(vision_range),
+                )
+                pygame.draw.circle(
+                    self.screen,
+                    (255, 165, 0, 100),
+                    (int(x), int(y)),
+                    int(vision_range),
+                    2,
+                )
                 self.screen.blit(vision_surface, (0, 0))
 
     def render_minimap(self, world_map, agents: List[Dict]):

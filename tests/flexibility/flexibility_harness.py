@@ -6,21 +6,22 @@ and adaptation capabilities. It measures how well agents adjust to changing envi
 new challenges, and varying resource conditions.
 """
 
-import time
 import json
 import statistics
-from dataclasses import dataclass, asdict
-from typing import Dict, List, Any, Optional, Callable, Tuple
+import time
+from dataclasses import asdict, dataclass
 from enum import Enum
 from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from client.behavior_tree.behavior_composer import BehaviorComposer, BehaviorComposition
 from client.agent_memory import AgentMemory
+from client.behavior_tree.behavior_composer import BehaviorComposer, BehaviorComposition
 from shared.personality import Personality
 
 
 class FlexibilityMetric(Enum):
     """Types of flexibility metrics we can measure"""
+
     ADAPTATION_SPEED = "adaptation_speed"
     BEHAVIOR_DIVERSITY = "behavior_diversity"
     CONTEXT_SENSITIVITY = "context_sensitivity"
@@ -33,6 +34,7 @@ class FlexibilityMetric(Enum):
 
 class ScenarioDifficulty(Enum):
     """Difficulty levels for flexibility scenarios"""
+
     TRIVIAL = 1
     EASY = 2
     MODERATE = 3
@@ -44,6 +46,7 @@ class ScenarioDifficulty(Enum):
 @dataclass
 class FlexibilityScore:
     """Individual flexibility measurement"""
+
     metric: FlexibilityMetric
     score: float  # 0.0 to 1.0
     raw_value: float
@@ -55,6 +58,7 @@ class FlexibilityScore:
 @dataclass
 class ScenarioResult:
     """Results from running a flexibility scenario"""
+
     scenario_name: str
     difficulty: ScenarioDifficulty
     duration: float
@@ -81,6 +85,7 @@ class ScenarioResult:
 @dataclass
 class FlexibilityReport:
     """Comprehensive flexibility assessment report"""
+
     agent_id: str
     test_timestamp: float
     scenarios: List[ScenarioResult]
@@ -94,13 +99,15 @@ class FlexibilityReport:
         """Save report to JSON file"""
         data = asdict(self)
         # Convert enums to strings for JSON serialization
-        data['metric_breakdown'] = {k.value: v for k, v in data['metric_breakdown'].items()}
-        for scenario in data['scenarios']:
-            scenario['difficulty'] = scenario['difficulty'].value
-            for score in scenario['scores']:
-                score['metric'] = score['metric'].value
+        data["metric_breakdown"] = {
+            k.value: v for k, v in data["metric_breakdown"].items()
+        }
+        for scenario in data["scenarios"]:
+            scenario["difficulty"] = scenario["difficulty"].value
+            for score in scenario["scores"]:
+                score["metric"] = score["metric"].value
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             json.dump(data, f, indent=2)
 
 
@@ -111,7 +118,9 @@ class MockFlexibilityAgent:
         self.id = agent_id
         self.x = 0.0
         self.y = 0.0
-        self.personality = personality or Personality(combat=5.0, exploration=5.0, social=5.0)
+        self.personality = personality or Personality(
+            combat=5.0, exploration=5.0, social=5.0
+        )
         self.memory = AgentMemory(agent_id)
         self.health = 100.0
         self.resources = {"wood": 10, "stone": 5, "food": 20}
@@ -153,11 +162,12 @@ class FlexibilityHarness:
             FlexibilityMetric.STRATEGY_SWITCHING: self._measure_strategy_switching,
             FlexibilityMetric.RESOURCE_EFFICIENCY: self._measure_resource_efficiency,
             FlexibilityMetric.LEARNING_RATE: self._measure_learning_rate,
-            FlexibilityMetric.ROBUSTNESS: self._measure_robustness
+            FlexibilityMetric.ROBUSTNESS: self._measure_robustness,
         }
 
-    def run_flexibility_assessment(self, agent: MockFlexibilityAgent,
-                                 scenarios: Optional[List[str]] = None) -> FlexibilityReport:
+    def run_flexibility_assessment(
+        self, agent: MockFlexibilityAgent, scenarios: Optional[List[str]] = None
+    ) -> FlexibilityReport:
         """Run comprehensive flexibility assessment"""
         if scenarios is None:
             scenarios = [
@@ -166,7 +176,7 @@ class FlexibilityHarness:
                 "social_dynamics_shift",
                 "threat_level_variation",
                 "opportunity_recognition",
-                "multi_constraint_optimization"
+                "multi_constraint_optimization",
             ]
 
         results = []
@@ -176,7 +186,9 @@ class FlexibilityHarness:
 
         return self._generate_report(agent, results)
 
-    def run_scenario(self, agent: MockFlexibilityAgent, scenario_name: str) -> ScenarioResult:
+    def run_scenario(
+        self, agent: MockFlexibilityAgent, scenario_name: str
+    ) -> ScenarioResult:
         """Run a specific flexibility scenario"""
         start_time = time.time()
 
@@ -205,15 +217,18 @@ class FlexibilityHarness:
                 scores=[],
                 agent_id=agent.id,
                 success=False,
-                failure_reason=str(e)
+                failure_reason=str(e),
             )
 
-    def _run_resource_scarcity_scenario(self, agent: MockFlexibilityAgent,
-                                      start_time: float) -> ScenarioResult:
+    def _run_resource_scarcity_scenario(
+        self, agent: MockFlexibilityAgent, start_time: float
+    ) -> ScenarioResult:
         """Test adaptation to resource scarcity"""
         # Set up resource scarcity conditions
         original_resources = agent.resources.copy()
-        agent.update_resources({"wood": -8, "stone": -4, "food": -15})  # Severe scarcity
+        agent.update_resources(
+            {"wood": -8, "stone": -4, "food": -15}
+        )  # Severe scarcity
 
         scores = []
         contexts = []
@@ -228,17 +243,24 @@ class FlexibilityHarness:
         if composition1:
             composition1.execute(agent, 0.1)
         adaptation_time = time.time() - adaptation_start
-        adaptation_score = self._measure_adaptation_speed(agent, adaptation_time, context1)
+        adaptation_score = self._measure_adaptation_speed(
+            agent, adaptation_time, context1
+        )
         scores.append(adaptation_score)
 
         # Phase 2: Resource constraint handling
         context2 = {"resource_target": "food", "scarcity_level": "critical"}
         contexts.append(context2)
-        efficiency_score = self._measure_resource_efficiency(agent, context2, original_resources)
+        efficiency_score = self._measure_resource_efficiency(
+            agent, context2, original_resources
+        )
         scores.append(efficiency_score)
 
         # Phase 3: Strategy switching
-        context3 = {"emergency": True, "available_resources": list(agent.resources.keys())}
+        context3 = {
+            "emergency": True,
+            "available_resources": list(agent.resources.keys()),
+        }
         contexts.append(context3)
         switching_score = self._measure_strategy_switching(agent, contexts)
         scores.append(switching_score)
@@ -251,18 +273,23 @@ class FlexibilityHarness:
             scores=scores,
             agent_id=agent.id,
             success=True,
-            metadata={"original_resources": original_resources, "final_resources": agent.resources}
+            metadata={
+                "original_resources": original_resources,
+                "final_resources": agent.resources,
+            },
         )
 
-    def _run_environment_change_scenario(self, agent: MockFlexibilityAgent,
-                                       start_time: float) -> ScenarioResult:
+    def _run_environment_change_scenario(
+        self, agent: MockFlexibilityAgent, start_time: float
+    ) -> ScenarioResult:
         """Test response to environmental changes"""
         scores = []
 
         # Simulate environmental shift
         agent.move_to(50.0, 50.0)  # Move to new environment
-        agent.memory.remember_danger_zone(50.0, 50.0, "environmental_hazard", 0.7,
-                                        {"hazard_type": "toxic_area"})
+        agent.memory.remember_danger_zone(
+            50.0, 50.0, "environmental_hazard", 0.7, {"hazard_type": "toxic_area"}
+        )
 
         # Test context sensitivity
         context = {"environment_type": "hazardous", "location": (50.0, 50.0)}
@@ -280,17 +307,20 @@ class FlexibilityHarness:
             duration=duration,
             scores=scores,
             agent_id=agent.id,
-            success=True
+            success=True,
         )
 
-    def _run_social_dynamics_scenario(self, agent: MockFlexibilityAgent,
-                                    start_time: float) -> ScenarioResult:
+    def _run_social_dynamics_scenario(
+        self, agent: MockFlexibilityAgent, start_time: float
+    ) -> ScenarioResult:
         """Test adaptation to social dynamics changes"""
         scores = []
 
         # Simulate social interactions
         partner_id = "social_partner"
-        agent.memory.remember_social_interaction(partner_id, "cooperation", "successful")
+        agent.memory.remember_social_interaction(
+            partner_id, "cooperation", "successful"
+        )
         agent.memory.remember_social_interaction(partner_id, "trade", "failed")
 
         # Test learning from social feedback
@@ -305,18 +335,20 @@ class FlexibilityHarness:
             duration=duration,
             scores=scores,
             agent_id=agent.id,
-            success=True
+            success=True,
         )
 
-    def _run_threat_variation_scenario(self, agent: MockFlexibilityAgent,
-                                     start_time: float) -> ScenarioResult:
+    def _run_threat_variation_scenario(
+        self, agent: MockFlexibilityAgent, start_time: float
+    ) -> ScenarioResult:
         """Test response to varying threat levels"""
         scores = []
 
         # Simulate threat variation
         agent.health = 30.0  # Low health
-        agent.memory.remember_danger_zone(agent.x, agent.y, "combat_threat", 0.9,
-                                        {"threat_level": "high"})
+        agent.memory.remember_danger_zone(
+            agent.x, agent.y, "combat_threat", 0.9, {"threat_level": "high"}
+        )
 
         # Test recovery capabilities
         context = {"threat_level": "high", "health_critical": True}
@@ -330,19 +362,25 @@ class FlexibilityHarness:
             duration=duration,
             scores=scores,
             agent_id=agent.id,
-            success=True
+            success=True,
         )
 
-    def _run_opportunity_recognition_scenario(self, agent: MockFlexibilityAgent,
-                                            start_time: float) -> ScenarioResult:
+    def _run_opportunity_recognition_scenario(
+        self, agent: MockFlexibilityAgent, start_time: float
+    ) -> ScenarioResult:
         """Test opportunity recognition and exploitation"""
         scores = []
 
         # Create opportunity scenario
-        agent.memory.remember_resource_location(agent.x + 5, agent.y + 5, "rare_mineral", 0.95, 10)
+        agent.memory.remember_resource_location(
+            agent.x + 5, agent.y + 5, "rare_mineral", 0.95, 10
+        )
 
         # Test behavior diversity in response to opportunities
-        context = {"opportunity_type": "resource_discovery", "opportunity_value": "high"}
+        context = {
+            "opportunity_type": "resource_discovery",
+            "opportunity_value": "high",
+        }
         diversity_score = self._measure_behavior_diversity(agent, context)
         scores.append(diversity_score)
 
@@ -353,26 +391,32 @@ class FlexibilityHarness:
             duration=duration,
             scores=scores,
             agent_id=agent.id,
-            success=True
+            success=True,
         )
 
-    def _run_multi_constraint_scenario(self, agent: MockFlexibilityAgent,
-                                     start_time: float) -> ScenarioResult:
+    def _run_multi_constraint_scenario(
+        self, agent: MockFlexibilityAgent, start_time: float
+    ) -> ScenarioResult:
         """Test handling of multiple simultaneous constraints"""
         scores = []
 
         # Set up multiple constraints
         agent.health = 25.0  # Low health
         agent.update_resources({"food": -15})  # Low food
-        agent.memory.remember_danger_zone(agent.x, agent.y, "multi_threat", 0.8,
-                                        {"constraints": ["health", "food", "danger"]})
+        agent.memory.remember_danger_zone(
+            agent.x,
+            agent.y,
+            "multi_threat",
+            0.8,
+            {"constraints": ["health", "food", "danger"]},
+        )
 
         # Test overall adaptation under pressure
         context = {
             "multi_constraint": True,
             "health_low": True,
             "food_scarce": True,
-            "danger_present": True
+            "danger_present": True,
         }
 
         adaptation_score = self._measure_adaptation_speed(agent, 2.0, context)
@@ -385,12 +429,13 @@ class FlexibilityHarness:
             duration=duration,
             scores=scores,
             agent_id=agent.id,
-            success=True
+            success=True,
         )
 
     # Metrics calculation methods
-    def _measure_adaptation_speed(self, agent: MockFlexibilityAgent,
-                                decision_time: float, context: Dict[str, Any]) -> FlexibilityScore:
+    def _measure_adaptation_speed(
+        self, agent: MockFlexibilityAgent, decision_time: float, context: Dict[str, Any]
+    ) -> FlexibilityScore:
         """Measure how quickly agent adapts to new situations"""
         # Faster adaptation = higher score (inverse relationship)
         # Normalize to 0-1 scale, with 1.0 being instant, 0.0 being very slow
@@ -403,11 +448,12 @@ class FlexibilityHarness:
             raw_value=decision_time,
             measurement_time=time.time(),
             context=context,
-            details=f"Decision made in {decision_time:.2f}s"
+            details=f"Decision made in {decision_time:.2f}s",
         )
 
-    def _measure_behavior_diversity(self, agent: MockFlexibilityAgent,
-                                  context: Dict[str, Any]) -> FlexibilityScore:
+    def _measure_behavior_diversity(
+        self, agent: MockFlexibilityAgent, context: Dict[str, Any]
+    ) -> FlexibilityScore:
         """Measure variety of behaviors exhibited"""
         unique_behaviors = len(set(agent.behavior_history[-10:]))  # Last 10 behaviors
         max_possible_diversity = min(10, len(agent.behavior_history))
@@ -423,14 +469,17 @@ class FlexibilityHarness:
             raw_value=unique_behaviors,
             measurement_time=time.time(),
             context=context,
-            details=f"{unique_behaviors} unique behaviors in recent history"
+            details=f"{unique_behaviors} unique behaviors in recent history",
         )
 
-    def _measure_context_sensitivity(self, agent: MockFlexibilityAgent,
-                                   context: Dict[str, Any]) -> FlexibilityScore:
+    def _measure_context_sensitivity(
+        self, agent: MockFlexibilityAgent, context: Dict[str, Any]
+    ) -> FlexibilityScore:
         """Measure how well agent responds to context changes"""
         # Check if agent has memories relevant to current context
-        location_memories = agent.memory.location_memory.get_memories_near(agent.x, agent.y, radius=10.0)
+        location_memories = agent.memory.location_memory.get_memories_near(
+            agent.x, agent.y, radius=10.0
+        )
         context_relevance = len(location_memories) / 10.0  # Normalize to 0-1
         context_relevance = min(1.0, context_relevance)
 
@@ -440,14 +489,17 @@ class FlexibilityHarness:
             raw_value=len(location_memories),
             measurement_time=time.time(),
             context=context,
-            details=f"Using {len(location_memories)} contextual memories"
+            details=f"Using {len(location_memories)} contextual memories",
         )
 
-    def _measure_recovery_time(self, agent: MockFlexibilityAgent,
-                             context: Dict[str, Any]) -> FlexibilityScore:
+    def _measure_recovery_time(
+        self, agent: MockFlexibilityAgent, context: Dict[str, Any]
+    ) -> FlexibilityScore:
         """Measure time to recover from setbacks"""
         # Simulate recovery scenario based on health/resources
-        recovery_potential = (agent.health / 100.0) + (sum(agent.resources.values()) / 100.0)
+        recovery_potential = (agent.health / 100.0) + (
+            sum(agent.resources.values()) / 100.0
+        )
         recovery_score = min(1.0, recovery_potential / 2.0)  # Normalize
 
         return FlexibilityScore(
@@ -456,11 +508,12 @@ class FlexibilityHarness:
             raw_value=recovery_potential,
             measurement_time=time.time(),
             context=context,
-            details=f"Recovery potential: {recovery_potential:.2f}"
+            details=f"Recovery potential: {recovery_potential:.2f}",
         )
 
-    def _measure_strategy_switching(self, agent: MockFlexibilityAgent,
-                                  contexts: List[Dict[str, Any]]) -> FlexibilityScore:
+    def _measure_strategy_switching(
+        self, agent: MockFlexibilityAgent, contexts: List[Dict[str, Any]]
+    ) -> FlexibilityScore:
         """Measure ability to switch strategies based on context"""
         if len(contexts) < 2:
             return FlexibilityScore(
@@ -469,7 +522,7 @@ class FlexibilityHarness:
                 raw_value=0,
                 measurement_time=time.time(),
                 context=contexts[-1] if contexts else {},
-                details="Insufficient context changes to measure switching"
+                details="Insufficient context changes to measure switching",
             )
 
         # Check for strategy diversity across contexts
@@ -482,12 +535,15 @@ class FlexibilityHarness:
             raw_value=strategy_changes,
             measurement_time=time.time(),
             context=contexts[-1],
-            details=f"Handled {strategy_changes} context switches"
+            details=f"Handled {strategy_changes} context switches",
         )
 
-    def _measure_resource_efficiency(self, agent: MockFlexibilityAgent,
-                                   context: Dict[str, Any],
-                                   original_resources: Dict[str, int]) -> FlexibilityScore:
+    def _measure_resource_efficiency(
+        self,
+        agent: MockFlexibilityAgent,
+        context: Dict[str, Any],
+        original_resources: Dict[str, int],
+    ) -> FlexibilityScore:
         """Measure efficient use of limited resources"""
         # Compare resource usage efficiency
         resource_preservation = 0.0
@@ -505,17 +561,23 @@ class FlexibilityHarness:
             raw_value=resource_preservation,
             measurement_time=time.time(),
             context=context,
-            details=f"Resource preservation: {resource_preservation:.2f}"
+            details=f"Resource preservation: {resource_preservation:.2f}",
         )
 
-    def _measure_learning_rate(self, agent: MockFlexibilityAgent,
-                             context: Dict[str, Any]) -> FlexibilityScore:
+    def _measure_learning_rate(
+        self, agent: MockFlexibilityAgent, context: Dict[str, Any]
+    ) -> FlexibilityScore:
         """Measure speed of learning from experience"""
         # Check memory formation and reinforcement
         location_memories_count = len(agent.memory.location_memory.memories)
-        social_memories_count = sum(len(memories) for memories in agent.memory.social_memory.agent_memories.values())
+        social_memories_count = sum(
+            len(memories)
+            for memories in agent.memory.social_memory.agent_memories.values()
+        )
         total_memories = location_memories_count + social_memories_count
-        learning_score = min(1.0, total_memories / 50.0)  # Normalize to reasonable scale
+        learning_score = min(
+            1.0, total_memories / 50.0
+        )  # Normalize to reasonable scale
 
         return FlexibilityScore(
             metric=FlexibilityMetric.LEARNING_RATE,
@@ -523,11 +585,12 @@ class FlexibilityHarness:
             raw_value=total_memories,
             measurement_time=time.time(),
             context=context,
-            details=f"Formed {total_memories} memories"
+            details=f"Formed {total_memories} memories",
         )
 
-    def _measure_robustness(self, agent: MockFlexibilityAgent,
-                          context: Dict[str, Any]) -> FlexibilityScore:
+    def _measure_robustness(
+        self, agent: MockFlexibilityAgent, context: Dict[str, Any]
+    ) -> FlexibilityScore:
         """Measure stability under adverse conditions"""
         # Assess agent's stability metrics
         health_stability = agent.health / 100.0
@@ -540,11 +603,12 @@ class FlexibilityHarness:
             raw_value=robustness_score,
             measurement_time=time.time(),
             context=context,
-            details=f"Health: {health_stability:.2f}, Resources: {resource_stability:.2f}"
+            details=f"Health: {health_stability:.2f}, Resources: {resource_stability:.2f}",
         )
 
-    def _generate_report(self, agent: MockFlexibilityAgent,
-                        results: List[ScenarioResult]) -> FlexibilityReport:
+    def _generate_report(
+        self, agent: MockFlexibilityAgent, results: List[ScenarioResult]
+    ) -> FlexibilityReport:
         """Generate comprehensive flexibility report"""
         # Calculate overall flexibility score
         if results:
@@ -578,10 +642,12 @@ class FlexibilityHarness:
             metric_breakdown=metric_scores,
             recommendations=recommendations,
             strengths=strengths,
-            weaknesses=weaknesses
+            weaknesses=weaknesses,
         )
 
-    def _generate_recommendations(self, metric_scores: Dict[FlexibilityMetric, float]) -> List[str]:
+    def _generate_recommendations(
+        self, metric_scores: Dict[FlexibilityMetric, float]
+    ) -> List[str]:
         """Generate improvement recommendations based on scores"""
         recommendations = []
 
@@ -592,14 +658,18 @@ class FlexibilityHarness:
             recommendations.append("Expand behavioral repertoire for varied situations")
 
         if metric_scores[FlexibilityMetric.LEARNING_RATE] < 0.4:
-            recommendations.append("Improve memory formation and experience integration")
+            recommendations.append(
+                "Improve memory formation and experience integration"
+            )
 
         if metric_scores[FlexibilityMetric.ROBUSTNESS] < 0.5:
             recommendations.append("Enhance resilience to adverse conditions")
 
         return recommendations
 
-    def _identify_strengths(self, metric_scores: Dict[FlexibilityMetric, float]) -> List[str]:
+    def _identify_strengths(
+        self, metric_scores: Dict[FlexibilityMetric, float]
+    ) -> List[str]:
         """Identify agent's flexibility strengths"""
         strengths = []
 
@@ -611,7 +681,9 @@ class FlexibilityHarness:
 
         return strengths
 
-    def _identify_weaknesses(self, metric_scores: Dict[FlexibilityMetric, float]) -> List[str]:
+    def _identify_weaknesses(
+        self, metric_scores: Dict[FlexibilityMetric, float]
+    ) -> List[str]:
         """Identify agent's flexibility weaknesses"""
         weaknesses = []
 
@@ -632,9 +704,11 @@ def quick_flexibility_test(agent_id: str = "test_agent") -> FlexibilityReport:
     return harness.run_flexibility_assessment(agent)
 
 
-def comprehensive_flexibility_test(agent_id: str = "test_agent",
-                                 personality: Optional[Personality] = None,
-                                 scenarios: Optional[List[str]] = None) -> FlexibilityReport:
+def comprehensive_flexibility_test(
+    agent_id: str = "test_agent",
+    personality: Optional[Personality] = None,
+    scenarios: Optional[List[str]] = None,
+) -> FlexibilityReport:
     """Run comprehensive flexibility assessment with custom options"""
     harness = FlexibilityHarness()
     agent = MockFlexibilityAgent(agent_id, personality)

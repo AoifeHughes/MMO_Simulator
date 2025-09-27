@@ -5,12 +5,12 @@ This module provides atomic inventory operations with rollback capability,
 ensuring inventory consistency even during server errors or network issues.
 """
 
-import time
 import logging
 import threading
+import time
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 from shared.inventory import Inventory
 from shared.items import Item, create_item
@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 class TransactionType(Enum):
     """Types of inventory transactions"""
+
     ADD_ITEM = "add_item"
     REMOVE_ITEM = "remove_item"
     MOVE_ITEM = "move_item"
@@ -32,6 +33,7 @@ class TransactionType(Enum):
 @dataclass
 class InventoryTransaction:
     """Represents a single inventory transaction"""
+
     transaction_id: str
     agent_id: str
     transaction_type: TransactionType
@@ -78,13 +80,15 @@ class TransactionalInventory:
         self.transaction_counter += 1
         return f"{self.agent_id}_{self.transaction_counter}_{int(time.time() * 1000)}"
 
-    def _create_transaction(self, transaction_type: TransactionType, **kwargs) -> InventoryTransaction:
+    def _create_transaction(
+        self, transaction_type: TransactionType, **kwargs
+    ) -> InventoryTransaction:
         """Create a new transaction"""
         transaction = InventoryTransaction(
             transaction_id=self._generate_transaction_id(),
             agent_id=self.agent_id,
             transaction_type=transaction_type,
-            **kwargs
+            **kwargs,
         )
         self.pending_transactions[transaction.transaction_id] = transaction
         return transaction
@@ -121,7 +125,10 @@ class TransactionalInventory:
 
             elif transaction_type == TransactionType.REMOVE_ITEM:
                 # Restore the removed item
-                if "removed_item" in rollback_data and "removed_from_slot" in rollback_data:
+                if (
+                    "removed_item" in rollback_data
+                    and "removed_from_slot" in rollback_data
+                ):
                     item_data = rollback_data["removed_item"]
                     slot_index = rollback_data["removed_from_slot"]
                     quantity = rollback_data["removed_quantity"]
@@ -158,25 +165,31 @@ class TransactionalInventory:
                     self.inventory.gold += rollback_data["gold_removed"]
 
             transaction.rolled_back = True
-            logger.info(f"Rolled back transaction {transaction.transaction_id} for agent {self.agent_id}")
+            logger.info(
+                f"Rolled back transaction {transaction.transaction_id} for agent {self.agent_id}"
+            )
             return True
 
         except Exception as e:
-            logger.error(f"Failed to rollback transaction {transaction.transaction_id}: {e}")
+            logger.error(
+                f"Failed to rollback transaction {transaction.transaction_id}: {e}"
+            )
             return False
 
-    def add_item_transactional(self, item: Item, quantity: int = 1) -> InventoryTransaction:
+    def add_item_transactional(
+        self, item: Item, quantity: int = 1
+    ) -> InventoryTransaction:
         """Add item with transaction support"""
         with self.lock:
             transaction = self._create_transaction(
-                TransactionType.ADD_ITEM,
-                item_name=item.name,
-                quantity=quantity
+                TransactionType.ADD_ITEM, item_name=item.name, quantity=quantity
             )
 
             try:
                 # Store rollback data before making changes
-                transaction.rollback_data["inventory_state_before"] = self.inventory.to_dict()
+                transaction.rollback_data[
+                    "inventory_state_before"
+                ] = self.inventory.to_dict()
 
                 # Attempt to add item
                 added_count = self.inventory.add_item(item, quantity)
@@ -192,10 +205,14 @@ class TransactionalInventory:
                     transaction.rollback_data["actual_quantity_added"] = added_count
                     self._commit_transaction(transaction)
 
-                    logger.debug(f"Added {added_count} {item.name} to inventory for agent {self.agent_id}")
+                    logger.debug(
+                        f"Added {added_count} {item.name} to inventory for agent {self.agent_id}"
+                    )
                 else:
                     transaction.success = False
-                    transaction.error_message = "Inventory full or item could not be added"
+                    transaction.error_message = (
+                        "Inventory full or item could not be added"
+                    )
 
             except Exception as e:
                 transaction.success = False
@@ -204,13 +221,13 @@ class TransactionalInventory:
 
             return transaction
 
-    def remove_item_transactional(self, item_name: str, quantity: int = 1) -> InventoryTransaction:
+    def remove_item_transactional(
+        self, item_name: str, quantity: int = 1
+    ) -> InventoryTransaction:
         """Remove item with transaction support"""
         with self.lock:
             transaction = self._create_transaction(
-                TransactionType.REMOVE_ITEM,
-                item_name=item_name,
-                quantity=quantity
+                TransactionType.REMOVE_ITEM, item_name=item_name, quantity=quantity
             )
 
             try:
@@ -224,11 +241,13 @@ class TransactionalInventory:
                 if item_slot is not None:
                     slot = self.inventory.slots[item_slot]
                     # Store rollback data
-                    transaction.rollback_data.update({
-                        "removed_item": slot.item.to_dict(),
-                        "removed_from_slot": item_slot,
-                        "removed_quantity": min(quantity, slot.quantity)
-                    })
+                    transaction.rollback_data.update(
+                        {
+                            "removed_item": slot.item.to_dict(),
+                            "removed_from_slot": item_slot,
+                            "removed_quantity": min(quantity, slot.quantity),
+                        }
+                    )
 
                 # Attempt to remove item
                 removed_count = self.inventory.remove_item(item_name, quantity)
@@ -238,10 +257,14 @@ class TransactionalInventory:
                     transaction.rollback_data["actual_quantity_removed"] = removed_count
                     self._commit_transaction(transaction)
 
-                    logger.debug(f"Removed {removed_count} {item_name} from inventory for agent {self.agent_id}")
+                    logger.debug(
+                        f"Removed {removed_count} {item_name} from inventory for agent {self.agent_id}"
+                    )
                 else:
                     transaction.success = False
-                    transaction.error_message = f"Item {item_name} not found or insufficient quantity"
+                    transaction.error_message = (
+                        f"Item {item_name} not found or insufficient quantity"
+                    )
 
             except Exception as e:
                 transaction.success = False
@@ -254,8 +277,7 @@ class TransactionalInventory:
         """Equip item with transaction support"""
         with self.lock:
             transaction = self._create_transaction(
-                TransactionType.EQUIP_ITEM,
-                item_id=item_id
+                TransactionType.EQUIP_ITEM, item_id=item_id
             )
 
             try:
@@ -274,10 +296,9 @@ class TransactionalInventory:
                 item = self.inventory.slots[item_slot].item
 
                 # Store rollback data
-                transaction.rollback_data.update({
-                    "item_data": item.to_dict(),
-                    "inventory_slot": item_slot
-                })
+                transaction.rollback_data.update(
+                    {"item_data": item.to_dict(), "inventory_slot": item_slot}
+                )
 
                 # Attempt to equip
                 success = self.inventory.equip_item(item_id)
@@ -285,7 +306,7 @@ class TransactionalInventory:
                 if success:
                     transaction.success = True
                     # Store which slot it was equipped to
-                    if hasattr(item, 'slot'):
+                    if hasattr(item, "slot"):
                         transaction.rollback_data["equipped_slot"] = item.slot
 
                     self._commit_transaction(transaction)
@@ -305,8 +326,7 @@ class TransactionalInventory:
         """Add gold with transaction support"""
         with self.lock:
             transaction = self._create_transaction(
-                TransactionType.ADD_GOLD,
-                gold_amount=amount
+                TransactionType.ADD_GOLD, gold_amount=amount
             )
 
             try:
@@ -318,7 +338,9 @@ class TransactionalInventory:
                 transaction.rollback_data["gold_before"] = old_gold
                 self._commit_transaction(transaction)
 
-                logger.debug(f"Added {amount} gold to agent {self.agent_id} (total: {self.inventory.gold})")
+                logger.debug(
+                    f"Added {amount} gold to agent {self.agent_id} (total: {self.inventory.gold})"
+                )
 
             except Exception as e:
                 transaction.success = False
@@ -331,8 +353,7 @@ class TransactionalInventory:
         """Remove gold with transaction support"""
         with self.lock:
             transaction = self._create_transaction(
-                TransactionType.REMOVE_GOLD,
-                gold_amount=amount
+                TransactionType.REMOVE_GOLD, gold_amount=amount
             )
 
             try:
@@ -349,7 +370,9 @@ class TransactionalInventory:
                 transaction.rollback_data["gold_before"] = old_gold
                 self._commit_transaction(transaction)
 
-                logger.debug(f"Removed {amount} gold from agent {self.agent_id} (remaining: {self.inventory.gold})")
+                logger.debug(
+                    f"Removed {amount} gold from agent {self.agent_id} (remaining: {self.inventory.gold})"
+                )
 
             except Exception as e:
                 transaction.success = False
@@ -390,15 +413,20 @@ class TransactionalInventory:
     def get_stats(self) -> Dict[str, Any]:
         """Get inventory transaction statistics"""
         with self.lock:
-            successful_transactions = sum(1 for t in self.transaction_history if t.success)
-            failed_transactions = sum(1 for t in self.transaction_history if not t.success)
+            successful_transactions = sum(
+                1 for t in self.transaction_history if t.success
+            )
+            failed_transactions = sum(
+                1 for t in self.transaction_history if not t.success
+            )
 
             return {
                 "total_transactions": len(self.transaction_history),
                 "successful_transactions": successful_transactions,
                 "failed_transactions": failed_transactions,
                 "pending_transactions": len(self.pending_transactions),
-                "success_rate": successful_transactions / max(1, len(self.transaction_history))
+                "success_rate": successful_transactions
+                / max(1, len(self.transaction_history)),
             }
 
 
@@ -414,14 +442,18 @@ class InventoryManager:
         self.agent_inventories: Dict[str, TransactionalInventory] = {}
         self.lock = threading.Lock()
 
-    def get_or_create_inventory(self, agent_id: str, base_inventory: Optional[Inventory] = None) -> TransactionalInventory:
+    def get_or_create_inventory(
+        self, agent_id: str, base_inventory: Optional[Inventory] = None
+    ) -> TransactionalInventory:
         """Get or create transactional inventory for agent"""
         with self.lock:
             if agent_id not in self.agent_inventories:
                 if base_inventory is None:
                     base_inventory = Inventory()
 
-                self.agent_inventories[agent_id] = TransactionalInventory(agent_id, base_inventory)
+                self.agent_inventories[agent_id] = TransactionalInventory(
+                    agent_id, base_inventory
+                )
                 logger.debug(f"Created transactional inventory for agent {agent_id}")
 
             return self.agent_inventories[agent_id]
@@ -451,5 +483,5 @@ class InventoryManager:
                 "total_transactions": total_transactions,
                 "total_successful": total_successful,
                 "total_failed": total_failed,
-                "overall_success_rate": total_successful / max(1, total_transactions)
+                "overall_success_rate": total_successful / max(1, total_transactions),
             }

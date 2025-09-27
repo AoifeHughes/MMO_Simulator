@@ -5,11 +5,14 @@ Quick test to verify the floating point precision fix for action validation.
 
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).parent))
+
+from unittest.mock import Mock
 
 from client.behavior_tree.nodes.two_phase_action import ResourceActionNode
 from world.tiles import TileType
-from unittest.mock import Mock
+
 
 def test_precision_issue():
     """Test the specific case that was failing"""
@@ -18,9 +21,14 @@ def test_precision_issue():
 
     # Create a test action
     class TestAction(ResourceActionNode):
-        def execute_action(self, agent, target_pos): return True
-        def get_action_name(self): return "test"
-        def get_resource_type(self): return "test"
+        def execute_action(self, agent, target_pos):
+            return True
+
+        def get_action_name(self):
+            return "test"
+
+        def get_resource_type(self):
+            return "test"
 
     action = TestAction("TestAction", TileType.WATER, 5.0)
 
@@ -50,15 +58,20 @@ def test_precision_issue():
 
     # Test with the new safe distance calculation
     safe_distance = action.required_distance - 0.02
-    safe_position_distance = ((action.target_position[0] - (action.target_position[0] + safe_distance)) ** 2 +
-                             (action.target_position[1] - action.target_position[1]) ** 2) ** 0.5
+    safe_position_distance = (
+        (action.target_position[0] - (action.target_position[0] + safe_distance)) ** 2
+        + (action.target_position[1] - action.target_position[1]) ** 2
+    ) ** 0.5
 
     print(f"\n🔧 With new safe distance calculation:")
     print(f"Safe distance: {safe_distance:.6f}")
     print(f"Safe position would be at distance: {safe_distance:.6f} from target")
-    print(f"This should always pass validation: {safe_distance <= (action.required_distance + action.validation_buffer)}")
+    print(
+        f"This should always pass validation: {safe_distance <= (action.required_distance + action.validation_buffer)}"
+    )
 
     return is_valid
+
 
 if __name__ == "__main__":
     success = test_precision_issue()

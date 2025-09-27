@@ -5,9 +5,11 @@ These tests verify that the server properly rejects invalid movement requests
 instead of applying position corrections, which was causing sync issues.
 """
 
-import pytest
 from unittest.mock import Mock
-from shared.actions import ActionType, ActionResult
+
+import pytest
+
+from shared.actions import ActionResult, ActionType
 
 
 class TestMovementRejectionIntegration:
@@ -33,7 +35,7 @@ class TestMovementRejectionIntegration:
 
         # Agent should still be functional and have attempted movement
         # Even if movements were rejected, the system should remain stable
-        assert hasattr(agent, 'behavior_tree')
+        assert hasattr(agent, "behavior_tree")
         assert agent.behavior_tree is not None
 
         # Agent might have moved within bounds or stayed in place
@@ -52,7 +54,7 @@ class TestMovementRejectionIntegration:
         client = await fixture.add_client("player", 5, 5)
         agent = client.agent
 
-        if hasattr(agent, 'action_manager'):
+        if hasattr(agent, "action_manager"):
             # The MockActionManager should handle this gracefully
             # In the real system, this would go to the server and potentially be rejected
             action_id = await agent.action_manager.request_action(
@@ -61,8 +63,8 @@ class TestMovementRejectionIntegration:
                     "target_x": 6.0,
                     "target_y": 6.0,
                     "current_x": agent.x,
-                    "current_y": agent.y
-                }
+                    "current_y": agent.y,
+                },
             )
 
             assert action_id is not None
@@ -80,8 +82,9 @@ class TestMovementRejectionIntegration:
         # This is a regression test to ensure the old warning system is gone
 
         # Verify no lingering position correction code
-        warnings = [record for record in caplog.records
-                   if "POSITION CORRECTION" in record.message]
+        warnings = [
+            record
+            for record in caplog.records
+            if "POSITION CORRECTION" in record.message
+        ]
         assert len(warnings) == 0, "Position correction warnings should be eliminated"
-
-

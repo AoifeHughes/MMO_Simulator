@@ -6,30 +6,35 @@ systems. It captures baseline behaviors, compares them against current performan
 and identifies significant deviations that could indicate bugs or unintended changes.
 """
 
-import json
-import time
-import statistics
 import hashlib
-from dataclasses import dataclass, asdict
-from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple, Callable
+import json
+import statistics
+import time
+from dataclasses import asdict, dataclass
 from enum import Enum
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from client.behavior_tree.behavior_composer import BehaviorComposer
-from tests.flexibility.flexibility_harness import MockFlexibilityAgent, FlexibilityHarness
+from tests.flexibility.flexibility_harness import (
+    FlexibilityHarness,
+    MockFlexibilityAgent,
+)
 
 
 class RegressionSeverity(Enum):
     """Severity levels for behavioral regressions"""
-    CRITICAL = "critical"     # Major behavioral changes
-    HIGH = "high"            # Significant performance degradation
-    MEDIUM = "medium"        # Noticeable but manageable changes
-    LOW = "low"             # Minor variations within acceptable range
-    INFO = "info"           # Changes that are informational only
+
+    CRITICAL = "critical"  # Major behavioral changes
+    HIGH = "high"  # Significant performance degradation
+    MEDIUM = "medium"  # Noticeable but manageable changes
+    LOW = "low"  # Minor variations within acceptable range
+    INFO = "info"  # Changes that are informational only
 
 
 class BehaviorMetric(Enum):
     """Types of behavioral metrics to track"""
+
     DECISION_TIME = "decision_time"
     BEHAVIOR_CONSISTENCY = "behavior_consistency"
     RESOURCE_EFFICIENCY = "resource_efficiency"
@@ -43,6 +48,7 @@ class BehaviorMetric(Enum):
 @dataclass
 class BehaviorSnapshot:
     """Snapshot of behavior at a specific point in time"""
+
     timestamp: float
     agent_config: Dict[str, Any]
     scenario: str
@@ -55,6 +61,7 @@ class BehaviorSnapshot:
 @dataclass
 class RegressionResult:
     """Result of a regression comparison"""
+
     metric: BehaviorMetric
     baseline_value: float
     current_value: float
@@ -67,6 +74,7 @@ class RegressionResult:
 @dataclass
 class RegressionReport:
     """Comprehensive regression analysis report"""
+
     test_timestamp: float
     baseline_timestamp: float
     scenario: str
@@ -80,18 +88,20 @@ class RegressionReport:
         """Save report to JSON file"""
         data = asdict(self)
         # Convert enums to strings
-        for regression in data['regressions']:
-            regression['metric'] = regression['metric'].value
-            regression['severity'] = regression['severity'].value
+        for regression in data["regressions"]:
+            regression["metric"] = regression["metric"].value
+            regression["severity"] = regression["severity"].value
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             json.dump(data, f, indent=2)
 
     def has_critical_regressions(self) -> bool:
         """Check if there are any critical regressions"""
         return any(r.severity == RegressionSeverity.CRITICAL for r in self.regressions)
 
-    def get_regressions_by_severity(self, severity: RegressionSeverity) -> List[RegressionResult]:
+    def get_regressions_by_severity(
+        self, severity: RegressionSeverity
+    ) -> List[RegressionResult]:
         """Get all regressions of a specific severity"""
         return [r for r in self.regressions if r.severity == severity]
 
@@ -118,20 +128,16 @@ class BehaviorBaseline:
         filename = f"{scenario}_{version}_baseline.json"
         filepath = self.baseline_dir / filename
 
-        data = {
-            "scenario": scenario,
-            "version": version,
-            "snapshots": []
-        }
+        data = {"scenario": scenario, "version": version, "snapshots": []}
 
         for snapshot in self.baselines[scenario]:
             snapshot_data = asdict(snapshot)
             # Convert enums to strings
-            metrics_data = {k.value: v for k, v in snapshot_data['metrics'].items()}
-            snapshot_data['metrics'] = metrics_data
+            metrics_data = {k.value: v for k, v in snapshot_data["metrics"].items()}
+            snapshot_data["metrics"] = metrics_data
             data["snapshots"].append(snapshot_data)
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             json.dump(data, f, indent=2)
 
     def load_baseline(self, scenario: str, version: str) -> bool:
@@ -142,14 +148,16 @@ class BehaviorBaseline:
         if not filepath.exists():
             return False
 
-        with open(filepath, 'r') as f:
+        with open(filepath, "r") as f:
             data = json.load(f)
 
         snapshots = []
         for snapshot_data in data["snapshots"]:
             # Convert string keys back to enums
-            metrics = {BehaviorMetric(k): v for k, v in snapshot_data['metrics'].items()}
-            snapshot_data['metrics'] = metrics
+            metrics = {
+                BehaviorMetric(k): v for k, v in snapshot_data["metrics"].items()
+            }
+            snapshot_data["metrics"] = metrics
 
             snapshot = BehaviorSnapshot(**snapshot_data)
             snapshots.append(snapshot)
@@ -157,7 +165,9 @@ class BehaviorBaseline:
         self.baselines[scenario] = snapshots
         return True
 
-    def get_baseline_stats(self, scenario: str) -> Dict[BehaviorMetric, Dict[str, float]]:
+    def get_baseline_stats(
+        self, scenario: str
+    ) -> Dict[BehaviorMetric, Dict[str, float]]:
         """Get statistical summary of baseline for a scenario"""
         if scenario not in self.baselines or not self.baselines[scenario]:
             return {}
@@ -168,7 +178,11 @@ class BehaviorBaseline:
             all_metrics.update(snapshot.metrics.keys())
 
         for metric in all_metrics:
-            values = [s.metrics[metric] for s in self.baselines[scenario] if metric in s.metrics]
+            values = [
+                s.metrics[metric]
+                for s in self.baselines[scenario]
+                if metric in s.metrics
+            ]
             if values:
                 stats[metric] = {
                     "mean": statistics.mean(values),
@@ -176,7 +190,7 @@ class BehaviorBaseline:
                     "stdev": statistics.stdev(values) if len(values) > 1 else 0.0,
                     "min": min(values),
                     "max": max(values),
-                    "count": len(values)
+                    "count": len(values),
                 }
 
         return stats
@@ -189,8 +203,9 @@ class BehaviorMeasurer:
         self.behavior_composer = BehaviorComposer()
         self.flexibility_harness = FlexibilityHarness()
 
-    def measure_behavior(self, agent: MockFlexibilityAgent, scenario: str,
-                        context: Dict[str, Any]) -> BehaviorSnapshot:
+    def measure_behavior(
+        self, agent: MockFlexibilityAgent, scenario: str, context: Dict[str, Any]
+    ) -> BehaviorSnapshot:
         """Measure comprehensive behavior metrics for an agent"""
         start_time = time.time()
         execution_trace = []
@@ -201,24 +216,38 @@ class BehaviorMeasurer:
         decision_time = time.time() - decision_start
 
         if composition:
-            execution_trace.append(f"Composed behavior with {len(composition.fragments)} fragments")
+            execution_trace.append(
+                f"Composed behavior with {len(composition.fragments)} fragments"
+            )
 
             # Execute and measure
             execution_start = time.time()
             result = composition.execute(agent, 0.1)
             execution_time = time.time() - execution_start
-            execution_trace.append(f"Executed behavior in {execution_time:.3f}s with result {result}")
+            execution_trace.append(
+                f"Executed behavior in {execution_time:.3f}s with result {result}"
+            )
 
         # Calculate metrics
         metrics = {
             BehaviorMetric.DECISION_TIME: decision_time,
-            BehaviorMetric.BEHAVIOR_CONSISTENCY: self._measure_consistency(agent, scenario),
-            BehaviorMetric.RESOURCE_EFFICIENCY: self._measure_resource_efficiency(agent),
-            BehaviorMetric.GOAL_COMPLETION_RATE: self._measure_goal_completion(composition, result),
-            BehaviorMetric.ADAPTATION_QUALITY: self._measure_adaptation_quality(agent, context),
+            BehaviorMetric.BEHAVIOR_CONSISTENCY: self._measure_consistency(
+                agent, scenario
+            ),
+            BehaviorMetric.RESOURCE_EFFICIENCY: self._measure_resource_efficiency(
+                agent
+            ),
+            BehaviorMetric.GOAL_COMPLETION_RATE: self._measure_goal_completion(
+                composition, result
+            ),
+            BehaviorMetric.ADAPTATION_QUALITY: self._measure_adaptation_quality(
+                agent, context
+            ),
             BehaviorMetric.MEMORY_UTILIZATION: self._measure_memory_utilization(agent),
-            BehaviorMetric.SOCIAL_INTERACTION_SUCCESS: self._measure_social_success(agent),
-            BehaviorMetric.STRATEGY_DIVERSITY: self._measure_strategy_diversity(agent)
+            BehaviorMetric.SOCIAL_INTERACTION_SUCCESS: self._measure_social_success(
+                agent
+            ),
+            BehaviorMetric.STRATEGY_DIVERSITY: self._measure_strategy_diversity(agent),
         }
 
         return BehaviorSnapshot(
@@ -227,16 +256,16 @@ class BehaviorMeasurer:
                 "personality": {
                     "combat": agent.personality.combat,
                     "exploration": agent.personality.exploration,
-                    "social": agent.personality.social
+                    "social": agent.personality.social,
                 },
                 "resources": agent.resources.copy(),
-                "health": agent.health
+                "health": agent.health,
             },
             scenario=scenario,
             metrics=metrics,
             execution_trace=execution_trace,
             context=context.copy(),
-            version_info={"test_version": "1.0.0"}  # Could be dynamically determined
+            version_info={"test_version": "1.0.0"},  # Could be dynamically determined
         )
 
     def _measure_consistency(self, agent: MockFlexibilityAgent, scenario: str) -> float:
@@ -253,9 +282,12 @@ class BehaviorMeasurer:
             return 0.0
 
         # Simple efficiency measure based on resource distribution
-        resource_balance = 1.0 - (statistics.stdev(agent.resources.values()) /
-                                 statistics.mean(agent.resources.values())
-                                 if len(agent.resources) > 1 else 0.0)
+        resource_balance = 1.0 - (
+            statistics.stdev(agent.resources.values())
+            / statistics.mean(agent.resources.values())
+            if len(agent.resources) > 1
+            else 0.0
+        )
         return max(0.0, min(1.0, resource_balance))
 
     def _measure_goal_completion(self, composition, result) -> float:
@@ -265,6 +297,7 @@ class BehaviorMeasurer:
 
         # Simple completion measure based on execution result
         from client.behavior_tree.nodes.base import NodeStatus
+
         if result == NodeStatus.SUCCESS:
             return 1.0
         elif result == NodeStatus.RUNNING:
@@ -272,8 +305,9 @@ class BehaviorMeasurer:
         else:
             return 0.0
 
-    def _measure_adaptation_quality(self, agent: MockFlexibilityAgent,
-                                  context: Dict[str, Any]) -> float:
+    def _measure_adaptation_quality(
+        self, agent: MockFlexibilityAgent, context: Dict[str, Any]
+    ) -> float:
         """Measure quality of adaptation to context"""
         # Use flexibility harness for adaptation measurement
         adaptation_score = self.flexibility_harness._measure_adaptation_speed(
@@ -284,8 +318,10 @@ class BehaviorMeasurer:
     def _measure_memory_utilization(self, agent: MockFlexibilityAgent) -> float:
         """Measure how well agent utilizes memory"""
         location_memories = len(agent.memory.location_memory.memories)
-        social_memories = sum(len(memories) for memories in
-                             agent.memory.social_memory.agent_memories.values())
+        social_memories = sum(
+            len(memories)
+            for memories in agent.memory.social_memory.agent_memories.values()
+        )
         total_memories = location_memories + social_memories
 
         # Normalize memory utilization (assuming 50 is a good target)
@@ -293,8 +329,10 @@ class BehaviorMeasurer:
 
     def _measure_social_success(self, agent: MockFlexibilityAgent) -> float:
         """Measure social interaction success rate"""
-        total_interactions = sum(len(memories) for memories in
-                               agent.memory.social_memory.agent_memories.values())
+        total_interactions = sum(
+            len(memories)
+            for memories in agent.memory.social_memory.agent_memories.values()
+        )
 
         if total_interactions == 0:
             return 0.5  # Neutral score for no interactions
@@ -319,8 +357,11 @@ class RegressionAnalyzer:
     def __init__(self, significance_threshold: float = 0.1):
         self.significance_threshold = significance_threshold
 
-    def compare_behaviors(self, baseline_stats: Dict[BehaviorMetric, Dict[str, float]],
-                         current_snapshot: BehaviorSnapshot) -> List[RegressionResult]:
+    def compare_behaviors(
+        self,
+        baseline_stats: Dict[BehaviorMetric, Dict[str, float]],
+        current_snapshot: BehaviorSnapshot,
+    ) -> List[RegressionResult]:
         """Compare current behavior against baseline and identify regressions"""
         regressions = []
 
@@ -337,9 +378,11 @@ class RegressionAnalyzer:
 
             # Calculate change percentage
             if baseline_mean != 0:
-                change_percentage = ((current_value - baseline_mean) / baseline_mean) * 100
+                change_percentage = (
+                    (current_value - baseline_mean) / baseline_mean
+                ) * 100
             else:
-                change_percentage = 0.0 if current_value == 0 else float('inf')
+                change_percentage = 0.0 if current_value == 0 else float("inf")
 
             # Calculate statistical significance
             if baseline_stdev > 0:
@@ -359,7 +402,9 @@ class RegressionAnalyzer:
                 change_percentage=change_percentage,
                 severity=severity,
                 significance=significance,
-                description=self._generate_description(metric, change_percentage, significance)
+                description=self._generate_description(
+                    metric, change_percentage, significance
+                ),
             )
 
             # Only include significant regressions
@@ -368,8 +413,9 @@ class RegressionAnalyzer:
 
         return regressions
 
-    def _determine_severity(self, metric: BehaviorMetric, change_percentage: float,
-                          significance: float) -> RegressionSeverity:
+    def _determine_severity(
+        self, metric: BehaviorMetric, change_percentage: float, significance: float
+    ) -> RegressionSeverity:
         """Determine regression severity based on metric, change, and significance"""
         abs_change = abs(change_percentage)
 
@@ -391,22 +437,33 @@ class RegressionAnalyzer:
 
         return RegressionSeverity.INFO
 
-    def _generate_description(self, metric: BehaviorMetric, change_percentage: float,
-                            significance: float) -> str:
+    def _generate_description(
+        self, metric: BehaviorMetric, change_percentage: float, significance: float
+    ) -> str:
         """Generate human-readable description of the regression"""
         direction = "increased" if change_percentage > 0 else "decreased"
         abs_change = abs(change_percentage)
 
-        significance_desc = "highly significant" if significance > 0.8 else \
-                           "significant" if significance > 0.5 else \
-                           "moderately significant"
+        significance_desc = (
+            "highly significant"
+            if significance > 0.8
+            else "significant"
+            if significance > 0.5
+            else "moderately significant"
+        )
 
-        return f"{metric.value} {direction} by {abs_change:.1f}% " \
-               f"({significance_desc} change)"
+        return (
+            f"{metric.value} {direction} by {abs_change:.1f}% "
+            f"({significance_desc} change)"
+        )
 
-    def generate_report(self, scenario: str, baseline_stats: Dict[BehaviorMetric, Dict[str, float]],
-                       current_snapshot: BehaviorSnapshot,
-                       baseline_timestamp: float) -> RegressionReport:
+    def generate_report(
+        self,
+        scenario: str,
+        baseline_stats: Dict[BehaviorMetric, Dict[str, float]],
+        current_snapshot: BehaviorSnapshot,
+        baseline_timestamp: float,
+    ) -> RegressionReport:
         """Generate comprehensive regression report"""
         regressions = self.compare_behaviors(baseline_stats, current_snapshot)
 
@@ -419,19 +476,33 @@ class RegressionAnalyzer:
                 RegressionSeverity.HIGH: 0.7,
                 RegressionSeverity.MEDIUM: 0.4,
                 RegressionSeverity.LOW: 0.2,
-                RegressionSeverity.INFO: 0.0
+                RegressionSeverity.INFO: 0.0,
             }
 
-            total_impact = sum(severity_weights[r.severity] * r.significance for r in regressions)
+            total_impact = sum(
+                severity_weights[r.severity] * r.significance for r in regressions
+            )
             max_possible_impact = len(regressions) * 1.0  # Maximum if all were critical
-            overall_score = max(0.0, 1.0 - (total_impact / max_possible_impact if max_possible_impact > 0 else 0))
+            overall_score = max(
+                0.0,
+                1.0
+                - (
+                    total_impact / max_possible_impact if max_possible_impact > 0 else 0
+                ),
+            )
 
         # Generate summary
-        critical_count = len([r for r in regressions if r.severity == RegressionSeverity.CRITICAL])
-        high_count = len([r for r in regressions if r.severity == RegressionSeverity.HIGH])
+        critical_count = len(
+            [r for r in regressions if r.severity == RegressionSeverity.CRITICAL]
+        )
+        high_count = len(
+            [r for r in regressions if r.severity == RegressionSeverity.HIGH]
+        )
 
         if critical_count > 0:
-            summary = f"CRITICAL: {critical_count} critical behavioral regressions detected"
+            summary = (
+                f"CRITICAL: {critical_count} critical behavioral regressions detected"
+            )
         elif high_count > 0:
             summary = f"HIGH: {high_count} high-severity behavioral changes detected"
         elif regressions:
@@ -450,35 +521,50 @@ class RegressionAnalyzer:
             regressions=regressions,
             overall_score=overall_score,
             summary=summary,
-            recommendations=recommendations
+            recommendations=recommendations,
         )
 
-    def _generate_recommendations(self, regressions: List[RegressionResult]) -> List[str]:
+    def _generate_recommendations(
+        self, regressions: List[RegressionResult]
+    ) -> List[str]:
         """Generate actionable recommendations based on regressions"""
         recommendations = []
 
-        critical_regressions = [r for r in regressions if r.severity == RegressionSeverity.CRITICAL]
+        critical_regressions = [
+            r for r in regressions if r.severity == RegressionSeverity.CRITICAL
+        ]
         if critical_regressions:
             recommendations.append(
                 "URGENT: Investigate critical behavioral changes before deployment"
             )
 
-        decision_time_issues = [r for r in regressions
-                              if r.metric == BehaviorMetric.DECISION_TIME and r.change_percentage > 20]
+        decision_time_issues = [
+            r
+            for r in regressions
+            if r.metric == BehaviorMetric.DECISION_TIME and r.change_percentage > 20
+        ]
         if decision_time_issues:
             recommendations.append(
                 "Performance: Decision-making speed has degraded significantly"
             )
 
-        efficiency_issues = [r for r in regressions
-                           if r.metric == BehaviorMetric.RESOURCE_EFFICIENCY and r.change_percentage < -15]
+        efficiency_issues = [
+            r
+            for r in regressions
+            if r.metric == BehaviorMetric.RESOURCE_EFFICIENCY
+            and r.change_percentage < -15
+        ]
         if efficiency_issues:
             recommendations.append(
                 "Efficiency: Resource utilization has become less efficient"
             )
 
-        consistency_issues = [r for r in regressions
-                            if r.metric == BehaviorMetric.BEHAVIOR_CONSISTENCY and r.change_percentage < -10]
+        consistency_issues = [
+            r
+            for r in regressions
+            if r.metric == BehaviorMetric.BEHAVIOR_CONSISTENCY
+            and r.change_percentage < -10
+        ]
         if consistency_issues:
             recommendations.append(
                 "Stability: Behavioral consistency has decreased, check for randomization issues"
@@ -495,8 +581,13 @@ class BehaviorRegressionTester:
         self.measurer = BehaviorMeasurer()
         self.analyzer = RegressionAnalyzer()
 
-    def create_baseline(self, scenario: str, version: str, agent_configs: List[Dict[str, Any]],
-                       context: Dict[str, Any]) -> bool:
+    def create_baseline(
+        self,
+        scenario: str,
+        version: str,
+        agent_configs: List[Dict[str, Any]],
+        context: Dict[str, Any],
+    ) -> bool:
         """Create a new behavioral baseline"""
         for config in agent_configs:
             agent = self._create_agent_from_config(config)
@@ -506,8 +597,13 @@ class BehaviorRegressionTester:
         self.baseline.save_baseline(scenario, version)
         return True
 
-    def test_regression(self, scenario: str, baseline_version: str,
-                       agent_config: Dict[str, Any], context: Dict[str, Any]) -> RegressionReport:
+    def test_regression(
+        self,
+        scenario: str,
+        baseline_version: str,
+        agent_config: Dict[str, Any],
+        context: Dict[str, Any],
+    ) -> RegressionReport:
         """Test for behavioral regressions against a baseline"""
         # Load baseline
         if not self.baseline.load_baseline(scenario, baseline_version):
@@ -534,7 +630,7 @@ class BehaviorRegressionTester:
         personality = Personality(
             combat=personality_config.get("combat", 5.0),
             exploration=personality_config.get("exploration", 5.0),
-            social=personality_config.get("social", 5.0)
+            social=personality_config.get("social", 5.0),
         )
 
         agent = MockFlexibilityAgent(config.get("agent_id", "test_agent"), personality)
@@ -549,9 +645,13 @@ class BehaviorRegressionTester:
 
         return agent
 
-    def run_regression_suite(self, scenarios: List[str], baseline_version: str,
-                           agent_configs: List[Dict[str, Any]],
-                           contexts: Dict[str, Dict[str, Any]]) -> List[RegressionReport]:
+    def run_regression_suite(
+        self,
+        scenarios: List[str],
+        baseline_version: str,
+        agent_configs: List[Dict[str, Any]],
+        contexts: Dict[str, Dict[str, Any]],
+    ) -> List[RegressionReport]:
         """Run comprehensive regression testing suite"""
         reports = []
 
@@ -559,7 +659,9 @@ class BehaviorRegressionTester:
             context = contexts.get(scenario, {})
             for agent_config in agent_configs:
                 try:
-                    report = self.test_regression(scenario, baseline_version, agent_config, context)
+                    report = self.test_regression(
+                        scenario, baseline_version, agent_config, context
+                    )
                     reports.append(report)
                 except Exception as e:
                     # Create error report
@@ -571,7 +673,7 @@ class BehaviorRegressionTester:
                         regressions=[],
                         overall_score=0.0,
                         summary=f"ERROR: {str(e)}",
-                        recommendations=[f"Fix error in scenario {scenario}"]
+                        recommendations=[f"Fix error in scenario {scenario}"],
                     )
                     reports.append(error_report)
 
@@ -589,20 +691,20 @@ def create_standard_baseline(version: str = "1.0.0") -> bool:
             "agent_id": "balanced_agent",
             "personality": {"combat": 5.0, "exploration": 5.0, "social": 5.0},
             "resources": {"wood": 10, "stone": 5, "food": 20},
-            "health": 100.0
+            "health": 100.0,
         },
         {
             "agent_id": "combat_focused",
             "personality": {"combat": 8.0, "exploration": 3.0, "social": 4.0},
             "resources": {"wood": 8, "stone": 8, "food": 15},
-            "health": 100.0
+            "health": 100.0,
         },
         {
             "agent_id": "explorer_agent",
             "personality": {"combat": 3.0, "exploration": 9.0, "social": 3.0},
             "resources": {"wood": 12, "stone": 3, "food": 25},
-            "health": 100.0
-        }
+            "health": 100.0,
+        },
     ]
 
     # Standard scenarios
@@ -610,7 +712,7 @@ def create_standard_baseline(version: str = "1.0.0") -> bool:
         "resource_gathering",
         "exploration",
         "social_interaction",
-        "threat_response"
+        "threat_response",
     ]
 
     for scenario in scenarios:
@@ -620,8 +722,9 @@ def create_standard_baseline(version: str = "1.0.0") -> bool:
     return True
 
 
-def quick_regression_test(scenario: str = "resource_gathering",
-                         baseline_version: str = "1.0.0") -> RegressionReport:
+def quick_regression_test(
+    scenario: str = "resource_gathering", baseline_version: str = "1.0.0"
+) -> RegressionReport:
     """Run a quick regression test with default settings"""
     tester = BehaviorRegressionTester()
 
@@ -629,7 +732,7 @@ def quick_regression_test(scenario: str = "resource_gathering",
         "agent_id": "quick_test_agent",
         "personality": {"combat": 5.0, "exploration": 5.0, "social": 5.0},
         "resources": {"wood": 10, "stone": 5, "food": 20},
-        "health": 100.0
+        "health": 100.0,
     }
 
     context = {"scenario_type": scenario, "difficulty": "standard"}

@@ -31,13 +31,16 @@ class ExplorerAgent(BaseAgent):
     The agent maintains exploration history and can dynamically switch
     between exploration strategies based on environmental conditions.
     """
+
     def __init__(self, agent_id: str, x: float, y: float):
         super().__init__(agent_id, x, y, "explorer")
 
         # Explorer configuration
         self.explored_tiles: Set[Tuple[int, int]] = set()
         self.exploration_radius = 30.0
-        self.exploration_mode = "spiral"  # Can be "spiral", "random", "frontier", "fishing"
+        self.exploration_mode = (
+            "spiral"  # Can be "spiral", "random", "frontier", "fishing"
+        )
         self.home_base = (x, y)
         self.exploration_history = []
         self.max_history = 100
@@ -76,12 +79,18 @@ class ExplorerAgent(BaseAgent):
                 exploration_mode=self.exploration_mode,
             )
             if success:
-                tree_type = "custom" if self.exploration_mode == "fishing" else "provider"
-                logger.info(f"Explorer {self.id[:8]} initialized with {tree_type} provider behavior tree")
+                tree_type = (
+                    "custom" if self.exploration_mode == "fishing" else "provider"
+                )
+                logger.info(
+                    f"Explorer {self.id[:8]} initialized with {tree_type} provider behavior tree"
+                )
                 self.behavior_tree_initialized = True
                 return
             else:
-                logger.warning(f"Explorer {self.id[:8]} provider failed, falling back to TreeFactory")
+                logger.warning(
+                    f"Explorer {self.id[:8]} provider failed, falling back to TreeFactory"
+                )
 
         # Fallback to TreeFactory
         tree = TreeFactory.create_tree_for_agent_type(
@@ -94,7 +103,9 @@ class ExplorerAgent(BaseAgent):
         if tree:
             self.set_behavior_tree(tree)
             tree_type = "fishing" if self.exploration_mode == "fishing" else "standard"
-            logger.info(f"Explorer {self.id[:8]} initialized with {tree_type} TreeFactory behavior tree")
+            logger.info(
+                f"Explorer {self.id[:8]} initialized with {tree_type} TreeFactory behavior tree"
+            )
             self.behavior_tree_initialized = True
         else:
             raise Exception(
@@ -106,19 +117,28 @@ class ExplorerAgent(BaseAgent):
         super().receive_server_data(server_data)
 
         # Check if server data contains exploration mode
-        if 'exploration_mode' in server_data:
-            self.exploration_mode = server_data['exploration_mode']
-            logger.info(f"Explorer {self.id[:8]} using exploration mode: {self.exploration_mode}")
+        if "exploration_mode" in server_data:
+            self.exploration_mode = server_data["exploration_mode"]
+            logger.info(
+                f"Explorer {self.id[:8]} using exploration mode: {self.exploration_mode}"
+            )
 
         # Also check for specialization which might indicate behavior mode
-        if 'specialization' in server_data:
-            specialization = server_data['specialization']
-            if specialization == "wood_harvesting" and self.exploration_mode == "frontier":
+        if "specialization" in server_data:
+            specialization = server_data["specialization"]
+            if (
+                specialization == "wood_harvesting"
+                and self.exploration_mode == "frontier"
+            ):
                 self.exploration_mode = "wood_harvesting"
-                logger.info(f"Explorer {self.id[:8]} switching to wood_harvesting mode based on specialization")
+                logger.info(
+                    f"Explorer {self.id[:8]} switching to wood_harvesting mode based on specialization"
+                )
             elif specialization == "fishing" and self.exploration_mode == "frontier":
                 self.exploration_mode = "fishing"
-                logger.info(f"Explorer {self.id[:8]} switching to fishing mode based on specialization")
+                logger.info(
+                    f"Explorer {self.id[:8]} switching to fishing mode based on specialization"
+                )
 
         # Initialize behavior tree now that we have server data
         if not self.behavior_tree_initialized:

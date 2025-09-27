@@ -15,33 +15,40 @@ How it works:
 This eliminates the common "distance to target: 4.47 > 1.5 limit" errors.
 """
 
-import time
-import math
 import logging
+import math
+import time
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple
 
-from .base import ActionNode, NodeStatus
 from shared.action_constants import DISTANCES, THRESHOLDS
 from shared.position_authority import get_server_position_for_action
 from world.tiles import TileType
 
+from .base import ActionNode, NodeStatus
+
 try:
-    from debug_tracker import track_resource_event, track_agent_position
+    from debug_tracker import track_agent_position, track_resource_event
 except ImportError:
-    def track_resource_event(*args, **kwargs): pass
-    def track_agent_position(*args, **kwargs): pass
+
+    def track_resource_event(*args, **kwargs):
+        pass
+
+    def track_agent_position(*args, **kwargs):
+        pass
+
 
 logger = logging.getLogger(__name__)
 
 
 class ActionPhase(Enum):
     """Phases of two-phase action execution"""
-    PREPARATION = "preparation"      # Moving to optimal position
-    READY = "ready"                 # In position, ready to act
-    EXECUTING = "executing"         # Performing the action
-    COMPLETED = "completed"         # Action finished
+
+    PREPARATION = "preparation"  # Moving to optimal position
+    READY = "ready"  # In position, ready to act
+    EXECUTING = "executing"  # Performing the action
+    COMPLETED = "completed"  # Action finished
 
 
 class TwoPhaseActionNode(ActionNode, ABC):
@@ -55,10 +62,17 @@ class TwoPhaseActionNode(ActionNode, ABC):
     - get_action_name()
     """
 
-    def __init__(self, name: str, required_distance: float = 1.0, positioning_tolerance: float = None):
+    def __init__(
+        self,
+        name: str,
+        required_distance: float = 1.0,
+        positioning_tolerance: float = None,
+    ):
         super().__init__(name)
         self.required_distance = required_distance
-        self.positioning_tolerance = positioning_tolerance or THRESHOLDS.POSITIONING_TOLERANCE
+        self.positioning_tolerance = (
+            positioning_tolerance or THRESHOLDS.POSITIONING_TOLERANCE
+        )
 
         # Use centralized validation buffer
         self.validation_buffer = THRESHOLDS.VALIDATION_BUFFER
@@ -72,16 +86,20 @@ class TwoPhaseActionNode(ActionNode, ABC):
 
         # Timeouts
         self.positioning_timeout = 10.0  # Max time to get into position
-        self.action_timeout = 8.0        # Max time for action execution
+        self.action_timeout = 8.0  # Max time for action execution
 
     def start_action(self, agent) -> bool:
         """Initialize the two-phase action sequence"""
-        logger.info(f"🎯 Starting two-phase {self.get_action_name()}: Agent {agent.id[:8]}")
+        logger.info(
+            f"🎯 Starting two-phase {self.get_action_name()}: Agent {agent.id[:8]}"
+        )
 
         # Phase 1: Find target and calculate positioning
         target_pos = self.find_action_target(agent)
         if not target_pos:
-            logger.warning(f"{self.get_action_name()}: Agent {agent.id[:8]} - no valid target found")
+            logger.warning(
+                f"{self.get_action_name()}: Agent {agent.id[:8]} - no valid target found"
+            )
             return False
 
         self.target_position = target_pos
@@ -89,7 +107,9 @@ class TwoPhaseActionNode(ActionNode, ABC):
         # Calculate where agent should stand to perform action
         self.optimal_agent_position = self.calculate_optimal_position(agent, target_pos)
         if not self.optimal_agent_position:
-            logger.warning(f"{self.get_action_name()}: Agent {agent.id[:8]} - no valid position found")
+            logger.warning(
+                f"{self.get_action_name()}: Agent {agent.id[:8]} - no valid position found"
+            )
             return False
 
         # Check if already in optimal position using server position for consistency
@@ -103,7 +123,9 @@ class TwoPhaseActionNode(ActionNode, ABC):
         if distance_to_optimal <= self.positioning_tolerance:
             # Already positioned - check if can perform action
             if self._validate_action_position(agent):
-                logger.info(f"✅ {self.get_action_name()}: Agent {agent.id[:8]} already optimally positioned")
+                logger.info(
+                    f"✅ {self.get_action_name()}: Agent {agent.id[:8]} already optimally positioned"
+                )
                 self.phase = ActionPhase.READY
                 self.phase_start_time = time.time()
                 return True
@@ -112,14 +134,18 @@ class TwoPhaseActionNode(ActionNode, ABC):
         self.phase = ActionPhase.PREPARATION
         self.phase_start_time = time.time()
 
-        logger.info(f"🚶 {self.get_action_name()}: Agent {agent.id[:8]} moving to optimal position "
-                   f"({self.optimal_agent_position[0]:.2f}, {self.optimal_agent_position[1]:.2f})")
+        logger.info(
+            f"🚶 {self.get_action_name()}: Agent {agent.id[:8]} moving to optimal position "
+            f"({self.optimal_agent_position[0]:.2f}, {self.optimal_agent_position[1]:.2f})"
+        )
 
         # Start movement to optimal position
         self._start_positioning_movement(agent)
 
         # Track positioning attempt
-        track_agent_position(agent.id, agent.x, agent.y, f"start_{self.get_action_name()}_positioning")
+        track_agent_position(
+            agent.id, agent.x, agent.y, f"start_{self.get_action_name()}_positioning"
+        )
 
         return True
 
@@ -143,7 +169,9 @@ class TwoPhaseActionNode(ActionNode, ABC):
 
         # Check positioning timeout
         if current_time - self.phase_start_time > self.positioning_timeout:
-            logger.warning(f"⏰ {self.get_action_name()}: Agent {agent.id[:8]} positioning timeout")
+            logger.warning(
+                f"⏰ {self.get_action_name()}: Agent {agent.id[:8]} positioning timeout"
+            )
             return NodeStatus.FAILURE
 
         # Check if reached optimal position using server position for consistency
@@ -156,12 +184,16 @@ class TwoPhaseActionNode(ActionNode, ABC):
 
         if distance_to_optimal <= self.positioning_tolerance:
             # Reached optimal position - validate action capability
-            logger.info(f"🎯 {self.get_action_name()}: Agent {agent.id[:8]} reached optimal position "
-                       f"(distance to optimal: {distance_to_optimal:.3f})")
+            logger.info(
+                f"🎯 {self.get_action_name()}: Agent {agent.id[:8]} reached optimal position "
+                f"(distance to optimal: {distance_to_optimal:.3f})"
+            )
 
             if self._validate_action_position(agent):
-                logger.info(f"✅ {self.get_action_name()}: Agent {agent.id[:8]} positioned successfully "
-                           f"(distance to optimal: {distance_to_optimal:.3f})")
+                logger.info(
+                    f"✅ {self.get_action_name()}: Agent {agent.id[:8]} positioned successfully "
+                    f"(distance to optimal: {distance_to_optimal:.3f})"
+                )
 
                 # Stop movement
                 agent.stop_movement()
@@ -171,14 +203,22 @@ class TwoPhaseActionNode(ActionNode, ABC):
                 self.phase_start_time = current_time
 
                 # Track successful positioning
-                track_agent_position(agent.id, agent.x, agent.y, f"{self.get_action_name()}_positioned")
+                track_agent_position(
+                    agent.id, agent.x, agent.y, f"{self.get_action_name()}_positioned"
+                )
 
                 return NodeStatus.RUNNING
             else:
-                logger.warning(f"❌ {self.get_action_name()}: Agent {agent.id[:8]} at optimal position but action validation failed")
-                logger.info(f"   Optimal position was ({self.optimal_agent_position[0]:.3f}, {self.optimal_agent_position[1]:.3f})")
+                logger.warning(
+                    f"❌ {self.get_action_name()}: Agent {agent.id[:8]} at optimal position but action validation failed"
+                )
+                logger.info(
+                    f"   Optimal position was ({self.optimal_agent_position[0]:.3f}, {self.optimal_agent_position[1]:.3f})"
+                )
                 logger.info(f"   Agent actually at ({agent.x:.3f}, {agent.y:.3f})")
-                logger.info(f"   Target is at ({self.target_position[0]:.3f}, {self.target_position[1]:.3f})")
+                logger.info(
+                    f"   Target is at ({self.target_position[0]:.3f}, {self.target_position[1]:.3f})"
+                )
                 return NodeStatus.FAILURE
 
         # Still moving to position
@@ -189,15 +229,21 @@ class TwoPhaseActionNode(ActionNode, ABC):
 
         # Validate position one more time before execution
         if not self._validate_action_position(agent):
-            logger.warning(f"❌ {self.get_action_name()}: Agent {agent.id[:8]} lost valid position")
+            logger.warning(
+                f"❌ {self.get_action_name()}: Agent {agent.id[:8]} lost valid position"
+            )
             return NodeStatus.FAILURE
 
         # Execute the action
-        logger.info(f"🎬 {self.get_action_name()}: Agent {agent.id[:8]} executing action")
+        logger.info(
+            f"🎬 {self.get_action_name()}: Agent {agent.id[:8]} executing action"
+        )
 
         success = self.execute_action(agent, self.target_position)
         if not success:
-            logger.warning(f"❌ {self.get_action_name()}: Agent {agent.id[:8]} action execution failed")
+            logger.warning(
+                f"❌ {self.get_action_name()}: Agent {agent.id[:8]} action execution failed"
+            )
             return NodeStatus.FAILURE
 
         # Transition to execution phase
@@ -206,9 +252,14 @@ class TwoPhaseActionNode(ActionNode, ABC):
         self.phase_start_time = current_time
 
         # Track action execution
-        track_resource_event(agent.id, f"{self.get_action_name()}_execution",
-                           self.get_resource_type(), self.target_position,
-                           (agent.x, agent.y), self.name)
+        track_resource_event(
+            agent.id,
+            f"{self.get_action_name()}_execution",
+            self.get_resource_type(),
+            self.target_position,
+            (agent.x, agent.y),
+            self.name,
+        )
 
         return NodeStatus.RUNNING
 
@@ -220,13 +271,17 @@ class TwoPhaseActionNode(ActionNode, ABC):
 
         # Check action timeout
         if current_time - self.action_start_time > self.action_timeout:
-            logger.info(f"✅ {self.get_action_name()}: Agent {agent.id[:8]} action completed (timeout)")
+            logger.info(
+                f"✅ {self.get_action_name()}: Agent {agent.id[:8]} action completed (timeout)"
+            )
             self.phase = ActionPhase.COMPLETED
             return NodeStatus.SUCCESS
 
         # Check if action should complete early (subclass can override)
         if self.should_complete_action(agent, current_time - self.action_start_time):
-            logger.info(f"✅ {self.get_action_name()}: Agent {agent.id[:8]} action completed")
+            logger.info(
+                f"✅ {self.get_action_name()}: Agent {agent.id[:8]} action completed"
+            )
             self.phase = ActionPhase.COMPLETED
             return NodeStatus.SUCCESS
 
@@ -256,7 +311,9 @@ class TwoPhaseActionNode(ActionNode, ABC):
         pass
 
     @abstractmethod
-    def calculate_optimal_position(self, agent, target_pos: Tuple[float, float]) -> Optional[Tuple[float, float]]:
+    def calculate_optimal_position(
+        self, agent, target_pos: Tuple[float, float]
+    ) -> Optional[Tuple[float, float]]:
         """Calculate where the agent should stand to perform the action"""
         pass
 
@@ -279,9 +336,11 @@ class TwoPhaseActionNode(ActionNode, ABC):
 
     def _start_positioning_movement(self, agent):
         """Start movement toward optimal position"""
-        if hasattr(agent, 'find_path_to'):
+        if hasattr(agent, "find_path_to"):
             # Try pathfinding first
-            if agent.find_path_to(self.optimal_agent_position[0], self.optimal_agent_position[1]):
+            if agent.find_path_to(
+                self.optimal_agent_position[0], self.optimal_agent_position[1]
+            ):
                 return
 
         # Fallback to direct movement
@@ -297,7 +356,9 @@ class TwoPhaseActionNode(ActionNode, ABC):
     def _validate_action_position(self, agent) -> bool:
         """Check if agent is properly positioned for action using SERVER AUTHORITY"""
         if not self.target_position:
-            logger.warning(f"❌ {self.get_action_name()}: Agent {agent.id[:8]} validation failed - no target position")
+            logger.warning(
+                f"❌ {self.get_action_name()}: Agent {agent.id[:8]} validation failed - no target position"
+            )
             return False
 
         # Get server position for better accuracy
@@ -305,36 +366,43 @@ class TwoPhaseActionNode(ActionNode, ABC):
         if server_pos:
             # Use server-authoritative position for validation
             agent_pos = server_pos
-            logger.info(f"✅ {self.get_action_name()}: Agent {agent.id[:8]} CLIENT validation success - using server position ({server_pos[0]:.3f}, {server_pos[1]:.3f})")
+            logger.info(
+                f"✅ {self.get_action_name()}: Agent {agent.id[:8]} CLIENT validation success - using server position ({server_pos[0]:.3f}, {server_pos[1]:.3f})"
+            )
         else:
             # Fallback to client position with warning
             agent_pos = (agent.x, agent.y)
-            logger.warning(f"⚠️ {self.get_action_name()}: Server query failed, using client validation")
+            logger.warning(
+                f"⚠️ {self.get_action_name()}: Server query failed, using client validation"
+            )
 
         client_distance = self._distance(agent_pos, self.target_position)
         is_valid = client_distance <= (self.required_distance + 0.1)  # Add small buffer
 
-        logger.info(f"✅ {self.get_action_name()}: Agent {agent.id[:8]} CLIENT validation {'success' if is_valid else 'failed'} - "
-                   f"client distance {client_distance:.3f} {'≤' if is_valid else '>'} required {self.required_distance:.3f}")
+        logger.info(
+            f"✅ {self.get_action_name()}: Agent {agent.id[:8]} CLIENT validation {'success' if is_valid else 'failed'} - "
+            f"client distance {client_distance:.3f} {'≤' if is_valid else '>'} required {self.required_distance:.3f}"
+        )
 
         return is_valid
 
     def _query_server_for_validation(self, agent) -> Optional[Dict[str, Any]]:
         """Query server for authoritative action validation"""
-        if not hasattr(agent, 'action_manager') or not agent.action_manager:
+        if not hasattr(agent, "action_manager") or not agent.action_manager:
             return None
 
         try:
             # Create validation query
-            from shared.server_queries import create_action_validation_query
             import uuid
+
+            from shared.server_queries import create_action_validation_query
 
             query = create_action_validation_query(
                 query_id=str(uuid.uuid4())[:8],
                 agent_id=agent.id,
                 action_name=self.get_action_name(),
                 target_x=self.target_position[0],
-                target_y=self.target_position[1]
+                target_y=self.target_position[1],
             )
 
             # TODO: Implement server query mechanism
@@ -352,16 +420,26 @@ class TwoPhaseActionNode(ActionNode, ABC):
         is_valid = distance <= (self.required_distance + self.validation_buffer)
 
         # DEBUG: Log client's view of agent position
-        logger.debug(f"🔍 CLIENT position for {agent.id[:8]}: ({agent.x:.3f}, {agent.y:.3f})")
-        logger.debug(f"🔍 CLIENT calculating distance to target ({self.target_position[0]:.3f}, {self.target_position[1]:.3f}): {distance:.3f}")
+        logger.debug(
+            f"🔍 CLIENT position for {agent.id[:8]}: ({agent.x:.3f}, {agent.y:.3f})"
+        )
+        logger.debug(
+            f"🔍 CLIENT calculating distance to target ({self.target_position[0]:.3f}, {self.target_position[1]:.3f}): {distance:.3f}"
+        )
 
         if not is_valid:
-            logger.warning(f"❌ {self.get_action_name()}: Agent {agent.id[:8]} CLIENT validation failed - "
-                          f"client distance {distance:.3f} > required {self.required_distance:.3f}")
-            logger.info(f"   Agent at ({agent.x:.3f}, {agent.y:.3f}), target at ({self.target_position[0]:.3f}, {self.target_position[1]:.3f})")
+            logger.warning(
+                f"❌ {self.get_action_name()}: Agent {agent.id[:8]} CLIENT validation failed - "
+                f"client distance {distance:.3f} > required {self.required_distance:.3f}"
+            )
+            logger.info(
+                f"   Agent at ({agent.x:.3f}, {agent.y:.3f}), target at ({self.target_position[0]:.3f}, {self.target_position[1]:.3f})"
+            )
         else:
-            logger.info(f"✅ {self.get_action_name()}: Agent {agent.id[:8]} CLIENT validation success - "
-                       f"client distance {distance:.3f} ≤ required {self.required_distance:.3f}")
+            logger.info(
+                f"✅ {self.get_action_name()}: Agent {agent.id[:8]} CLIENT validation success - "
+                f"client distance {distance:.3f} ≤ required {self.required_distance:.3f}"
+            )
 
         return is_valid
 
@@ -383,7 +461,13 @@ class ResourceActionNode(TwoPhaseActionNode, ABC):
     Provides common functionality for finding and approaching resources.
     """
 
-    def __init__(self, name: str, resource_tile_type, max_search_distance: float = 5.0, required_distance: float = None):
+    def __init__(
+        self,
+        name: str,
+        resource_tile_type,
+        max_search_distance: float = 5.0,
+        required_distance: float = None,
+    ):
         # Use centralized distance constants if not specified
         if required_distance is None:
             if resource_tile_type == TileType.WATER:
@@ -399,12 +483,12 @@ class ResourceActionNode(TwoPhaseActionNode, ABC):
 
     def find_action_target(self, agent) -> Optional[Tuple[float, float]]:
         """Find the nearest resource tile of the specified type"""
-        if not hasattr(agent, 'agent_map') or not agent.agent_map:
+        if not hasattr(agent, "agent_map") or not agent.agent_map:
             return None
 
         # Search for nearest resource tile
         nearest_resource = None
-        nearest_distance = float('inf')
+        nearest_distance = float("inf")
 
         agent_x, agent_y = int(agent.x), int(agent.y)
         search_radius = int(self.max_search_distance)
@@ -420,24 +504,35 @@ class ResourceActionNode(TwoPhaseActionNode, ABC):
                         # Calculate real distance to tile center
                         tile_center_x = check_x + 0.5
                         tile_center_y = check_y + 0.5
-                        distance = self._distance((agent.x, agent.y), (tile_center_x, tile_center_y))
+                        distance = self._distance(
+                            (agent.x, agent.y), (tile_center_x, tile_center_y)
+                        )
 
                         if distance < nearest_distance:
                             nearest_distance = distance
                             nearest_resource = (tile_center_x, tile_center_y)
 
         if nearest_resource:
-            logger.info(f"🎯 {self.get_action_name()}: Agent {agent.id[:8]} found target at "
-                       f"({nearest_resource[0]:.1f}, {nearest_resource[1]:.1f}) distance {nearest_distance:.2f}")
+            logger.info(
+                f"🎯 {self.get_action_name()}: Agent {agent.id[:8]} found target at "
+                f"({nearest_resource[0]:.1f}, {nearest_resource[1]:.1f}) distance {nearest_distance:.2f}"
+            )
 
             # Track resource discovery
-            track_resource_event(agent.id, "discovered", self.get_resource_type(),
-                               (int(nearest_resource[0]), int(nearest_resource[1])),
-                               (agent.x, agent.y), self.name)
+            track_resource_event(
+                agent.id,
+                "discovered",
+                self.get_resource_type(),
+                (int(nearest_resource[0]), int(nearest_resource[1])),
+                (agent.x, agent.y),
+                self.name,
+            )
 
         return nearest_resource
 
-    def calculate_optimal_position(self, agent, target_pos: Tuple[float, float]) -> Optional[Tuple[float, float]]:
+    def calculate_optimal_position(
+        self, agent, target_pos: Tuple[float, float]
+    ) -> Optional[Tuple[float, float]]:
         """Calculate optimal position for resource gathering"""
         target_x, target_y = target_pos
         agent_x, agent_y = agent.x, agent.y
@@ -467,7 +562,9 @@ class ResourceActionNode(TwoPhaseActionNode, ABC):
 
         # Try alternative positions around the target
         for angle_offset in [30, -30, 60, -60, 90, -90]:
-            angle = math.degrees(math.atan2(normalized_dy, normalized_dx)) + angle_offset
+            angle = (
+                math.degrees(math.atan2(normalized_dy, normalized_dx)) + angle_offset
+            )
             rad = math.radians(angle)
 
             alt_x = target_x + math.cos(rad) * self.required_distance
@@ -481,7 +578,7 @@ class ResourceActionNode(TwoPhaseActionNode, ABC):
 
     def _is_position_valid(self, agent, x: float, y: float) -> bool:
         """Check if a position is valid for the agent to stand"""
-        if not hasattr(agent, 'agent_map') or not agent.agent_map:
+        if not hasattr(agent, "agent_map") or not agent.agent_map:
             return True
 
         tile_x, tile_y = int(x), int(y)
@@ -493,4 +590,5 @@ class ResourceActionNode(TwoPhaseActionNode, ABC):
 
         # Position is valid if it's walkable terrain
         from world.tiles import TileType
+
         return tile_type not in [TileType.WATER, TileType.WALL, TileType.LAVA]

@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 class AgentState(Enum):
     """Simple agent states for server-side AI"""
+
     IDLE = "idle"
     EXPLORING = "exploring"
     MOVING_TO_TARGET = "moving_to_target"
@@ -360,7 +361,9 @@ class SimplifiedAI:
 
         return None
 
-    def _find_nearest_resource(self, agent) -> Optional[Tuple[str, Tuple[float, float]]]:
+    def _find_nearest_resource(
+        self, agent
+    ) -> Optional[Tuple[str, Tuple[float, float]]]:
         """Find nearest resource (water or wood) within range"""
         agent_x, agent_y = agent.x, agent.y
         search_radius = int(self.resource_seeking_range)
@@ -371,13 +374,16 @@ class SimplifiedAI:
                 check_y = int(agent_y) + dy
 
                 # Check bounds
-                if (0 <= check_x < self.world.world_map.width and
-                    0 <= check_y < self.world.world_map.height):
-
+                if (
+                    0 <= check_x < self.world.world_map.width
+                    and 0 <= check_y < self.world.world_map.height
+                ):
                     tile_type = self.world.world_map.get_tile(check_x, check_y)
 
                     # Check distance
-                    distance = ((check_x - agent_x) ** 2 + (check_y - agent_y) ** 2) ** 0.5
+                    distance = (
+                        (check_x - agent_x) ** 2 + (check_y - agent_y) ** 2
+                    ) ** 0.5
                     if distance <= self.resource_seeking_range:
                         if tile_type.name == "WATER":
                             return ("water", (check_x + 0.5, check_y + 0.5))
@@ -397,9 +403,11 @@ class SimplifiedAI:
         """Find nearest enemy agent"""
         enemies = []
         for other_agent in self.world.get_all_agents():
-            if (other_agent.id != agent.id and
-                other_agent.is_alive and
-                other_agent.agent_type != agent.agent_type):
+            if (
+                other_agent.id != agent.id
+                and other_agent.is_alive
+                and other_agent.agent_type != agent.agent_type
+            ):
                 enemies.append(other_agent)
 
         if not enemies:
@@ -407,7 +415,7 @@ class SimplifiedAI:
 
         # Find closest enemy
         closest_enemy = None
-        closest_distance = float('inf')
+        closest_distance = float("inf")
 
         for enemy in enemies:
             distance = self._get_distance(agent, enemy)
@@ -443,7 +451,7 @@ class SimplifiedAI:
         distance = (dx * dx + dy * dy) ** 0.5
 
         if distance > 0:
-            speed = getattr(agent, 'speed', 3.0)
+            speed = getattr(agent, "speed", 3.0)
             agent.velocity_x = (dx / distance) * speed
             agent.velocity_y = (dy / distance) * speed
 
@@ -477,5 +485,5 @@ class SimplifiedAI:
             "state": self.agent_states.get(agent_id, "unknown").value,
             "has_target": agent_id in self.agent_targets,
             "target": self.agent_targets.get(agent_id),
-            "last_timer": self.agent_timers.get(agent_id, 0)
+            "last_timer": self.agent_timers.get(agent_id, 0),
         }

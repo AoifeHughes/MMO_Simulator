@@ -6,12 +6,13 @@ compatibility with the existing synchronous behavior tree system.
 """
 
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
 
+from shared.action_constants import DISTANCES
 from shared.actions import ActionType
 from world.tiles import TileType
-from .base import ConditionNode, ActionNode, NodeStatus
-from shared.action_constants import DISTANCES
+
+from .base import ActionNode, ConditionNode, NodeStatus
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,9 @@ class FishingRodRequirement(ConditionNode):
     def check_condition(self, agent) -> bool:
         """Check if agent has fishing rod"""
         has_rod = agent.agent_type == "explorer"
-        logger.info(f"🎣 FishingRod check: Agent {agent.id[:8]} type '{agent.agent_type}' has rod: {has_rod}")
+        logger.info(
+            f"🎣 FishingRod check: Agent {agent.id[:8]} type '{agent.agent_type}' has rod: {has_rod}"
+        )
         return has_rod
 
 
@@ -40,7 +43,7 @@ class WaterNearbyCondition(ConditionNode):
 
     def check_condition(self, agent) -> bool:
         """Check for nearby water using local agent map with better logging"""
-        if not hasattr(agent, 'agent_map') or not agent.agent_map:
+        if not hasattr(agent, "agent_map") or not agent.agent_map:
             logger.debug(f"WaterNearby: Agent {agent.id[:8]} has no agent_map")
             return False
 
@@ -50,7 +53,7 @@ class WaterNearbyCondition(ConditionNode):
         # Count known tiles to check if we have sufficient terrain data
         known_tiles_count = 0
         water_found = False
-        closest_distance = float('inf')
+        closest_distance = float("inf")
 
         for dy in range(-search_radius, search_radius + 1):
             for dx in range(-search_radius, search_radius + 1):
@@ -64,7 +67,10 @@ class WaterNearbyCondition(ConditionNode):
                         # Calculate real distance to water tile center
                         water_center_x = check_x + 0.5
                         water_center_y = check_y + 0.5
-                        real_distance = ((water_center_x - agent_x) ** 2 + (water_center_y - agent_y) ** 2) ** 0.5
+                        real_distance = (
+                            (water_center_x - agent_x) ** 2
+                            + (water_center_y - agent_y) ** 2
+                        ) ** 0.5
 
                         if real_distance <= self.max_distance:
                             water_found = True
@@ -76,16 +82,20 @@ class WaterNearbyCondition(ConditionNode):
         terrain_coverage = known_tiles_count / total_search_tiles
 
         if terrain_coverage < 0.3:  # Need at least 30% terrain coverage
-            logger.debug(f"🎣 WaterNearby: Agent {agent.id[:8]} insufficient terrain data ({terrain_coverage:.1%} coverage), deferring fishing")
+            logger.debug(
+                f"🎣 WaterNearby: Agent {agent.id[:8]} insufficient terrain data ({terrain_coverage:.1%} coverage), deferring fishing"
+            )
             return False
 
         # Only log 'inf' if we have sufficient terrain data but no water found
-        if closest_distance == float('inf'):
+        if closest_distance == float("inf"):
             closest_distance_log = "none found"
         else:
             closest_distance_log = f"{closest_distance:.2f}"
 
-        logger.info(f"🎣 WaterNearby: Agent {agent.id[:8]} at ({agent_x:.2f}, {agent_y:.2f}) water within {self.max_distance}: {water_found} (closest: {closest_distance_log}, terrain: {terrain_coverage:.1%})")
+        logger.info(
+            f"🎣 WaterNearby: Agent {agent.id[:8]} at ({agent_x:.2f}, {agent_y:.2f}) water within {self.max_distance}: {water_found} (closest: {closest_distance_log}, terrain: {terrain_coverage:.1%})"
+        )
         return water_found
 
 
@@ -107,6 +117,7 @@ class FishingAction(ActionNode):
 
         self.is_fishing = True
         import time
+
         self.fishing_start_time = time.time()
         logger.info(f"🎣 Agent {agent.id[:8]} started fishing")
 
@@ -121,6 +132,7 @@ class FishingAction(ActionNode):
 
         # Continue fishing (let server handle the actual fishing logic)
         import time
+
         elapsed = time.time() - self.fishing_start_time
 
         # Timeout after 10 seconds
@@ -172,30 +184,34 @@ class FishingAction(ActionNode):
 
     def _send_fishing_action(self, agent):
         """Send fishing action to server using existing action manager"""
-        if hasattr(agent, 'action_manager') and agent.action_manager:
+        if hasattr(agent, "action_manager") and agent.action_manager:
             import asyncio
+
             try:
                 # Find nearest water tile
                 water_pos = self._find_nearest_water(agent)
                 if water_pos:
-                    fish_params = {
-                        'target_x': water_pos[0],
-                        'target_y': water_pos[1]
-                    }
-                    asyncio.create_task(agent.action_manager.request_action(ActionType.FISH, fish_params))
-                    logger.debug(f"🎣 Agent {agent.id[:8]} sent fishing request to server")
+                    fish_params = {"target_x": water_pos[0], "target_y": water_pos[1]}
+                    asyncio.create_task(
+                        agent.action_manager.request_action(
+                            ActionType.FISH, fish_params
+                        )
+                    )
+                    logger.debug(
+                        f"🎣 Agent {agent.id[:8]} sent fishing request to server"
+                    )
             except Exception as e:
                 logger.error(f"🎣 Failed to send fishing action for {agent.id[:8]}: {e}")
 
     def _find_nearest_water(self, agent) -> tuple:
         """Find nearest water tile"""
-        if not hasattr(agent, 'agent_map') or not agent.agent_map:
+        if not hasattr(agent, "agent_map") or not agent.agent_map:
             return None
 
         agent_x, agent_y = agent.x, agent.y
         search_radius = int(self.max_distance) + 1
         closest_water = None
-        closest_distance = float('inf')
+        closest_distance = float("inf")
         known_tiles_count = 0
 
         for dy in range(-search_radius, search_radius + 1):
@@ -209,9 +225,15 @@ class FishingAction(ActionNode):
                     if tile_type == TileType.WATER:
                         water_center_x = check_x + 0.5
                         water_center_y = check_y + 0.5
-                        distance = ((water_center_x - agent_x) ** 2 + (water_center_y - agent_y) ** 2) ** 0.5
+                        distance = (
+                            (water_center_x - agent_x) ** 2
+                            + (water_center_y - agent_y) ** 2
+                        ) ** 0.5
 
-                        if distance <= self.max_distance and distance < closest_distance:
+                        if (
+                            distance <= self.max_distance
+                            and distance < closest_distance
+                        ):
                             closest_distance = distance
                             closest_water = (water_center_x, water_center_y)
 
@@ -234,14 +256,17 @@ class FishingAction(ActionNode):
 # Backward compatibility aliases
 class HasFishingRod(FishingRodRequirement):
     """Backward compatibility alias"""
+
     pass
 
 
 class WaterNearby(WaterNearbyCondition):
     """Backward compatibility alias"""
+
     pass
 
 
 class FishAtWater(FishingAction):
     """Backward compatibility alias"""
+
     pass

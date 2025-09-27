@@ -7,7 +7,7 @@ rather than rigid priorities, enabling more flexible and context-aware agent beh
 
 import logging
 import time
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Callable, Dict, List, Optional
 
 from .nodes.base import BehaviorNode, NodeStatus
 
@@ -97,10 +97,11 @@ class UtilitySelector(BehaviorNode):
         current_time = time.time()
 
         # Re-evaluate utilities periodically or if no current child
-        if (current_time - self.last_evaluation_time >= self.evaluation_interval or
-            self.current_child is None or
-            self.current_child.status in [NodeStatus.SUCCESS, NodeStatus.FAILURE]):
-
+        if (
+            current_time - self.last_evaluation_time >= self.evaluation_interval
+            or self.current_child is None
+            or self.current_child.status in [NodeStatus.SUCCESS, NodeStatus.FAILURE]
+        ):
             best_child = self._select_best_child(agent)
             if best_child != self.current_child:
                 # Reset previous child
@@ -147,8 +148,10 @@ class UtilitySelector(BehaviorNode):
                 best_child = child
 
         if best_child:
-            logger.debug(f"UtilitySelector {self.name} selected {best_child.name} "
-                        f"with utility {best_utility:.2f}")
+            logger.debug(
+                f"UtilitySelector {self.name} selected {best_child.name} "
+                f"with utility {best_utility:.2f}"
+            )
 
         return best_child
 
@@ -173,7 +176,7 @@ class UtilitySelector(BehaviorNode):
         debug_info = {
             "current_child": self.current_child.name if self.current_child else None,
             "utility_scores": {},
-            "last_evaluation": self.last_evaluation_time
+            "last_evaluation": self.last_evaluation_time,
         }
 
         # Calculate current utilities for all children
@@ -189,23 +192,28 @@ class UtilitySelector(BehaviorNode):
         base_factor = 1.0
 
         # Personality influence
-        if hasattr(agent, 'personality') and hasattr(agent.personality, 'combat'):
+        if hasattr(agent, "personality") and hasattr(agent.personality, "combat"):
             base_factor = agent.personality.combat / 5.0  # Normalize to ~0.0-2.0
 
         # Health influence - don't fight when weak
-        if hasattr(agent, 'health'):
+        if hasattr(agent, "health"):
             if agent.health < 30.0:
                 base_factor *= 0.2  # Very low when health is critical
             elif agent.health < 60.0:
                 base_factor *= 0.6  # Reduced when health is low
 
         # Enemy presence influence
-        if hasattr(agent, 'visible_entities'):
-            nearby_enemies = sum(1 for entity in agent.visible_entities
-                               if entity.get("agent_type") == "enemy" and
-                               self._distance_to_entity(agent, entity) < 8.0)
+        if hasattr(agent, "visible_entities"):
+            nearby_enemies = sum(
+                1
+                for entity in agent.visible_entities
+                if entity.get("agent_type") == "enemy"
+                and self._distance_to_entity(agent, entity) < 8.0
+            )
             if nearby_enemies > 0:
-                base_factor *= min(2.0, 1.0 + nearby_enemies * 0.3)  # Increase with more enemies
+                base_factor *= min(
+                    2.0, 1.0 + nearby_enemies * 0.3
+                )  # Increase with more enemies
 
         return base_factor
 
@@ -214,19 +222,22 @@ class UtilitySelector(BehaviorNode):
         base_factor = 1.0
 
         # Personality influence
-        if hasattr(agent, 'personality') and hasattr(agent.personality, 'foraging'):
+        if hasattr(agent, "personality") and hasattr(agent.personality, "foraging"):
             base_factor = agent.personality.foraging / 5.0
 
         # Resource availability influence
-        if hasattr(agent, 'visible_entities'):
-            nearby_resources = sum(1 for entity in agent.visible_entities
-                                 if entity.get("type") in ["wood", "ore", "plant"] and
-                                 self._distance_to_entity(agent, entity) < 10.0)
+        if hasattr(agent, "visible_entities"):
+            nearby_resources = sum(
+                1
+                for entity in agent.visible_entities
+                if entity.get("type") in ["wood", "ore", "plant"]
+                and self._distance_to_entity(agent, entity) < 10.0
+            )
             if nearby_resources > 0:
                 base_factor *= min(2.0, 1.0 + nearby_resources * 0.2)
 
         # Inventory space influence (if available)
-        if hasattr(agent, 'inventory') and hasattr(agent.inventory, 'is_full'):
+        if hasattr(agent, "inventory") and hasattr(agent.inventory, "is_full"):
             if agent.inventory.is_full():
                 base_factor *= 0.1  # Very low utility when inventory is full
 
@@ -237,21 +248,24 @@ class UtilitySelector(BehaviorNode):
         base_factor = 1.0
 
         # Personality influence
-        if hasattr(agent, 'personality') and hasattr(agent.personality, 'fishing'):
+        if hasattr(agent, "personality") and hasattr(agent.personality, "fishing"):
             base_factor = agent.personality.fishing / 5.0
 
         # Water proximity influence
-        if hasattr(agent, 'agent_map') and agent.agent_map:
+        if hasattr(agent, "agent_map") and agent.agent_map:
             # Check for nearby water tiles
             water_nearby = self._check_nearby_water(agent)
             if not water_nearby:
                 base_factor *= 0.1  # Very low utility if no water nearby
 
         # Visible fish influence
-        if hasattr(agent, 'visible_entities'):
-            nearby_fish = sum(1 for entity in agent.visible_entities
-                            if entity.get("type") == "fish" and
-                            self._distance_to_entity(agent, entity) < 5.0)
+        if hasattr(agent, "visible_entities"):
+            nearby_fish = sum(
+                1
+                for entity in agent.visible_entities
+                if entity.get("type") == "fish"
+                and self._distance_to_entity(agent, entity) < 5.0
+            )
             if nearby_fish > 0:
                 base_factor *= min(2.0, 1.0 + nearby_fish * 0.3)
 
@@ -262,18 +276,21 @@ class UtilitySelector(BehaviorNode):
         base_factor = 1.0
 
         # Personality influence
-        if hasattr(agent, 'personality'):
-            if hasattr(agent.personality, 'social'):
+        if hasattr(agent, "personality"):
+            if hasattr(agent.personality, "social"):
                 base_factor *= agent.personality.social / 5.0
-            if hasattr(agent.personality, 'cooperativeness'):
+            if hasattr(agent.personality, "cooperativeness"):
                 base_factor *= agent.personality.cooperativeness / 5.0
 
         # Other agents proximity influence
-        if hasattr(agent, 'visible_entities'):
-            nearby_agents = sum(1 for entity in agent.visible_entities
-                              if entity.get("agent_type") in ["player", "npc"] and
-                              entity.get("id") != agent.id and
-                              self._distance_to_entity(agent, entity) < 15.0)
+        if hasattr(agent, "visible_entities"):
+            nearby_agents = sum(
+                1
+                for entity in agent.visible_entities
+                if entity.get("agent_type") in ["player", "npc"]
+                and entity.get("id") != agent.id
+                and self._distance_to_entity(agent, entity) < 15.0
+            )
             if nearby_agents == 0:
                 base_factor *= 0.2  # Low utility if no one around to interact with
             else:
@@ -286,18 +303,22 @@ class UtilitySelector(BehaviorNode):
         base_factor = 1.0
 
         # Personality influence
-        if hasattr(agent, 'personality') and hasattr(agent.personality, 'exploration'):
+        if hasattr(agent, "personality") and hasattr(agent.personality, "exploration"):
             base_factor = agent.personality.exploration / 5.0
 
         # Map completion influence
-        if hasattr(agent, 'agent_map') and agent.agent_map:
-            completion = getattr(agent.agent_map, 'get_map_completion_percentage', lambda: 50.0)()
+        if hasattr(agent, "agent_map") and agent.agent_map:
+            completion = getattr(
+                agent.agent_map, "get_map_completion_percentage", lambda: 50.0
+            )()
             if completion > 80.0:
                 base_factor *= 0.5  # Lower utility when map is mostly complete
 
         # Current goal influence
-        if hasattr(agent, 'current_target') and agent.current_target:
-            base_factor *= 0.7  # Lower exploration utility when we have a specific target
+        if hasattr(agent, "current_target") and agent.current_target:
+            base_factor *= (
+                0.7  # Lower exploration utility when we have a specific target
+            )
 
         return base_factor
 
@@ -306,28 +327,33 @@ class UtilitySelector(BehaviorNode):
         base_factor = 1.0
 
         # Health-based emergency
-        if hasattr(agent, 'health'):
+        if hasattr(agent, "health"):
             if agent.health < 25.0:
                 base_factor = 10.0  # Very high priority
             elif agent.health < 50.0:
-                base_factor = 3.0   # High priority
+                base_factor = 3.0  # High priority
 
         # Surrounded by enemies
-        if hasattr(agent, 'visible_entities'):
-            nearby_enemies = sum(1 for entity in agent.visible_entities
-                               if entity.get("agent_type") == "enemy" and
-                               self._distance_to_entity(agent, entity) < 5.0)
+        if hasattr(agent, "visible_entities"):
+            nearby_enemies = sum(
+                1
+                for entity in agent.visible_entities
+                if entity.get("agent_type") == "enemy"
+                and self._distance_to_entity(agent, entity) < 5.0
+            )
             if nearby_enemies >= 2:
-                base_factor = max(base_factor, 8.0)  # Very high priority when surrounded
+                base_factor = max(
+                    base_factor, 8.0
+                )  # Very high priority when surrounded
 
         return base_factor
 
     def _health_factor(self, agent: Any, node: BehaviorNode) -> float:
         """General health factor that applies to all behaviors"""
-        if not hasattr(agent, 'health'):
+        if not hasattr(agent, "health"):
             return 1.0
 
-        health_ratio = agent.health / getattr(agent, 'max_health', 100.0)
+        health_ratio = agent.health / getattr(agent, "max_health", 100.0)
 
         # Emergency behaviors get boosted when health is low
         if "emergency" in node.name.lower() or "flee" in node.name.lower():
@@ -343,7 +369,7 @@ class UtilitySelector(BehaviorNode):
 
     def _opportunity_factor(self, agent: Any, node: BehaviorNode) -> float:
         """Factor based on current opportunities detected by agent"""
-        if not hasattr(agent, 'opportunity_system') or not agent.opportunity_system:
+        if not hasattr(agent, "opportunity_system") or not agent.opportunity_system:
             return 1.0
 
         try:
@@ -355,16 +381,31 @@ class UtilitySelector(BehaviorNode):
             node_name_lower = node.name.lower()
 
             for opp in opportunities:
-                if "combat" in node_name_lower and opp.opportunity_type.value == "combat":
+                if (
+                    "combat" in node_name_lower
+                    and opp.opportunity_type.value == "combat"
+                ):
                     relevant_opportunities.append(opp)
-                elif "resource" in node_name_lower and opp.opportunity_type.value == "resource":
+                elif (
+                    "resource" in node_name_lower
+                    and opp.opportunity_type.value == "resource"
+                ):
                     relevant_opportunities.append(opp)
-                elif "fish" in node_name_lower and opp.opportunity_type.value == "resource":
+                elif (
+                    "fish" in node_name_lower
+                    and opp.opportunity_type.value == "resource"
+                ):
                     if opp.data.get("resource_type") == "fish":
                         relevant_opportunities.append(opp)
-                elif "social" in node_name_lower and opp.opportunity_type.value in ["social", "trade"]:
+                elif "social" in node_name_lower and opp.opportunity_type.value in [
+                    "social",
+                    "trade",
+                ]:
                     relevant_opportunities.append(opp)
-                elif "emergency" in node_name_lower and opp.opportunity_type.value == "emergency":
+                elif (
+                    "emergency" in node_name_lower
+                    and opp.opportunity_type.value == "emergency"
+                ):
                     relevant_opportunities.append(opp)
 
             if relevant_opportunities:
@@ -380,8 +421,8 @@ class UtilitySelector(BehaviorNode):
     # Helper methods
     def _distance_to_entity(self, agent: Any, entity: Dict[str, Any]) -> float:
         """Calculate distance from agent to entity"""
-        if not hasattr(agent, 'x') or not hasattr(agent, 'y'):
-            return float('inf')
+        if not hasattr(agent, "x") or not hasattr(agent, "y"):
+            return float("inf")
 
         dx = entity.get("x", 0) - agent.x
         dy = entity.get("y", 0) - agent.y
@@ -389,7 +430,7 @@ class UtilitySelector(BehaviorNode):
 
     def _check_nearby_water(self, agent: Any) -> bool:
         """Check if there's water nearby for fishing"""
-        if not hasattr(agent, 'agent_map') or not agent.agent_map:
+        if not hasattr(agent, "agent_map") or not agent.agent_map:
             return False
 
         # Check tiles around agent position
@@ -404,7 +445,11 @@ class UtilitySelector(BehaviorNode):
                 if agent.agent_map.is_valid_position(check_x, check_y):
                     try:
                         from world.tiles import TileType
-                        if agent.agent_map.get_tile_type(check_x, check_y) == TileType.WATER:
+
+                        if (
+                            agent.agent_map.get_tile_type(check_x, check_y)
+                            == TileType.WATER
+                        ):
                             return True
                     except ImportError:
                         # Fallback for string-based tile types
@@ -423,7 +468,12 @@ class WeightedUtilitySelector(UtilitySelector):
     dynamic adjustment based on context.
     """
 
-    def __init__(self, name: str, children: List[BehaviorNode], weights: Optional[Dict[str, float]] = None):
+    def __init__(
+        self,
+        name: str,
+        children: List[BehaviorNode],
+        weights: Optional[Dict[str, float]] = None,
+    ):
         super().__init__(name, children)
         self.weights = weights or {}
 
@@ -441,7 +491,9 @@ class ThresholdUtilitySelector(UtilitySelector):
     Prevents selection of very low-utility options even if they're the best available.
     """
 
-    def __init__(self, name: str, children: List[BehaviorNode], minimum_utility: float = 0.1):
+    def __init__(
+        self, name: str, children: List[BehaviorNode], minimum_utility: float = 0.1
+    ):
         super().__init__(name, children)
         self.minimum_utility = minimum_utility
 
@@ -459,7 +511,9 @@ class ThresholdUtilitySelector(UtilitySelector):
                 best_child = child
 
         if best_child:
-            logger.debug(f"ThresholdUtilitySelector {self.name} selected {best_child.name} "
-                        f"with utility {best_utility:.2f} (threshold: {self.minimum_utility})")
+            logger.debug(
+                f"ThresholdUtilitySelector {self.name} selected {best_child.name} "
+                f"with utility {best_utility:.2f} (threshold: {self.minimum_utility})"
+            )
 
         return best_child

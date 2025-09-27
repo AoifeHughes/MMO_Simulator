@@ -2,11 +2,13 @@
 Tests for database enhancements including trade and craft recording.
 """
 
+from datetime import datetime
+from unittest.mock import AsyncMock
+
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock
-from datetime import datetime
-from server.database import DatabaseManager, TradeRecord, CraftRecord, ScenarioRun
+
+from server.database import CraftRecord, DatabaseManager, ScenarioRun, TradeRecord
 
 
 class TestDatabaseEnhancements:
@@ -31,7 +33,7 @@ class TestDatabaseEnhancements:
             agent1_items=agent1_items,
             agent2_items=agent2_items,
             location=location,
-            status="completed"
+            status="completed",
         )
 
         # Verify trade was recorded (would need direct database access to fully test)
@@ -47,7 +49,7 @@ class TestDatabaseEnhancements:
             agent1_items=[{"item_name": "Iron Sword", "quantity": 1}],
             agent2_items=[{"item_name": "Gold", "quantity": 100}],
             location=(30.0, 40.0),
-            status="cancelled"
+            status="cancelled",
         )
 
         # Should complete without error
@@ -66,7 +68,7 @@ class TestDatabaseEnhancements:
             result_item="fire_123",
             location=location,
             duration=300.0,
-            success=True
+            success=True,
         )
 
         # Verify craft was recorded
@@ -82,7 +84,7 @@ class TestDatabaseEnhancements:
             result_item="",
             location=(0.0, 0.0),
             duration=0.0,
-            success=False
+            success=False,
         )
 
         # Should complete without error even for failed crafts
@@ -97,15 +99,15 @@ class TestDatabaseEnhancements:
                 "agent2_id": "trader_b",
                 "agent1_items": [{"item_name": "Wood", "quantity": 5}],
                 "agent2_items": [{"item_name": "Fresh Fish", "quantity": 3}],
-                "location": (10.0, 10.0)
+                "location": (10.0, 10.0),
             },
             {
                 "agent1_id": "trader_c",
                 "agent2_id": "trader_d",
                 "agent1_items": [{"item_name": "Iron Sword", "quantity": 1}],
                 "agent2_items": [{"item_name": "Hunter's Bow", "quantity": 1}],
-                "location": (20.0, 20.0)
-            }
+                "location": (20.0, 20.0),
+            },
         ]
 
         for trade in trades:
@@ -123,15 +125,15 @@ class TestDatabaseEnhancements:
                 "recipe_name": "basic_fire",
                 "ingredients": [{"item_name": "Wood", "quantity": 2}],
                 "result_item": "fire_001",
-                "location": (5.0, 5.0)
+                "location": (5.0, 5.0),
             },
             {
                 "agent_id": "woodworker2",
                 "recipe_name": "campfire",
                 "ingredients": [{"item_name": "Wood", "quantity": 4}],
                 "result_item": "campfire_001",
-                "location": (15.0, 15.0)
-            }
+                "location": (15.0, 15.0),
+            },
         ]
 
         for craft in crafts:
@@ -145,12 +147,12 @@ class TestDatabaseEnhancements:
         """Test recording trades with complex item structures"""
         complex_agent1_items = [
             {"item_name": "Wood", "quantity": 10},
-            {"item_name": "Fresh Fish", "quantity": 5}
+            {"item_name": "Fresh Fish", "quantity": 5},
         ]
         complex_agent2_items = [
             {"item_name": "Iron Sword", "quantity": 1},
             {"item_name": "Hunter's Bow", "quantity": 1},
-            {"item_name": "Fishing Rod", "quantity": 2}
+            {"item_name": "Fishing Rod", "quantity": 2},
         ]
 
         await database_manager.record_trade(
@@ -158,7 +160,7 @@ class TestDatabaseEnhancements:
             agent2_id="complex_trader_2",
             agent1_items=complex_agent1_items,
             agent2_items=complex_agent2_items,
-            location=(25.7, 35.3)
+            location=(25.7, 35.3),
         )
 
         assert True
@@ -176,7 +178,7 @@ class TestDatabaseEnhancements:
             agent2_id="no_scenario_agent2",
             agent1_items=[],
             agent2_items=[],
-            location=(0.0, 0.0)
+            location=(0.0, 0.0),
         )
 
         await db_manager.record_craft(
@@ -184,7 +186,7 @@ class TestDatabaseEnhancements:
             recipe_name="basic_fire",
             ingredients=[],
             result_item="",
-            location=(0.0, 0.0)
+            location=(0.0, 0.0),
         )
 
         # Should not raise errors even without active scenario
@@ -194,9 +196,7 @@ class TestDatabaseEnhancements:
     async def test_scenario_isolation(self, database_manager):
         """Test that database properly isolates data between scenarios"""
         # Record some data for first scenario
-        await database_manager.record_trade(
-            "agent1", "agent2", [], [], (0.0, 0.0)
-        )
+        await database_manager.record_trade("agent1", "agent2", [], [], (0.0, 0.0))
 
         # End first scenario and start new one
         await database_manager.end_scenario()

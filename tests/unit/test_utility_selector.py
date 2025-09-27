@@ -4,14 +4,18 @@ Unit tests for the Utility-Based Decision Making system.
 Tests UtilitySelector nodes and utility function calculations.
 """
 
-import pytest
 import time
-from unittest.mock import Mock, MagicMock
+from unittest.mock import MagicMock, Mock
 
-from client.behavior_tree.utility_selector import (
-    UtilityFunction, UtilitySelector, WeightedUtilitySelector, ThresholdUtilitySelector
-)
+import pytest
+
 from client.behavior_tree.nodes.base import BehaviorNode, NodeStatus
+from client.behavior_tree.utility_selector import (
+    ThresholdUtilitySelector,
+    UtilityFunction,
+    UtilitySelector,
+    WeightedUtilitySelector,
+)
 from shared.personality import Personality
 
 
@@ -63,7 +67,7 @@ class TestUtilityFunction:
 
         # Add a factor that raises an exception
         func.add_factor(lambda agent, node: 1.0 / 0)  # Division by zero
-        func.add_factor(lambda agent, node: 1.5)      # Normal factor
+        func.add_factor(lambda agent, node: 1.5)  # Normal factor
 
         utility = func.calculate_utility(mock_agent, mock_node)
         # Should apply error penalty (0.5) and normal factor (1.5)
@@ -96,17 +100,15 @@ class TestUtilitySelector:
 
         # Add personality
         self.mock_agent.personality = Personality(
-            combat=7.0,
-            fishing=6.0,
-            foraging=5.0,
-            social=4.0,
-            exploration=3.0
+            combat=7.0, fishing=6.0, foraging=5.0, social=4.0, exploration=3.0
         )
 
         # Create mock children
         self.combat_node = MockBehaviorNode("combat_action", NodeStatus.RUNNING)
         self.resource_node = MockBehaviorNode("resource_gathering", NodeStatus.RUNNING)
-        self.exploration_node = MockBehaviorNode("exploration_behavior", NodeStatus.RUNNING)
+        self.exploration_node = MockBehaviorNode(
+            "exploration_behavior", NodeStatus.RUNNING
+        )
 
         self.children = [self.combat_node, self.resource_node, self.exploration_node]
         self.selector = UtilitySelector("test_selector", self.children)
@@ -125,11 +127,15 @@ class TestUtilitySelector:
     def test_utility_calculation_for_children(self):
         """Test utility calculation for different child types"""
         # Combat node should get combat-related utility
-        combat_utility = self.selector._calculate_child_utility(self.mock_agent, self.combat_node)
+        combat_utility = self.selector._calculate_child_utility(
+            self.mock_agent, self.combat_node
+        )
         assert combat_utility > 0
 
         # Resource node should get resource-related utility
-        resource_utility = self.selector._calculate_child_utility(self.mock_agent, self.resource_node)
+        resource_utility = self.selector._calculate_child_utility(
+            self.mock_agent, self.resource_node
+        )
         assert resource_utility > 0
 
         # Agent has higher combat personality, so combat should score higher
@@ -227,7 +233,9 @@ class TestUtilitySelector:
         self.selector.set_utility_function("combat_action", custom_func)
 
         # Combat action should now have very high utility
-        combat_utility = self.selector._calculate_child_utility(self.mock_agent, self.combat_node)
+        combat_utility = self.selector._calculate_child_utility(
+            self.mock_agent, self.combat_node
+        )
         assert combat_utility >= 10.0
 
     def test_personality_influence_on_utility(self):
@@ -239,18 +247,20 @@ class TestUtilitySelector:
         fishing_agent.health = 80.0
         fishing_agent.max_health = 100.0
         fishing_agent.visible_entities = []
-        fishing_agent.personality = Personality(
-            combat=2.0,
-            fishing=9.0,
-            foraging=3.0
-        )
+        fishing_agent.personality = Personality(combat=2.0, fishing=9.0, foraging=3.0)
 
         # Create fishing node
         fishing_node = MockBehaviorNode("fishing_action")
-        fishing_selector = UtilitySelector("fishing_test", [self.combat_node, fishing_node])
+        fishing_selector = UtilitySelector(
+            "fishing_test", [self.combat_node, fishing_node]
+        )
 
-        combat_utility = fishing_selector._calculate_child_utility(fishing_agent, self.combat_node)
-        fishing_utility = fishing_selector._calculate_child_utility(fishing_agent, fishing_node)
+        combat_utility = fishing_selector._calculate_child_utility(
+            fishing_agent, self.combat_node
+        )
+        fishing_utility = fishing_selector._calculate_child_utility(
+            fishing_agent, fishing_node
+        )
 
         # Both should have positive utility, but the exact comparison depends on all factors
         # The test verifies that personality influences the calculation
@@ -270,10 +280,16 @@ class TestUtilitySelector:
 
         # Create emergency node
         emergency_node = MockBehaviorNode("emergency_flee")
-        health_selector = UtilitySelector("health_test", [self.combat_node, emergency_node])
+        health_selector = UtilitySelector(
+            "health_test", [self.combat_node, emergency_node]
+        )
 
-        combat_utility = health_selector._calculate_child_utility(low_health_agent, self.combat_node)
-        emergency_utility = health_selector._calculate_child_utility(low_health_agent, emergency_node)
+        combat_utility = health_selector._calculate_child_utility(
+            low_health_agent, self.combat_node
+        )
+        emergency_utility = health_selector._calculate_child_utility(
+            low_health_agent, emergency_node
+        )
 
         # Emergency should have much higher utility when health is low
         assert emergency_utility > combat_utility
@@ -281,7 +297,11 @@ class TestUtilitySelector:
     def test_opportunity_influence_on_utility(self):
         """Test that current opportunities affect utility calculations"""
         # Create agent with opportunity system
-        from client.opportunity_system import OpportunitySystem, Opportunity, OpportunityType
+        from client.opportunity_system import (
+            Opportunity,
+            OpportunitySystem,
+            OpportunityType,
+        )
 
         opp_agent = Mock()
         opp_agent.x = 10.0
@@ -296,12 +316,16 @@ class TestUtilitySelector:
             opportunity_id="combat_opp",
             opportunity_type=OpportunityType.COMBAT,
             position=(12.0, 11.0),
-            urgency=8.0
+            urgency=8.0,
         )
         opp_agent.opportunity_system.current_opportunities = [combat_opportunity]
 
-        combat_utility = self.selector._calculate_child_utility(opp_agent, self.combat_node)
-        resource_utility = self.selector._calculate_child_utility(opp_agent, self.resource_node)
+        combat_utility = self.selector._calculate_child_utility(
+            opp_agent, self.combat_node
+        )
+        resource_utility = self.selector._calculate_child_utility(
+            opp_agent, self.resource_node
+        )
 
         # Combat should have higher utility due to relevant opportunity
         assert combat_utility > resource_utility
@@ -322,18 +346,19 @@ class TestWeightedUtilitySelector:
         self.resource_node = MockBehaviorNode("resource_gathering")
 
         # Create weighted selector with higher weight for resource gathering
-        weights = {
-            "combat_action": 1.0,
-            "resource_gathering": 2.0
-        }
+        weights = {"combat_action": 1.0, "resource_gathering": 2.0}
         self.selector = WeightedUtilitySelector(
             "weighted_test", [self.combat_node, self.resource_node], weights
         )
 
     def test_weight_application(self):
         """Test that weights are applied to utility calculations"""
-        combat_utility = self.selector._calculate_child_utility(self.mock_agent, self.combat_node)
-        resource_utility = self.selector._calculate_child_utility(self.mock_agent, self.resource_node)
+        combat_utility = self.selector._calculate_child_utility(
+            self.mock_agent, self.combat_node
+        )
+        resource_utility = self.selector._calculate_child_utility(
+            self.mock_agent, self.resource_node
+        )
 
         # Resource should have higher utility due to 2.0 weight
         assert resource_utility > combat_utility
@@ -357,7 +382,9 @@ class TestThresholdUtilitySelector:
 
         # Create threshold selector with high minimum utility
         self.selector = ThresholdUtilitySelector(
-            "threshold_test", [self.combat_node, self.resource_node], minimum_utility=2.0
+            "threshold_test",
+            [self.combat_node, self.resource_node],
+            minimum_utility=2.0,
         )
 
     def test_threshold_enforcement(self):
@@ -415,7 +442,7 @@ class TestUtilityFactors:
         # Add enemies to visible entities
         self.mock_agent.visible_entities = [
             {"agent_type": "enemy", "x": 12.0, "y": 11.0},
-            {"agent_type": "enemy", "x": 8.0, "y": 9.0}
+            {"agent_type": "enemy", "x": 8.0, "y": 9.0},
         ]
 
         factor = self.selector._combat_utility_factor(self.mock_agent, self.combat_node)

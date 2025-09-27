@@ -2,19 +2,24 @@
 Tests for the crafting system implementation.
 """
 
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import Mock, AsyncMock
-from shared.actions import ActionType, ActionResult, ActionRequest, craft_item_params
-from shared.items import create_wood, create_item
-from server.action_processor import ActionProcessor, ActionContext
+
+from server.action_processor import ActionContext, ActionProcessor
 from server.agent_state import ServerAgentState
 from server.database import DatabaseManager
-from server.world_objects import WorldObjectManager, WorldObjectType, get_available_recipes
+from server.world_objects import (
+    WorldObjectManager,
+    WorldObjectType,
+    get_available_recipes,
+)
+from shared.actions import ActionRequest, ActionResult, ActionType, craft_item_params
+from shared.items import create_item, create_wood
 from tests.action_test_base import ActionTestBase
 
 
 class TestCraftingSystem(ActionTestBase):
-
     @pytest.fixture
     def agent_with_wood(self):
         """Create agent with sufficient wood for crafting"""
@@ -23,16 +28,22 @@ class TestCraftingSystem(ActionTestBase):
         agent.add_starting_items()
 
         # Add wood items using correct lowercase item name
-        wood_item = create_item("wood")  # Use lowercase to match crafting system expectations
+        wood_item = create_item(
+            "wood"
+        )  # Use lowercase to match crafting system expectations
         if wood_item:
-            wood_item.name = "wood"  # Fix name mismatch between item name and recipe requirement
+            wood_item.name = (
+                "wood"  # Fix name mismatch between item name and recipe requirement
+            )
             for _ in range(5):  # 5 pieces of wood
                 agent.inventory.add_item(wood_item, 1)
 
         return agent
 
     @pytest.mark.asyncio
-    async def test_craft_basic_fire_success(self, action_processor, mock_server, agent_with_wood):
+    async def test_craft_basic_fire_success(
+        self, action_processor, mock_server, agent_with_wood
+    ):
         """Test successful basic fire crafting"""
         agent = agent_with_wood
 
@@ -45,7 +56,10 @@ class TestCraftingSystem(ActionTestBase):
         response = await action_processor.submit_action(request)
 
         self.assert_approved(response)
-        assert "crafted" in response.message.lower() and "basic_fire" in response.message.lower()
+        assert (
+            "crafted" in response.message.lower()
+            and "basic_fire" in response.message.lower()
+        )
 
         # Verify wood was consumed (2 pieces)
         assert self.get_wood_count(agent) == initial_wood_count - 2
@@ -69,11 +83,16 @@ class TestCraftingSystem(ActionTestBase):
         response = await action_processor.submit_action(request)
 
         self.assert_approved(response)
-        assert "crafted" in response.message.lower() and "campfire" in response.message.lower()
+        assert (
+            "crafted" in response.message.lower()
+            and "campfire" in response.message.lower()
+        )
 
         # Verify wood was consumed (based on actual requirement)
         final_wood_count = self.get_wood_count(agent)
-        assert final_wood_count < initial_wood_count, f"Expected wood to be consumed, started with {initial_wood_count}, ended with {final_wood_count}"
+        assert (
+            final_wood_count < initial_wood_count
+        ), f"Expected wood to be consumed, started with {initial_wood_count}, ended with {final_wood_count}"
 
         # Campfire crafting successful (verified by approved response)
 
@@ -92,13 +111,18 @@ class TestCraftingSystem(ActionTestBase):
         response = await action_processor.submit_action(request)
 
         self.assert_rejected(response)
-        assert "missing required items" in response.message.lower() or "insufficient materials" in response.message.lower()
+        assert (
+            "missing required items" in response.message.lower()
+            or "insufficient materials" in response.message.lower()
+        )
 
         # Verify no wood was consumed
         assert self.get_wood_count(agent) == 1
 
     @pytest.mark.asyncio
-    async def test_craft_unknown_recipe(self, action_processor, mock_server, agent_with_wood):
+    async def test_craft_unknown_recipe(
+        self, action_processor, mock_server, agent_with_wood
+    ):
         """Test crafting failure with unknown recipe"""
         agent = agent_with_wood
 
@@ -112,7 +136,9 @@ class TestCraftingSystem(ActionTestBase):
         assert "unknown recipe" in response.message.lower()
 
     @pytest.mark.asyncio
-    async def test_database_craft_recording(self, action_processor, mock_server, agent_with_wood):
+    async def test_database_craft_recording(
+        self, action_processor, mock_server, agent_with_wood
+    ):
         """Test that crafting activities are recorded in database"""
         agent = agent_with_wood
 

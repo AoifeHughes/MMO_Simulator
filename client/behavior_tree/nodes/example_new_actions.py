@@ -6,9 +6,11 @@ These examples demonstrate the OOP extensibility of the system.
 """
 
 import asyncio
-from typing import Tuple, Optional
-from world.tiles import TileType
+from typing import Optional, Tuple
+
 from shared.actions import ActionType
+from world.tiles import TileType
+
 from .two_phase_action import ResourceActionNode, TwoPhaseActionNode
 
 
@@ -17,12 +19,16 @@ class MineStone(ResourceActionNode):
 
     def __init__(self, max_distance: float = 5.0):
         # Look for stone/mountain tiles within 5 units
-        super().__init__("MineStone", TileType.WALL, max_distance)  # Assuming WALL represents stone
+        super().__init__(
+            "MineStone", TileType.WALL, max_distance
+        )  # Assuming WALL represents stone
 
     def execute_action(self, agent, target_pos: Tuple[float, float]) -> bool:
         """Execute stone mining at confirmed position"""
         # Send mining request to server (would need to add MINE_STONE action type)
-        print(f"⛏️ Agent {agent.id[:8]} mining stone at validated position ({target_pos[0]:.2f}, {target_pos[1]:.2f})")
+        print(
+            f"⛏️ Agent {agent.id[:8]} mining stone at validated position ({target_pos[0]:.2f}, {target_pos[1]:.2f})"
+        )
 
         # For demo purposes, just return True
         # In real implementation:
@@ -49,19 +55,23 @@ class OpenChest(TwoPhaseActionNode):
     def find_action_target(self, agent) -> Optional[Tuple[float, float]]:
         """Find the nearest chest entity"""
         nearest_chest = None
-        nearest_distance = float('inf')
+        nearest_distance = float("inf")
 
         # Look through visible entities for chests
-        for entity in getattr(agent, 'visible_entities', []):
-            if entity.get('type') == 'chest':
-                distance = ((entity['x'] - agent.x) ** 2 + (entity['y'] - agent.y) ** 2) ** 0.5
+        for entity in getattr(agent, "visible_entities", []):
+            if entity.get("type") == "chest":
+                distance = (
+                    (entity["x"] - agent.x) ** 2 + (entity["y"] - agent.y) ** 2
+                ) ** 0.5
                 if distance < nearest_distance:
                     nearest_distance = distance
-                    nearest_chest = (entity['x'], entity['y'])
+                    nearest_chest = (entity["x"], entity["y"])
 
         return nearest_chest
 
-    def calculate_optimal_position(self, agent, target_pos: Tuple[float, float]) -> Optional[Tuple[float, float]]:
+    def calculate_optimal_position(
+        self, agent, target_pos: Tuple[float, float]
+    ) -> Optional[Tuple[float, float]]:
         """Calculate position to stand next to chest"""
         # Similar to ResourceActionNode but for entities instead of tiles
         target_x, target_y = target_pos
@@ -84,7 +94,9 @@ class OpenChest(TwoPhaseActionNode):
 
     def execute_action(self, agent, target_pos: Tuple[float, float]) -> bool:
         """Execute chest opening"""
-        print(f"📦 Agent {agent.id[:8]} opening chest at ({target_pos[0]:.2f}, {target_pos[1]:.2f})")
+        print(
+            f"📦 Agent {agent.id[:8]} opening chest at ({target_pos[0]:.2f}, {target_pos[1]:.2f})"
+        )
 
         # Send chest interaction request
         # self._request_chest_interaction(agent, target_pos[0], target_pos[1])
@@ -110,21 +122,25 @@ class AttackEnemy(TwoPhaseActionNode):
     def find_action_target(self, agent) -> Optional[Tuple[float, float]]:
         """Find nearest enemy to attack"""
         nearest_enemy = None
-        nearest_distance = float('inf')
+        nearest_distance = float("inf")
         nearest_enemy_id = None
 
-        for entity in getattr(agent, 'visible_entities', []):
-            if entity.get('agent_type') == 'enemy':
-                distance = ((entity['x'] - agent.x) ** 2 + (entity['y'] - agent.y) ** 2) ** 0.5
+        for entity in getattr(agent, "visible_entities", []):
+            if entity.get("agent_type") == "enemy":
+                distance = (
+                    (entity["x"] - agent.x) ** 2 + (entity["y"] - agent.y) ** 2
+                ) ** 0.5
                 if distance < nearest_distance:
                     nearest_distance = distance
-                    nearest_enemy = (entity['x'], entity['y'])
-                    nearest_enemy_id = entity.get('id')
+                    nearest_enemy = (entity["x"], entity["y"])
+                    nearest_enemy_id = entity.get("id")
 
         self.target_enemy_id = nearest_enemy_id
         return nearest_enemy
 
-    def calculate_optimal_position(self, agent, target_pos: Tuple[float, float]) -> Optional[Tuple[float, float]]:
+    def calculate_optimal_position(
+        self, agent, target_pos: Tuple[float, float]
+    ) -> Optional[Tuple[float, float]]:
         """Position for optimal attack angle"""
         # For combat, we might want to position for tactical advantage
         target_x, target_y = target_pos
@@ -151,7 +167,9 @@ class AttackEnemy(TwoPhaseActionNode):
         if not self.target_enemy_id:
             return False
 
-        print(f"⚔️ Agent {agent.id[:8]} attacking enemy {self.target_enemy_id[:8]} from validated position")
+        print(
+            f"⚔️ Agent {agent.id[:8]} attacking enemy {self.target_enemy_id[:8]} from validated position"
+        )
 
         # Send attack request
         # self._request_attack(agent, self.target_enemy_id)
@@ -176,7 +194,7 @@ class PlantSeed(TwoPhaseActionNode):
 
     def find_action_target(self, agent) -> Optional[Tuple[float, float]]:
         """Find suitable ground for planting"""
-        if not hasattr(agent, 'agent_map') or not agent.agent_map:
+        if not hasattr(agent, "agent_map") or not agent.agent_map:
             return None
 
         # Look for empty grass tiles near agent
@@ -195,14 +213,18 @@ class PlantSeed(TwoPhaseActionNode):
 
         return None
 
-    def calculate_optimal_position(self, agent, target_pos: Tuple[float, float]) -> Optional[Tuple[float, float]]:
+    def calculate_optimal_position(
+        self, agent, target_pos: Tuple[float, float]
+    ) -> Optional[Tuple[float, float]]:
         """For planting, agent needs to be right next to the target tile"""
         # Position very close to target for precise planting
         return (target_pos[0] + 0.3, target_pos[1])
 
     def execute_action(self, agent, target_pos: Tuple[float, float]) -> bool:
         """Execute planting"""
-        print(f"🌱 Agent {agent.id[:8]} planting seed at ({target_pos[0]:.2f}, {target_pos[1]:.2f})")
+        print(
+            f"🌱 Agent {agent.id[:8]} planting seed at ({target_pos[0]:.2f}, {target_pos[1]:.2f})"
+        )
         return True
 
     def get_action_name(self) -> str:

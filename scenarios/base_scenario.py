@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from world.terrain_generator import TerrainType
 
@@ -59,7 +59,9 @@ class BaseScenario(ABC):
             "visualization": self.visualization_enabled,
         }
 
-    def get_custom_behavior_tree(self, agent_type: str, agent_x: float, agent_y: float) -> Optional["BehaviorTree"]:
+    def get_custom_behavior_tree(
+        self, agent_type: str, agent_x: float, agent_y: float
+    ) -> Optional["BehaviorTree"]:
         """
         Get custom behavior tree for agent in this scenario.
 

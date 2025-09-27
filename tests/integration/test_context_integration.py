@@ -5,11 +5,12 @@ Tests that the context manager properly integrates with existing agent functiona
 and provides useful contextual information for decision-making.
 """
 
-import pytest
 from unittest.mock import Mock
 
+import pytest
+
 from client.agent import BaseAgent
-from client.context_manager import DangerLevel, ContextType
+from client.context_manager import ContextType, DangerLevel
 from shared.personality import Personality
 
 
@@ -31,11 +32,7 @@ class TestContextIntegration:
 
     def setup_method(self):
         """Set up test fixtures"""
-        self.personality = Personality(
-            combat=6.0,
-            exploration=7.0,
-            cooperativeness=5.0
-        )
+        self.personality = Personality(combat=6.0, exploration=7.0, cooperativeness=5.0)
 
         self.agent = ContextAgent("test_agent", 10.0, 10.0, "test", self.personality)
 
@@ -56,24 +53,9 @@ class TestContextIntegration:
     def test_context_analysis_with_agent(self):
         """Test context analysis with real agent"""
         visible_entities = [
-            {
-                "id": "enemy_1",
-                "agent_type": "enemy",
-                "x": 12.0,
-                "y": 11.0
-            },
-            {
-                "id": "wood_1",
-                "type": "wood",
-                "x": 8.0,
-                "y": 9.0
-            },
-            {
-                "id": "player_1",
-                "agent_type": "player",
-                "x": 15.0,
-                "y": 15.0
-            }
+            {"id": "enemy_1", "agent_type": "enemy", "x": 12.0, "y": 11.0},
+            {"id": "wood_1", "type": "wood", "x": 8.0, "y": 9.0},
+            {"id": "player_1", "agent_type": "player", "x": 15.0, "y": 15.0},
         ]
 
         self.agent.perceive(visible_entities)
@@ -91,18 +73,8 @@ class TestContextIntegration:
     def test_danger_assessment_integration(self):
         """Test danger assessment through agent interface"""
         visible_entities = [
-            {
-                "id": "enemy_1",
-                "agent_type": "enemy",
-                "x": 15.0,
-                "y": 15.0
-            },
-            {
-                "id": "enemy_2",
-                "agent_type": "enemy",
-                "x": 16.0,
-                "y": 16.0
-            }
+            {"id": "enemy_1", "agent_type": "enemy", "x": 15.0, "y": 15.0},
+            {"id": "enemy_2", "agent_type": "enemy", "x": 16.0, "y": 16.0},
         ]
 
         self.agent.perceive(visible_entities)
@@ -120,12 +92,7 @@ class TestContextIntegration:
         """Test movement recommendations through agent interface"""
         # Set up dangerous area
         visible_entities = [
-            {
-                "id": "enemy_1",
-                "agent_type": "enemy",
-                "x": 20.0,
-                "y": 20.0
-            }
+            {"id": "enemy_1", "agent_type": "enemy", "x": 20.0, "y": 20.0}
         ]
 
         self.agent.perceive(visible_entities)
@@ -144,18 +111,8 @@ class TestContextIntegration:
     def test_context_factors_for_behaviors(self):
         """Test getting context factors for different behaviors"""
         visible_entities = [
-            {
-                "id": "enemy_1",
-                "agent_type": "enemy",
-                "x": 12.0,
-                "y": 11.0
-            },
-            {
-                "id": "wood_1",
-                "type": "wood",
-                "x": 8.0,
-                "y": 9.0
-            }
+            {"id": "enemy_1", "agent_type": "enemy", "x": 12.0, "y": 11.0},
+            {"id": "wood_1", "type": "wood", "x": 8.0, "y": 9.0},
         ]
 
         self.agent.perceive(visible_entities)
@@ -166,7 +123,9 @@ class TestContextIntegration:
         assert isinstance(combat_factors, dict)
 
         # Test resource behavior factors
-        resource_factors = self.agent.get_context_factors_for_behavior("resource_gathering")
+        resource_factors = self.agent.get_context_factors_for_behavior(
+            "resource_gathering"
+        )
         assert isinstance(resource_factors, dict)
 
         # Test exploration behavior factors
@@ -178,9 +137,7 @@ class TestContextIntegration:
         import time
 
         # Start with safe environment
-        safe_entities = [
-            {"id": "wood_1", "type": "wood", "x": 12.0, "y": 11.0}
-        ]
+        safe_entities = [{"id": "wood_1", "type": "wood", "x": 12.0, "y": 11.0}]
 
         self.agent.perceive(safe_entities)
         safe_context = self.agent.get_current_context()
@@ -192,7 +149,7 @@ class TestContextIntegration:
         dangerous_entities = [
             {"id": "wood_1", "type": "wood", "x": 12.0, "y": 11.0},
             {"id": "enemy_1", "agent_type": "enemy", "x": 11.0, "y": 11.0},
-            {"id": "enemy_2", "agent_type": "enemy", "x": 9.0, "y": 9.0}
+            {"id": "enemy_2", "agent_type": "enemy", "x": 9.0, "y": 9.0},
         ]
 
         self.agent.perceive(dangerous_entities)
@@ -206,9 +163,7 @@ class TestContextIntegration:
 
     def test_context_history_tracking(self):
         """Test that context history is tracked properly"""
-        visible_entities = [
-            {"id": "wood_1", "type": "wood", "x": 12.0, "y": 11.0}
-        ]
+        visible_entities = [{"id": "wood_1", "type": "wood", "x": 12.0, "y": 11.0}]
 
         self.agent.perceive(visible_entities)
 
@@ -222,16 +177,10 @@ class TestContextIntegration:
 
     def test_context_with_terrain_data(self):
         """Test context analysis with terrain data"""
-        visible_entities = [
-            {"id": "wood_1", "type": "wood", "x": 12.0, "y": 11.0}
-        ]
+        visible_entities = [{"id": "wood_1", "type": "wood", "x": 12.0, "y": 11.0}]
 
         # Mock terrain data
-        terrain_data = {
-            (11, 11): "wood",
-            (12, 10): "water",
-            (13, 11): "grass"
-        }
+        terrain_data = {(11, 11): "wood", (12, 10): "water", (13, 11): "grass"}
 
         self.agent.perceive(visible_entities)
         context = self.agent.get_current_context(terrain_data)
@@ -266,7 +215,7 @@ class TestContextIntegration:
         """Test that context provides useful debug information"""
         visible_entities = [
             {"id": "enemy_1", "agent_type": "enemy", "x": 12.0, "y": 11.0},
-            {"id": "wood_1", "type": "wood", "x": 8.0, "y": 9.0}
+            {"id": "wood_1", "type": "wood", "x": 8.0, "y": 9.0},
         ]
 
         self.agent.perceive(visible_entities)
@@ -283,9 +232,7 @@ class TestContextIntegration:
 
     def test_context_thread_safety(self):
         """Test that context system can be called multiple times safely"""
-        visible_entities = [
-            {"id": "wood_1", "type": "wood", "x": 12.0, "y": 11.0}
-        ]
+        visible_entities = [{"id": "wood_1", "type": "wood", "x": 12.0, "y": 11.0}]
 
         self.agent.perceive(visible_entities)
 
@@ -316,7 +263,7 @@ class TestContextIntegration:
         """Test that context manager works alongside opportunity system"""
         visible_entities = [
             {"id": "enemy_1", "agent_type": "enemy", "x": 12.0, "y": 11.0},
-            {"id": "wood_1", "type": "wood", "x": 8.0, "y": 9.0}
+            {"id": "wood_1", "type": "wood", "x": 8.0, "y": 9.0},
         ]
 
         self.agent.perceive(visible_entities)

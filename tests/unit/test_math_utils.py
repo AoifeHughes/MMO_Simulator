@@ -6,8 +6,16 @@ for all mathematical operations used throughout the MMO simulator.
 """
 
 import math
+
 import pytest
-from shared.math_utils import distance, normalize_angle, angle_between, point_in_cone, clamp
+
+from shared.math_utils import (
+    angle_between,
+    clamp,
+    distance,
+    normalize_angle,
+    point_in_cone,
+)
 
 
 class TestDistance:
@@ -171,9 +179,13 @@ class TestPointInCone:
         # 350° cone facing east (excludes 10° slice around west)
         assert point_in_cone((0, 0), 0, 350, 10, (5, 0)) is True  # East
         assert point_in_cone((0, 0), 0, 350, 10, (0, 5)) is True  # North
-        assert point_in_cone((0, 0), 0, 350, 10, (-4, 3)) is True  # Northwest, inside cone
+        assert (
+            point_in_cone((0, 0), 0, 350, 10, (-4, 3)) is True
+        )  # Northwest, inside cone
         assert point_in_cone((0, 0), 0, 350, 10, (0, -5)) is True  # South
-        assert point_in_cone((0, 0), 0, 350, 10, (-5, 0)) is False  # West, outside narrow exclusion
+        assert (
+            point_in_cone((0, 0), 0, 350, 10, (-5, 0)) is False
+        )  # West, outside narrow exclusion
 
     def test_point_in_cone_offset_origin(self):
         """Test cone with non-origin center."""

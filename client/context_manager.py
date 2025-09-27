@@ -18,15 +18,17 @@ logger = logging.getLogger(__name__)
 
 class DangerLevel(Enum):
     """Levels of danger in the environment"""
-    SAFE = "safe"           # No threats detected
-    LOW = "low"             # Minor threats, manageable
-    MODERATE = "moderate"   # Significant threats, caution advised
-    HIGH = "high"           # Major threats, evasive action recommended
-    CRITICAL = "critical"   # Extreme danger, immediate escape required
+
+    SAFE = "safe"  # No threats detected
+    LOW = "low"  # Minor threats, manageable
+    MODERATE = "moderate"  # Significant threats, caution advised
+    HIGH = "high"  # Major threats, evasive action recommended
+    CRITICAL = "critical"  # Extreme danger, immediate escape required
 
 
 class ContextType(Enum):
     """Types of environmental context"""
+
     DANGER = "danger"
     RESOURCE = "resource"
     SOCIAL = "social"
@@ -37,6 +39,7 @@ class ContextType(Enum):
 @dataclass
 class ContextualArea:
     """Represents a contextual area with specific properties"""
+
     area_id: str
     center: Tuple[float, float]
     radius: float
@@ -116,6 +119,7 @@ class ContextualArea:
 @dataclass
 class ContextSnapshot:
     """A snapshot of environmental context at a specific time and location"""
+
     timestamp: float
     position: Tuple[float, float]
 
@@ -144,13 +148,11 @@ class EnvironmentAnalyzer:
         self.resource_detection_range = 12.0
         self.social_detection_range = 20.0
 
-    def analyze_position(self, agent_x: float, agent_y: float,
-                        visible_entities: List[Dict[str, Any]]) -> ContextSnapshot:
+    def analyze_position(
+        self, agent_x: float, agent_y: float, visible_entities: List[Dict[str, Any]]
+    ) -> ContextSnapshot:
         """Analyze environmental context at agent's current position"""
-        snapshot = ContextSnapshot(
-            timestamp=time.time(),
-            position=(agent_x, agent_y)
-        )
+        snapshot = ContextSnapshot(timestamp=time.time(), position=(agent_x, agent_y))
 
         # Analyze entities by distance and type
         enemies = []
@@ -166,9 +168,15 @@ class EnvironmentAnalyzer:
 
             if entity_type == "enemy" and distance <= self.danger_detection_range:
                 enemies.append((entity, distance))
-            elif entity_type in ["wood", "fish", "ore", "plant"] and distance <= self.resource_detection_range:
+            elif (
+                entity_type in ["wood", "fish", "ore", "plant"]
+                and distance <= self.resource_detection_range
+            ):
                 resources.append((entity, distance))
-            elif entity_type in ["player", "npc"] and distance <= self.social_detection_range:
+            elif (
+                entity_type in ["player", "npc"]
+                and distance <= self.social_detection_range
+            ):
                 allies.append((entity, distance))
 
         # Update counts
@@ -186,14 +194,24 @@ class EnvironmentAnalyzer:
         snapshot.social_density = self._assess_social_density(allies)
 
         # Calculate movement recommendations
-        snapshot.safe_directions = self._calculate_safe_directions(enemies, agent_x, agent_y)
-        snapshot.resource_directions = self._calculate_resource_directions(resources, agent_x, agent_y)
-        snapshot.social_directions = self._calculate_social_directions(allies, agent_x, agent_y)
+        snapshot.safe_directions = self._calculate_safe_directions(
+            enemies, agent_x, agent_y
+        )
+        snapshot.resource_directions = self._calculate_resource_directions(
+            resources, agent_x, agent_y
+        )
+        snapshot.social_directions = self._calculate_social_directions(
+            allies, agent_x, agent_y
+        )
 
         return snapshot
 
-    def _assess_danger_level(self, enemies: List[Tuple[Dict[str, Any], float]],
-                           agent_x: float, agent_y: float) -> DangerLevel:
+    def _assess_danger_level(
+        self,
+        enemies: List[Tuple[Dict[str, Any], float]],
+        agent_x: float,
+        agent_y: float,
+    ) -> DangerLevel:
         """Assess danger level based on nearby enemies"""
         if not enemies:
             return DangerLevel.SAFE
@@ -217,7 +235,9 @@ class EnvironmentAnalyzer:
         else:
             return DangerLevel.SAFE
 
-    def _assess_resource_availability(self, resources: List[Tuple[Dict[str, Any], float]]) -> float:
+    def _assess_resource_availability(
+        self, resources: List[Tuple[Dict[str, Any], float]]
+    ) -> float:
         """Assess resource availability in the area"""
         if not resources:
             return 0.0
@@ -231,7 +251,9 @@ class EnvironmentAnalyzer:
         # Normalize to 0-1 scale
         return min(1.0, total_value / 5.0)
 
-    def _assess_social_density(self, allies: List[Tuple[Dict[str, Any], float]]) -> float:
+    def _assess_social_density(
+        self, allies: List[Tuple[Dict[str, Any], float]]
+    ) -> float:
         """Assess social activity density in the area"""
         if not allies:
             return 0.0
@@ -245,8 +267,12 @@ class EnvironmentAnalyzer:
         # Normalize to 0-1 scale
         return min(1.0, total_value / 3.0)
 
-    def _calculate_safe_directions(self, enemies: List[Tuple[Dict[str, Any], float]],
-                                 agent_x: float, agent_y: float) -> List[float]:
+    def _calculate_safe_directions(
+        self,
+        enemies: List[Tuple[Dict[str, Any], float]],
+        agent_x: float,
+        agent_y: float,
+    ) -> List[float]:
         """Calculate directions that lead away from enemies"""
         if not enemies:
             return []  # All directions are safe
@@ -275,7 +301,9 @@ class EnvironmentAnalyzer:
                 if angle_diff > 180:
                     angle_diff = 360 - angle_diff
 
-                if angle_diff <= 45 and distance <= 8.0:  # Close enemy in this direction
+                if (
+                    angle_diff <= 45 and distance <= 8.0
+                ):  # Close enemy in this direction
                     direction_safe = False
                     break
 
@@ -284,8 +312,12 @@ class EnvironmentAnalyzer:
 
         return safe_directions
 
-    def _calculate_resource_directions(self, resources: List[Tuple[Dict[str, Any], float]],
-                                     agent_x: float, agent_y: float) -> List[float]:
+    def _calculate_resource_directions(
+        self,
+        resources: List[Tuple[Dict[str, Any], float]],
+        agent_x: float,
+        agent_y: float,
+    ) -> List[float]:
         """Calculate directions that lead toward resources"""
         directions = []
 
@@ -302,8 +334,9 @@ class EnvironmentAnalyzer:
 
         return directions
 
-    def _calculate_social_directions(self, allies: List[Tuple[Dict[str, Any], float]],
-                                   agent_x: float, agent_y: float) -> List[float]:
+    def _calculate_social_directions(
+        self, allies: List[Tuple[Dict[str, Any], float]], agent_x: float, agent_y: float
+    ) -> List[float]:
         """Calculate directions that lead toward social opportunities"""
         directions = []
 
@@ -348,9 +381,13 @@ class ContextManager:
         self.area_cleanup_interval = 30.0  # Clean up old areas every 30 seconds
         self.last_cleanup_time = time.time()
 
-    def update_context(self, agent_x: float, agent_y: float,
-                      visible_entities: List[Dict[str, Any]],
-                      terrain_data: Optional[Dict[Tuple[int, int], Any]] = None) -> ContextSnapshot:
+    def update_context(
+        self,
+        agent_x: float,
+        agent_y: float,
+        visible_entities: List[Dict[str, Any]],
+        terrain_data: Optional[Dict[Tuple[int, int], Any]] = None,
+    ) -> ContextSnapshot:
         """
         Update contextual awareness and return current snapshot
 
@@ -389,9 +426,11 @@ class ContextManager:
         self.last_snapshot = snapshot
         self.last_analysis_time = current_time
 
-        logger.debug(f"Agent {self.agent_id[:8]} context: danger={snapshot.local_danger.value}, "
-                    f"resources={snapshot.resource_availability:.2f}, "
-                    f"social={snapshot.social_density:.2f}")
+        logger.debug(
+            f"Agent {self.agent_id[:8]} context: danger={snapshot.local_danger.value}, "
+            f"resources={snapshot.resource_availability:.2f}, "
+            f"social={snapshot.social_density:.2f}"
+        )
 
         return snapshot
 
@@ -401,19 +440,30 @@ class ContextManager:
         max_danger = DangerLevel.SAFE
 
         for area in self.contextual_areas.values():
-            if area.context_type == ContextType.DANGER and area.is_position_inside(target_x, target_y):
+            if area.context_type == ContextType.DANGER and area.is_position_inside(
+                target_x, target_y
+            ):
                 if area.danger_level.value == "critical":
                     return DangerLevel.CRITICAL
-                elif area.danger_level.value == "high" and max_danger.value in ["safe", "low", "moderate"]:
+                elif area.danger_level.value == "high" and max_danger.value in [
+                    "safe",
+                    "low",
+                    "moderate",
+                ]:
                     max_danger = DangerLevel.HIGH
-                elif area.danger_level.value == "moderate" and max_danger.value in ["safe", "low"]:
+                elif area.danger_level.value == "moderate" and max_danger.value in [
+                    "safe",
+                    "low",
+                ]:
                     max_danger = DangerLevel.MODERATE
                 elif area.danger_level.value == "low" and max_danger.value == "safe":
                     max_danger = DangerLevel.LOW
 
         return max_danger
 
-    def get_resource_density(self, center_x: float, center_y: float, radius: float = 10.0) -> float:
+    def get_resource_density(
+        self, center_x: float, center_y: float, radius: float = 10.0
+    ) -> float:
         """Get resource density in a specific area"""
         total_density = 0.0
         area_count = 0
@@ -429,7 +479,9 @@ class ContextManager:
 
         return total_density / max(1, area_count)
 
-    def get_social_activity(self, center_x: float, center_y: float, radius: float = 15.0) -> float:
+    def get_social_activity(
+        self, center_x: float, center_y: float, radius: float = 15.0
+    ) -> float:
         """Get social activity level in a specific area"""
         total_activity = 0.0
         area_count = 0
@@ -444,8 +496,9 @@ class ContextManager:
 
         return total_activity / max(1, area_count)
 
-    def find_safe_position(self, current_x: float, current_y: float,
-                          search_radius: float = 20.0) -> Optional[Tuple[float, float]]:
+    def find_safe_position(
+        self, current_x: float, current_y: float, search_radius: float = 20.0
+    ) -> Optional[Tuple[float, float]]:
         """Find a safe position within search radius"""
         if not self.last_snapshot or not self.last_snapshot.safe_directions:
             return None
@@ -459,7 +512,10 @@ class ContextManager:
             safe_y = current_y + distance * math.sin(angle_rad)
 
             # Check if this position is actually safe
-            if self.get_danger_assessment(safe_x, safe_y) in [DangerLevel.SAFE, DangerLevel.LOW]:
+            if self.get_danger_assessment(safe_x, safe_y) in [
+                DangerLevel.SAFE,
+                DangerLevel.LOW,
+            ]:
                 return (safe_x, safe_y)
 
         return None
@@ -474,13 +530,21 @@ class ContextManager:
 
         # Combat behaviors
         if "combat" in behavior_lower or "attack" in behavior_lower:
-            factors["danger_level"] = self._danger_to_numeric(self.last_snapshot.local_danger)
+            factors["danger_level"] = self._danger_to_numeric(
+                self.last_snapshot.local_danger
+            )
             factors["enemy_count"] = min(1.0, self.last_snapshot.nearby_enemies / 3.0)
 
         # Resource gathering behaviors
-        elif "resource" in behavior_lower or "harvest" in behavior_lower or "fish" in behavior_lower:
+        elif (
+            "resource" in behavior_lower
+            or "harvest" in behavior_lower
+            or "fish" in behavior_lower
+        ):
             factors["resource_availability"] = self.last_snapshot.resource_availability
-            factors["danger_modifier"] = 1.0 - (self._danger_to_numeric(self.last_snapshot.local_danger) * 0.3)
+            factors["danger_modifier"] = 1.0 - (
+                self._danger_to_numeric(self.last_snapshot.local_danger) * 0.3
+            )
 
         # Social behaviors
         elif "social" in behavior_lower or "trade" in behavior_lower:
@@ -490,16 +554,24 @@ class ContextManager:
         # Exploration behaviors
         elif "exploration" in behavior_lower or "wander" in behavior_lower:
             factors["exploration_potential"] = self.last_snapshot.exploration_potential
-            factors["safety_factor"] = 1.0 - (self._danger_to_numeric(self.last_snapshot.local_danger) * 0.5)
+            factors["safety_factor"] = 1.0 - (
+                self._danger_to_numeric(self.last_snapshot.local_danger) * 0.5
+            )
 
         # Emergency behaviors
         elif "emergency" in behavior_lower or "flee" in behavior_lower:
-            factors["urgency"] = self._danger_to_numeric(self.last_snapshot.local_danger)
-            factors["safe_directions_available"] = min(1.0, len(self.last_snapshot.safe_directions) / 4.0)
+            factors["urgency"] = self._danger_to_numeric(
+                self.last_snapshot.local_danger
+            )
+            factors["safe_directions_available"] = min(
+                1.0, len(self.last_snapshot.safe_directions) / 4.0
+            )
 
         return factors
 
-    def get_movement_recommendation(self, goal_x: float, goal_y: float) -> Dict[str, Any]:
+    def get_movement_recommendation(
+        self, goal_x: float, goal_y: float
+    ) -> Dict[str, Any]:
         """Get movement recommendation considering context"""
         if not self.last_snapshot:
             return {"recommended": True, "alternative": None, "reason": "no_context"}
@@ -511,7 +583,7 @@ class ContextManager:
             "recommended": danger_at_goal in [DangerLevel.SAFE, DangerLevel.LOW],
             "danger_level": danger_at_goal.value,
             "alternative": None,
-            "reason": ""
+            "reason": "",
         }
 
         if not recommendation["recommended"]:
@@ -521,14 +593,19 @@ class ContextManager:
                 safe_pos = self.find_safe_position(current_x, current_y)
                 if safe_pos:
                     recommendation["alternative"] = safe_pos
-                    recommendation["reason"] = f"goal_area_dangerous_{danger_at_goal.value}"
+                    recommendation[
+                        "reason"
+                    ] = f"goal_area_dangerous_{danger_at_goal.value}"
                 else:
-                    recommendation["reason"] = f"no_safe_alternative_{danger_at_goal.value}"
+                    recommendation[
+                        "reason"
+                    ] = f"no_safe_alternative_{danger_at_goal.value}"
 
         return recommendation
 
-    def _update_contextual_areas(self, agent_x: float, agent_y: float,
-                               visible_entities: List[Dict[str, Any]]):
+    def _update_contextual_areas(
+        self, agent_x: float, agent_y: float, visible_entities: List[Dict[str, Any]]
+    ):
         """Update contextual areas based on current observations"""
         # Create or update danger areas around enemies
         self._update_danger_areas(visible_entities)
@@ -560,7 +637,7 @@ class ContextManager:
                     area_id=area_id,
                     center=(ex, ey),
                     radius=8.0,  # Danger radius around enemy
-                    context_type=ContextType.DANGER
+                    context_type=ContextType.DANGER,
                 )
                 area.update_from_entities(visible_entities)
                 self.contextual_areas[area_id] = area
@@ -569,8 +646,12 @@ class ContextManager:
         """Update resource areas based on resource positions"""
         # Group resources by proximity
         resource_clusters = self._cluster_entities_by_proximity(
-            [e for e in visible_entities if e.get("type") in ["wood", "fish", "ore", "plant"]],
-            cluster_radius=5.0
+            [
+                e
+                for e in visible_entities
+                if e.get("type") in ["wood", "fish", "ore", "plant"]
+            ],
+            cluster_radius=5.0,
         )
 
         # Update resource areas
@@ -588,7 +669,7 @@ class ContextManager:
                     area_id=area_id,
                     center=(center_x, center_y),
                     radius=6.0,
-                    context_type=ContextType.RESOURCE
+                    context_type=ContextType.RESOURCE,
                 )
                 area.update_from_entities(visible_entities)
                 self.contextual_areas[area_id] = area
@@ -597,7 +678,7 @@ class ContextManager:
         """Update social areas based on ally positions"""
         ally_clusters = self._cluster_entities_by_proximity(
             [e for e in visible_entities if e.get("agent_type") in ["player", "npc"]],
-            cluster_radius=8.0
+            cluster_radius=8.0,
         )
 
         for i, cluster in enumerate(ally_clusters):
@@ -614,13 +695,14 @@ class ContextManager:
                     area_id=area_id,
                     center=(center_x, center_y),
                     radius=10.0,
-                    context_type=ContextType.SOCIAL
+                    context_type=ContextType.SOCIAL,
                 )
                 area.update_from_entities(visible_entities)
                 self.contextual_areas[area_id] = area
 
-    def _cluster_entities_by_proximity(self, entities: List[Dict[str, Any]],
-                                     cluster_radius: float) -> List[List[Dict[str, Any]]]:
+    def _cluster_entities_by_proximity(
+        self, entities: List[Dict[str, Any]], cluster_radius: float
+    ) -> List[List[Dict[str, Any]]]:
         """Group entities into clusters based on proximity"""
         if not entities:
             return []
@@ -640,7 +722,9 @@ class ContextManager:
                 entity = remaining[i]
                 entity_x, entity_y = entity.get("x", 0), entity.get("y", 0)
 
-                distance = math.sqrt((entity_x - seed_x) ** 2 + (entity_y - seed_y) ** 2)
+                distance = math.sqrt(
+                    (entity_x - seed_x) ** 2 + (entity_y - seed_y) ** 2
+                )
 
                 if distance <= cluster_radius:
                     cluster.append(remaining.pop(i))
@@ -664,14 +748,13 @@ class ContextManager:
             del self.contextual_areas[area_id]
 
         if expired_areas:
-            logger.debug(f"Context manager cleaned up {len(expired_areas)} expired areas")
+            logger.debug(
+                f"Context manager cleaned up {len(expired_areas)} expired areas"
+            )
 
     def _create_empty_snapshot(self, agent_x: float, agent_y: float) -> ContextSnapshot:
         """Create an empty context snapshot"""
-        return ContextSnapshot(
-            timestamp=time.time(),
-            position=(agent_x, agent_y)
-        )
+        return ContextSnapshot(timestamp=time.time(), position=(agent_x, agent_y))
 
     def _danger_to_numeric(self, danger_level: DangerLevel) -> float:
         """Convert danger level to numeric value (0.0-1.0)"""
@@ -680,7 +763,7 @@ class ContextManager:
             DangerLevel.LOW: 0.2,
             DangerLevel.MODERATE: 0.4,
             DangerLevel.HIGH: 0.7,
-            DangerLevel.CRITICAL: 1.0
+            DangerLevel.CRITICAL: 1.0,
         }
         return mapping.get(danger_level, 0.0)
 
@@ -691,17 +774,25 @@ class ContextManager:
             "active_areas": len(self.contextual_areas),
             "history_size": len(self.context_history),
             "last_snapshot": {
-                "danger": self.last_snapshot.local_danger.value if self.last_snapshot else "none",
-                "resources": self.last_snapshot.resource_availability if self.last_snapshot else 0.0,
-                "social": self.last_snapshot.social_density if self.last_snapshot else 0.0,
-            } if self.last_snapshot else None,
+                "danger": self.last_snapshot.local_danger.value
+                if self.last_snapshot
+                else "none",
+                "resources": self.last_snapshot.resource_availability
+                if self.last_snapshot
+                else 0.0,
+                "social": self.last_snapshot.social_density
+                if self.last_snapshot
+                else 0.0,
+            }
+            if self.last_snapshot
+            else None,
             "contextual_areas": {
                 area_id: {
                     "type": area.context_type.value,
                     "danger": area.danger_level.value,
                     "center": area.center,
-                    "radius": area.radius
+                    "radius": area.radius,
                 }
                 for area_id, area in self.contextual_areas.items()
-            }
+            },
         }

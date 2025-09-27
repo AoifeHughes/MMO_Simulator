@@ -33,7 +33,7 @@ class PersonalityCondition(ConditionNode):
 
     def check_condition(self, agent) -> bool:
         """Check if agent's personality desire meets the threshold"""
-        if not hasattr(agent, 'personality') or not agent.personality:
+        if not hasattr(agent, "personality") or not agent.personality:
             return False
 
         desire_value = agent.personality.get_desire_priority(self.desire)
@@ -47,7 +47,9 @@ class PersonalityCondition(ConditionNode):
         elif self.comparison == "<":
             return desire_value < self.threshold
         elif self.comparison == "==":
-            return abs(desire_value - self.threshold) < 0.1  # Allow for floating point comparison
+            return (
+                abs(desire_value - self.threshold) < 0.1
+            )  # Allow for floating point comparison
         else:
             logger.warning(f"Unknown comparison operator: {self.comparison}")
             return False
@@ -66,16 +68,20 @@ class PersonalityPriorityCondition(ConditionNode):
             primary_desire: Desire that should be higher
             secondary_desire: Desire that should be lower
         """
-        super().__init__(f"PersonalityPriority_{primary_desire}_over_{secondary_desire}")
+        super().__init__(
+            f"PersonalityPriority_{primary_desire}_over_{secondary_desire}"
+        )
         self.primary_desire = primary_desire
         self.secondary_desire = secondary_desire
 
     def check_condition(self, agent) -> bool:
         """Check if primary desire has higher priority than secondary"""
-        if not hasattr(agent, 'personality') or not agent.personality:
+        if not hasattr(agent, "personality") or not agent.personality:
             return False
 
-        return agent.personality.should_prioritize(self.primary_desire, self.secondary_desire)
+        return agent.personality.should_prioritize(
+            self.primary_desire, self.secondary_desire
+        )
 
 
 class PersonalityActivityMotivation(ConditionNode):
@@ -97,10 +103,10 @@ class PersonalityActivityMotivation(ConditionNode):
 
     def check_condition(self, agent) -> bool:
         """Check if agent is motivated enough for the activity"""
-        if not hasattr(agent, 'personality') or not agent.personality:
+        if not hasattr(agent, "personality") or not agent.personality:
             return False
 
-        if hasattr(agent, 'should_engage_in_activity'):
+        if hasattr(agent, "should_engage_in_activity"):
             motivation = agent.should_engage_in_activity(self.activity)
             return motivation >= self.minimum_motivation
         else:
@@ -122,16 +128,18 @@ class PersonalityCompatibility(ConditionNode):
             range_check: How far to look for other agents
             compatibility_threshold: Minimum compatibility score
         """
-        super().__init__(f"PersonalityCompatibility_{range_check}_{compatibility_threshold}")
+        super().__init__(
+            f"PersonalityCompatibility_{range_check}_{compatibility_threshold}"
+        )
         self.range_check = range_check
         self.compatibility_threshold = compatibility_threshold
 
     def check_condition(self, agent) -> bool:
         """Check if any nearby agents are compatible"""
-        if not hasattr(agent, 'personality') or not agent.personality:
+        if not hasattr(agent, "personality") or not agent.personality:
             return False
 
-        if not hasattr(agent, 'visible_entities'):
+        if not hasattr(agent, "visible_entities"):
             return False
 
         for entity in agent.visible_entities:
@@ -169,16 +177,17 @@ class PersonalityArchetypeMatch(ConditionNode):
 
     def check_condition(self, agent) -> bool:
         """Check if agent matches the archetype"""
-        if hasattr(agent, 'archetype_name'):
+        if hasattr(agent, "archetype_name"):
             return agent.archetype_name.lower() == self.archetype_name
 
-        if hasattr(agent, 'get_personality_type'):
+        if hasattr(agent, "get_personality_type"):
             return agent.get_personality_type().lower() == self.archetype_name
 
         return False
 
 
 # Convenience factory functions for common personality conditions
+
 
 def high_combat_drive(threshold: float = 7.0) -> PersonalityCondition:
     """Condition for agents with high combat drive"""

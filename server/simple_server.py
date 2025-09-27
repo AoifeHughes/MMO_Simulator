@@ -23,8 +23,13 @@ from typing import Any, Dict, List, Optional
 from server.world import ServerWorld
 from shared.constants import SERVER_PORT
 from shared.simple_messages import (
-    SimpleMessage, SimpleMessageType, SimpleActionType, SimpleEventType,
-    create_world_update_message, create_action_response_message, create_game_event_message
+    SimpleActionType,
+    SimpleEventType,
+    SimpleMessage,
+    SimpleMessageType,
+    create_action_response_message,
+    create_game_event_message,
+    create_world_update_message,
 )
 from world.terrain_generator import TerrainType
 
@@ -34,9 +39,16 @@ logger = logging.getLogger(__name__)
 class SimpleGameServer:
     """Simplified game server with streamlined communication"""
 
-    def __init__(self, world_width: int = 100, world_height: int = 100,
-                 terrain_type: Optional[TerrainType] = None, seed: int = 42):
-        self.world = ServerWorld(world_width, world_height, terrain_type=terrain_type, seed=seed)
+    def __init__(
+        self,
+        world_width: int = 100,
+        world_height: int = 100,
+        terrain_type: Optional[TerrainType] = None,
+        seed: int = 42,
+    ):
+        self.world = ServerWorld(
+            world_width, world_height, terrain_type=terrain_type, seed=seed
+        )
 
         # Connection management
         self.clients: Dict[str, "SimpleClientConnection"] = {}
@@ -55,7 +67,7 @@ class SimpleGameServer:
             "clients_connected": 0,
             "actions_processed": 0,
             "world_updates_sent": 0,
-            "errors": 0
+            "errors": 0,
         }
 
     async def start(self):
@@ -73,7 +85,7 @@ class SimpleGameServer:
         await asyncio.gather(
             self.tcp_server.serve_forever(),
             self.world_update_loop(),
-            self.action_processing_loop()
+            self.action_processing_loop(),
         )
 
     async def stop(self):
@@ -91,7 +103,9 @@ class SimpleGameServer:
 
         logger.info("Simplified server stopped")
 
-    async def handle_client_connection(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+    async def handle_client_connection(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ):
         """Handle new client connection"""
         client_id = str(len(self.clients))
         client = SimpleClientConnection(client_id, reader, writer, self)
@@ -151,24 +165,26 @@ class SimpleGameServer:
         # Get all agents for world update
         agents_data = []
         for agent in self.world.get_all_agents():
-            agents_data.append({
-                "id": agent.id,
-                "x": agent.x,
-                "y": agent.y,
-                "rotation": agent.rotation,
-                "agent_type": agent.agent_type,
-                "health": agent.health,
-                "max_health": agent.max_health,
-                "is_alive": agent.is_alive,
-                "velocity_x": getattr(agent, 'velocity_x', 0),
-                "velocity_y": getattr(agent, 'velocity_y', 0)
-            })
+            agents_data.append(
+                {
+                    "id": agent.id,
+                    "x": agent.x,
+                    "y": agent.y,
+                    "rotation": agent.rotation,
+                    "agent_type": agent.agent_type,
+                    "health": agent.health,
+                    "max_health": agent.max_health,
+                    "is_alive": agent.is_alive,
+                    "velocity_x": getattr(agent, "velocity_x", 0),
+                    "velocity_y": getattr(agent, "velocity_y", 0),
+                }
+            )
 
         # World info
         world_info = {
             "width": self.world.world_map.width,
             "height": self.world.world_map.height,
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
 
         # Create and send update message
@@ -182,10 +198,18 @@ class SimpleGameServer:
                 logger.error(f"Failed to send world update to {client.client_id}: {e}")
 
         self.stats["world_updates_sent"] += 1
-        logger.debug(f"Sent world update to {len(self.clients)} clients with {len(agents_data)} agents")
+        logger.debug(
+            f"Sent world update to {len(self.clients)} clients with {len(agents_data)} agents"
+        )
 
-    async def queue_action(self, client_id: str, agent_id: str, action_type: str,
-                          parameters: Dict[str, Any], request_id: str):
+    async def queue_action(
+        self,
+        client_id: str,
+        agent_id: str,
+        action_type: str,
+        parameters: Dict[str, Any],
+        request_id: str,
+    ):
         """Queue an action for processing"""
         action_data = {
             "client_id": client_id,
@@ -193,7 +217,7 @@ class SimpleGameServer:
             "action_type": action_type,
             "parameters": parameters,
             "request_id": request_id,
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
         self.pending_actions.append(action_data)
 
@@ -229,45 +253,66 @@ class SimpleGameServer:
             elif action_type == SimpleActionType.FISH:
                 await self.process_fish_action(agent, parameters, client, request_id)
             elif action_type == SimpleActionType.HARVEST_WOOD:
-                await self.process_harvest_wood_action(agent, parameters, client, request_id)
+                await self.process_harvest_wood_action(
+                    agent, parameters, client, request_id
+                )
             elif action_type == SimpleActionType.STOP:
                 await self.process_stop_action(agent, parameters, client, request_id)
             else:
-                await client.send_action_response(request_id, False, f"Unknown action type: {action_type}")
+                await client.send_action_response(
+                    request_id, False, f"Unknown action type: {action_type}"
+                )
 
         except Exception as e:
             logger.error(f"Error processing action {action_type}: {e}")
-            await client.send_action_response(request_id, False, f"Action processing error: {e}")
+            await client.send_action_response(
+                request_id, False, f"Action processing error: {e}"
+            )
 
-    async def process_move_action(self, agent, parameters: Dict, client, request_id: str):
+    async def process_move_action(
+        self, agent, parameters: Dict, client, request_id: str
+    ):
         """Process movement action"""
         target_x = parameters.get("target_x")
         target_y = parameters.get("target_y")
 
         if target_x is None or target_y is None:
-            await client.send_action_response(request_id, False, "Missing target coordinates")
+            await client.send_action_response(
+                request_id, False, "Missing target coordinates"
+            )
             return
 
         # Simple validation - check bounds
-        if not (0 <= target_x < self.world.world_map.width and 0 <= target_y < self.world.world_map.height):
+        if not (
+            0 <= target_x < self.world.world_map.width
+            and 0 <= target_y < self.world.world_map.height
+        ):
             await client.send_action_response(request_id, False, "Target out of bounds")
             return
 
         # Check if target is walkable
         if not self.world.world_map.is_walkable(int(target_x), int(target_y)):
-            await client.send_action_response(request_id, False, "Target location not walkable")
+            await client.send_action_response(
+                request_id, False, "Target location not walkable"
+            )
             return
 
         # Move agent (simplified - direct movement)
         success = self.world.move_agent(agent.id, target_x, target_y, agent.rotation)
 
         if success:
-            await client.send_action_response(request_id, True, "Movement successful",
-                                            {"new_x": target_x, "new_y": target_y})
+            await client.send_action_response(
+                request_id,
+                True,
+                "Movement successful",
+                {"new_x": target_x, "new_y": target_y},
+            )
         else:
             await client.send_action_response(request_id, False, "Movement failed")
 
-    async def process_attack_action(self, agent, parameters: Dict, client, request_id: str):
+    async def process_attack_action(
+        self, agent, parameters: Dict, client, request_id: str
+    ):
         """Process attack action"""
         target_id = parameters.get("target_id")
         if not target_id:
@@ -276,7 +321,9 @@ class SimpleGameServer:
 
         target = self.world.get_agent(target_id)
         if not target or not target.is_alive:
-            await client.send_action_response(request_id, False, "Target not found or dead")
+            await client.send_action_response(
+                request_id, False, "Target not found or dead"
+            )
             return
 
         # Simple range check
@@ -293,16 +340,22 @@ class SimpleGameServer:
         if target.health <= 0:
             target.is_alive = False
             # Broadcast death event
-            death_event = create_game_event_message(SimpleEventType.AGENT_DEATH, {
-                "dead_agent_id": target_id,
-                "killer_id": agent.id
-            })
+            death_event = create_game_event_message(
+                SimpleEventType.AGENT_DEATH,
+                {"dead_agent_id": target_id, "killer_id": agent.id},
+            )
             await self.broadcast_event(death_event)
 
-        await client.send_action_response(request_id, True, f"Attack successful, dealt {damage} damage",
-                                        {"damage": damage, "target_health": target.health})
+        await client.send_action_response(
+            request_id,
+            True,
+            f"Attack successful, dealt {damage} damage",
+            {"damage": damage, "target_health": target.health},
+        )
 
-    async def process_fish_action(self, agent, parameters: Dict, client, request_id: str):
+    async def process_fish_action(
+        self, agent, parameters: Dict, client, request_id: str
+    ):
         """Process fishing action"""
         # Simple fishing - check if near water
         agent_x, agent_y = int(agent.x), int(agent.y)
@@ -312,30 +365,45 @@ class SimpleGameServer:
         for dx in [-1, 0, 1]:
             for dy in [-1, 0, 1]:
                 check_x, check_y = agent_x + dx, agent_y + dy
-                if (0 <= check_x < self.world.world_map.width and
-                    0 <= check_y < self.world.world_map.height):
+                if (
+                    0 <= check_x < self.world.world_map.width
+                    and 0 <= check_y < self.world.world_map.height
+                ):
                     tile_type = self.world.world_map.get_tile(check_x, check_y)
                     if tile_type.name == "WATER":
                         found_water = True
                         break
 
         if not found_water:
-            await client.send_action_response(request_id, False, "No water nearby for fishing")
+            await client.send_action_response(
+                request_id, False, "No water nearby for fishing"
+            )
             return
 
         # Simulate fishing time and success
         import random
+
         fishing_time = random.uniform(1.0, 3.0)
         await asyncio.sleep(fishing_time)
 
         if random.random() < 0.7:  # 70% success rate
-            await client.send_action_response(request_id, True, f"Caught a fish! (took {fishing_time:.1f}s)",
-                                            {"success": True, "item": "fish", "fishing_time": fishing_time})
+            await client.send_action_response(
+                request_id,
+                True,
+                f"Caught a fish! (took {fishing_time:.1f}s)",
+                {"success": True, "item": "fish", "fishing_time": fishing_time},
+            )
         else:
-            await client.send_action_response(request_id, True, f"No luck fishing (took {fishing_time:.1f}s)",
-                                            {"success": False, "fishing_time": fishing_time})
+            await client.send_action_response(
+                request_id,
+                True,
+                f"No luck fishing (took {fishing_time:.1f}s)",
+                {"success": False, "fishing_time": fishing_time},
+            )
 
-    async def process_harvest_wood_action(self, agent, parameters: Dict, client, request_id: str):
+    async def process_harvest_wood_action(
+        self, agent, parameters: Dict, client, request_id: str
+    ):
         """Process wood harvesting action"""
         # Check if near wood
         agent_x, agent_y = int(agent.x), int(agent.y)
@@ -344,26 +412,37 @@ class SimpleGameServer:
         for dx in [-1, 0, 1]:
             for dy in [-1, 0, 1]:
                 check_x, check_y = agent_x + dx, agent_y + dy
-                if (0 <= check_x < self.world.world_map.width and
-                    0 <= check_y < self.world.world_map.height):
+                if (
+                    0 <= check_x < self.world.world_map.width
+                    and 0 <= check_y < self.world.world_map.height
+                ):
                     tile_type = self.world.world_map.get_tile(check_x, check_y)
                     if tile_type.name == "WOOD":
                         found_wood = True
                         break
 
         if not found_wood:
-            await client.send_action_response(request_id, False, "No wood nearby for harvesting")
+            await client.send_action_response(
+                request_id, False, "No wood nearby for harvesting"
+            )
             return
 
         # Simulate harvesting
         import random
+
         harvest_time = random.uniform(1.5, 2.5)
         await asyncio.sleep(harvest_time)
 
-        await client.send_action_response(request_id, True, f"Harvested wood! (took {harvest_time:.1f}s)",
-                                        {"success": True, "item": "wood", "harvest_time": harvest_time})
+        await client.send_action_response(
+            request_id,
+            True,
+            f"Harvested wood! (took {harvest_time:.1f}s)",
+            {"success": True, "item": "wood", "harvest_time": harvest_time},
+        )
 
-    async def process_stop_action(self, agent, parameters: Dict, client, request_id: str):
+    async def process_stop_action(
+        self, agent, parameters: Dict, client, request_id: str
+    ):
         """Process stop movement action"""
         agent.velocity_x = 0
         agent.velocity_y = 0
@@ -383,15 +462,20 @@ class SimpleGameServer:
             **self.stats,
             "connected_clients": len(self.clients),
             "total_agents": len(self.world.get_all_agents()),
-            "pending_actions": len(self.pending_actions)
+            "pending_actions": len(self.pending_actions),
         }
 
 
 class SimpleClientConnection:
     """Simplified client connection handler"""
 
-    def __init__(self, client_id: str, reader: asyncio.StreamReader,
-                 writer: asyncio.StreamWriter, server: SimpleGameServer):
+    def __init__(
+        self,
+        client_id: str,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        server: SimpleGameServer,
+    ):
         self.client_id = client_id
         self.reader = reader
         self.writer = writer
@@ -443,12 +527,14 @@ class SimpleClientConnection:
                     "y": agent.y,
                     "rotation": agent.rotation,
                     "agent_type": agent_type,
-                    "health": agent.health
-                }
-            }
+                    "health": agent.health,
+                },
+            },
         )
         await self.send_message(response)
-        logger.info(f"Client {self.client_id} spawned {agent_type} agent {self.agent_id[:8]}")
+        logger.info(
+            f"Client {self.client_id} spawned {agent_type} agent {self.agent_id[:8]}"
+        )
 
     async def handle_action_request(self, message: SimpleMessage):
         """Handle action request from client"""
@@ -474,10 +560,13 @@ class SimpleClientConnection:
         except Exception as e:
             logger.error(f"Failed to send message to {self.client_id}: {e}")
 
-    async def send_action_response(self, request_id: str, success: bool,
-                                  message: str, result_data: Dict = None):
+    async def send_action_response(
+        self, request_id: str, success: bool, message: str, result_data: Dict = None
+    ):
         """Send action response to client"""
-        response = create_action_response_message(request_id, success, message, result_data)
+        response = create_action_response_message(
+            request_id, success, message, result_data
+        )
         await self.send_message(response)
 
     async def disconnect(self):

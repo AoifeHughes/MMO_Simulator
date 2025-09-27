@@ -5,18 +5,25 @@ Comprehensive tests for the flexibility testing framework to ensure
 accurate measurement of agent behavioral flexibility and adaptation.
 """
 
-import pytest
-import time
-import tempfile
 import json
+import tempfile
+import time
 from pathlib import Path
 
-from tests.flexibility.flexibility_harness import (
-    FlexibilityHarness, FlexibilityMetric, ScenarioDifficulty, FlexibilityScore,
-    ScenarioResult, FlexibilityReport, MockFlexibilityAgent,
-    quick_flexibility_test, comprehensive_flexibility_test
-)
+import pytest
+
 from shared.personality import Personality
+from tests.flexibility.flexibility_harness import (
+    FlexibilityHarness,
+    FlexibilityMetric,
+    FlexibilityReport,
+    FlexibilityScore,
+    MockFlexibilityAgent,
+    ScenarioDifficulty,
+    ScenarioResult,
+    comprehensive_flexibility_test,
+    quick_flexibility_test,
+)
 
 
 class TestFlexibilityScore:
@@ -30,7 +37,7 @@ class TestFlexibilityScore:
             raw_value=1.2,
             measurement_time=time.time(),
             context={"test": True},
-            details="Test measurement"
+            details="Test measurement",
         )
 
         assert score.metric == FlexibilityMetric.ADAPTATION_SPEED
@@ -46,8 +53,12 @@ class TestScenarioResult:
     def test_scenario_result_creation(self):
         """Test creating scenario results"""
         scores = [
-            FlexibilityScore(FlexibilityMetric.ADAPTATION_SPEED, 0.8, 1.0, time.time(), {}),
-            FlexibilityScore(FlexibilityMetric.BEHAVIOR_DIVERSITY, 0.6, 3.0, time.time(), {})
+            FlexibilityScore(
+                FlexibilityMetric.ADAPTATION_SPEED, 0.8, 1.0, time.time(), {}
+            ),
+            FlexibilityScore(
+                FlexibilityMetric.BEHAVIOR_DIVERSITY, 0.6, 3.0, time.time(), {}
+            ),
         ]
 
         result = ScenarioResult(
@@ -56,7 +67,7 @@ class TestScenarioResult:
             duration=2.5,
             scores=scores,
             agent_id="test_agent",
-            success=True
+            success=True,
         )
 
         assert result.scenario_name == "test_scenario"
@@ -67,8 +78,12 @@ class TestScenarioResult:
     def test_overall_score_calculation(self):
         """Test overall score calculation"""
         scores = [
-            FlexibilityScore(FlexibilityMetric.ADAPTATION_SPEED, 0.8, 1.0, time.time(), {}),
-            FlexibilityScore(FlexibilityMetric.BEHAVIOR_DIVERSITY, 0.6, 3.0, time.time(), {})
+            FlexibilityScore(
+                FlexibilityMetric.ADAPTATION_SPEED, 0.8, 1.0, time.time(), {}
+            ),
+            FlexibilityScore(
+                FlexibilityMetric.BEHAVIOR_DIVERSITY, 0.6, 3.0, time.time(), {}
+            ),
         ]
 
         result = ScenarioResult(
@@ -77,7 +92,7 @@ class TestScenarioResult:
             duration=1.0,
             scores=scores,
             agent_id="test",
-            success=True
+            success=True,
         )
 
         overall = result.get_overall_score()
@@ -91,7 +106,7 @@ class TestScenarioResult:
             duration=1.0,
             scores=[],
             agent_id="test",
-            success=False
+            success=False,
         )
 
         assert result.get_overall_score() == 0.0
@@ -99,8 +114,12 @@ class TestScenarioResult:
     def test_get_metric_score(self):
         """Test getting specific metric scores"""
         scores = [
-            FlexibilityScore(FlexibilityMetric.ADAPTATION_SPEED, 0.8, 1.0, time.time(), {}),
-            FlexibilityScore(FlexibilityMetric.BEHAVIOR_DIVERSITY, 0.6, 3.0, time.time(), {})
+            FlexibilityScore(
+                FlexibilityMetric.ADAPTATION_SPEED, 0.8, 1.0, time.time(), {}
+            ),
+            FlexibilityScore(
+                FlexibilityMetric.BEHAVIOR_DIVERSITY, 0.6, 3.0, time.time(), {}
+            ),
         ]
 
         result = ScenarioResult(
@@ -109,7 +128,7 @@ class TestScenarioResult:
             duration=1.0,
             scores=scores,
             agent_id="test",
-            success=True
+            success=True,
         )
 
         assert result.get_metric_score(FlexibilityMetric.ADAPTATION_SPEED) == 0.8
@@ -122,8 +141,14 @@ class TestFlexibilityReport:
 
     def test_report_save_to_file(self):
         """Test saving report to JSON file"""
-        scores = [FlexibilityScore(FlexibilityMetric.ADAPTATION_SPEED, 0.8, 1.0, time.time(), {})]
-        scenario = ScenarioResult("test", ScenarioDifficulty.EASY, 1.0, scores, "agent", True)
+        scores = [
+            FlexibilityScore(
+                FlexibilityMetric.ADAPTATION_SPEED, 0.8, 1.0, time.time(), {}
+            )
+        ]
+        scenario = ScenarioResult(
+            "test", ScenarioDifficulty.EASY, 1.0, scores, "agent", True
+        )
 
         report = FlexibilityReport(
             agent_id="test_agent",
@@ -133,18 +158,18 @@ class TestFlexibilityReport:
             metric_breakdown={FlexibilityMetric.ADAPTATION_SPEED: 0.8},
             recommendations=["Test recommendation"],
             strengths=["Test strength"],
-            weaknesses=["Test weakness"]
+            weaknesses=["Test weakness"],
         )
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             report.save_to_file(f.name)
 
             # Verify file was created and contains valid JSON
-            with open(f.name, 'r') as read_f:
+            with open(f.name, "r") as read_f:
                 data = json.load(read_f)
-                assert data['agent_id'] == "test_agent"
-                assert data['overall_flexibility'] == 0.75
-                assert len(data['scenarios']) == 1
+                assert data["agent_id"] == "test_agent"
+                assert data["overall_flexibility"] == 0.75
+                assert len(data["scenarios"]) == 1
 
             # Cleanup
             Path(f.name).unlink()
@@ -245,7 +270,13 @@ class TestFlexibilityHarness:
     def test_behavior_diversity_measurement(self):
         """Test behavior diversity measurement"""
         # Add some behavior history
-        self.agent.behavior_history = ["gather", "explore", "gather", "combat", "social"]
+        self.agent.behavior_history = [
+            "gather",
+            "explore",
+            "gather",
+            "combat",
+            "social",
+        ]
 
         context = {"diversity_test": True}
         score = self.harness._measure_behavior_diversity(self.agent, context)
@@ -292,7 +323,7 @@ class TestFlexibilityHarness:
         contexts = [
             {"phase": 1, "strategy": "gather"},
             {"phase": 2, "strategy": "combat"},
-            {"phase": 3, "strategy": "explore"}
+            {"phase": 3, "strategy": "explore"},
         ]
 
         score = self.harness._measure_strategy_switching(self.agent, contexts)
@@ -315,7 +346,9 @@ class TestFlexibilityHarness:
         self.agent.resources = {"wood": 8, "stone": 4, "food": 18}  # Some consumption
 
         context = {"efficiency_test": True}
-        score = self.harness._measure_resource_efficiency(self.agent, context, original_resources)
+        score = self.harness._measure_resource_efficiency(
+            self.agent, context, original_resources
+        )
 
         assert score.metric == FlexibilityMetric.RESOURCE_EFFICIENCY
         assert 0.0 <= score.score <= 1.0
@@ -445,7 +478,10 @@ class TestFlexibilityAssessment:
 
     def test_assessment_custom_scenarios(self):
         """Test assessment with custom scenarios"""
-        custom_scenarios = ["resource_scarcity_adaptation", "environment_change_response"]
+        custom_scenarios = [
+            "resource_scarcity_adaptation",
+            "environment_change_response",
+        ]
         report = self.harness.run_flexibility_assessment(self.agent, custom_scenarios)
 
         assert len(report.scenarios) == 2
@@ -481,7 +517,7 @@ class TestFlexibilityAssessment:
             FlexibilityMetric.CONTEXT_SENSITIVITY: 0.8,  # High
             FlexibilityMetric.RECOVERY_TIME: 0.7,  # Good
             FlexibilityMetric.STRATEGY_SWITCHING: 0.6,  # OK
-            FlexibilityMetric.RESOURCE_EFFICIENCY: 0.9  # Excellent
+            FlexibilityMetric.RESOURCE_EFFICIENCY: 0.9,  # Excellent
         }
 
         recommendations = self.harness._generate_recommendations(metric_scores)
@@ -493,7 +529,9 @@ class TestFlexibilityAssessment:
 
     def test_strengths_identification(self):
         """Test strengths identification"""
-        metric_scores = {metric: 0.85 for metric in FlexibilityMetric}  # All high scores
+        metric_scores = {
+            metric: 0.85 for metric in FlexibilityMetric
+        }  # All high scores
 
         strengths = self.harness._identify_strengths(metric_scores)
 
@@ -527,9 +565,7 @@ class TestConvenienceFunctions:
         custom_scenarios = ["resource_scarcity_adaptation", "social_dynamics_shift"]
 
         report = comprehensive_flexibility_test(
-            "comprehensive_agent",
-            personality,
-            custom_scenarios
+            "comprehensive_agent", personality, custom_scenarios
         )
 
         assert report.agent_id == "comprehensive_agent"
@@ -569,7 +605,10 @@ class TestIntegration:
 
         # Check that memories were created
         location_memories_count = len(agent.memory.location_memory.memories)
-        social_memories_count = sum(len(memories) for memories in agent.memory.social_memory.agent_memories.values())
+        social_memories_count = sum(
+            len(memories)
+            for memories in agent.memory.social_memory.agent_memories.values()
+        )
         total_memories = location_memories_count + social_memories_count
         assert total_memories >= 0  # Should have some memories
 
@@ -578,18 +617,20 @@ class TestIntegration:
         harness = FlexibilityHarness()
         agent = MockFlexibilityAgent("serialization_agent")
 
-        report = harness.run_flexibility_assessment(agent, ["resource_scarcity_adaptation"])
+        report = harness.run_flexibility_assessment(
+            agent, ["resource_scarcity_adaptation"]
+        )
 
         # Save and load report
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             report.save_to_file(f.name)
 
             # Verify file contains valid JSON
-            with open(f.name, 'r') as read_f:
+            with open(f.name, "r") as read_f:
                 data = json.load(read_f)
-                assert data['agent_id'] == agent.id
-                assert 'overall_flexibility' in data
-                assert 'scenarios' in data
+                assert data["agent_id"] == agent.id
+                assert "overall_flexibility" in data
+                assert "scenarios" in data
 
             # Cleanup
             Path(f.name).unlink()

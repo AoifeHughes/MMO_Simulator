@@ -5,13 +5,18 @@ Tests behavior state preservation, interruption logic, smart resumption decision
 interrupt history tracking, and integration with the behavior tree system.
 """
 
-import pytest
 import time
 from unittest.mock import Mock, patch
 
+import pytest
+
 from client.behavior_tree.interrupt_manager import (
-    InterruptManager, BehaviorState, InterruptEvent,
-    InterruptPriority, InterruptReason, ResumptionStrategy
+    BehaviorState,
+    InterruptEvent,
+    InterruptManager,
+    InterruptPriority,
+    InterruptReason,
+    ResumptionStrategy,
 )
 
 
@@ -29,7 +34,7 @@ class TestBehaviorState:
             context={"location": (10, 20)},
             start_time=current_time,
             last_update_time=current_time,
-            success_probability=0.8
+            success_probability=0.8,
         )
 
         assert state.behavior_id == "test_behavior"
@@ -48,7 +53,7 @@ class TestBehaviorState:
             progress=0.0,
             context={},
             start_time=start_time,
-            last_update_time=start_time
+            last_update_time=start_time,
         )
 
         age = state.get_age()
@@ -63,7 +68,7 @@ class TestBehaviorState:
             progress=0.3,
             context={},
             start_time=time.time(),
-            last_update_time=time.time()
+            last_update_time=time.time(),
         )
 
         initial_count = state.execution_count
@@ -86,7 +91,7 @@ class TestBehaviorState:
             progress=0.0,
             context={},
             start_time=time.time(),
-            last_update_time=time.time()
+            last_update_time=time.time(),
         )
 
         # Test serialization
@@ -95,7 +100,9 @@ class TestBehaviorState:
         assert len(serialized) > 0
 
         # Test deserialization
-        new_state = BehaviorState("test2", "test", {}, 0.0, {}, time.time(), time.time())
+        new_state = BehaviorState(
+            "test2", "test", {}, 0.0, {}, time.time(), time.time()
+        )
         success = new_state.deserialize_state(serialized)
         assert success
         assert new_state.state_data == state_data
@@ -114,7 +121,7 @@ class TestInterruptEvent:
             source_behavior_id="combat_behavior",
             interrupted_behavior_id="gathering_behavior",
             interrupt_time=current_time,
-            context={"attacker": "bandit"}
+            context={"attacker": "bandit"},
         )
 
         assert event.interrupt_id == "test_interrupt"
@@ -131,7 +138,7 @@ class TestInterruptEvent:
             priority=InterruptPriority.NORMAL,
             reason=InterruptReason.EXTERNAL_REQUEST,
             interrupted_behavior_id="test_behavior",
-            interrupt_time=start_time
+            interrupt_time=start_time,
         )
 
         duration = event.get_duration()
@@ -144,7 +151,7 @@ class TestInterruptEvent:
             priority=InterruptPriority.NORMAL,
             reason=InterruptReason.EXTERNAL_REQUEST,
             interrupted_behavior_id="test_behavior",
-            interrupt_time=time.time()
+            interrupt_time=time.time(),
         )
 
         assert not event.resolved
@@ -181,8 +188,10 @@ class TestInterruptManager:
 
         # Emergency should always interrupt
         should_interrupt = self.manager.should_interrupt(
-            behavior_id, InterruptPriority.EMERGENCY,
-            InterruptReason.HEALTH_CRITICAL, {"health": 5}
+            behavior_id,
+            InterruptPriority.EMERGENCY,
+            InterruptReason.HEALTH_CRITICAL,
+            {"health": 5},
         )
 
         assert should_interrupt
@@ -200,8 +209,10 @@ class TestInterruptManager:
         interrupt_count = 0
         for _ in range(20):
             if self.manager.should_interrupt(
-                behavior_id, InterruptPriority.NORMAL,
-                InterruptReason.EXTERNAL_REQUEST, {}
+                behavior_id,
+                InterruptPriority.NORMAL,
+                InterruptReason.EXTERNAL_REQUEST,
+                {},
             ):
                 interrupt_count += 1
 
@@ -214,8 +225,12 @@ class TestInterruptManager:
         state_data = {"target": "gold_ore", "tools": ["pickaxe"]}
 
         preserved_state = self.manager.preserve_behavior_state(
-            behavior_id, "mining", state_data, progress=0.4,
-            context={"location": (25, 30)}, success_probability=0.85
+            behavior_id,
+            "mining",
+            state_data,
+            progress=0.4,
+            context={"location": (25, 30)},
+            success_probability=0.85,
         )
 
         assert preserved_state.behavior_id == behavior_id
@@ -254,8 +269,10 @@ class TestInterruptManager:
         )
 
         interrupt_event = self.manager.interrupt_behavior(
-            behavior_id, InterruptPriority.CRITICAL,
-            InterruptReason.UNDER_ATTACK, context={"attacker": "bandit"}
+            behavior_id,
+            InterruptPriority.CRITICAL,
+            InterruptReason.UNDER_ATTACK,
+            context={"attacker": "bandit"},
         )
 
         assert interrupt_event.interrupted_behavior_id == behavior_id
@@ -272,12 +289,18 @@ class TestInterruptManager:
         """Test can resume behavior with valid conditions"""
         behavior_id = "resumable_behavior"
         self.manager.preserve_behavior_state(
-            behavior_id, "gathering", {"resource": "wood"}, progress=0.6,
-            context={"required_resources": ["axe"]}, success_probability=0.8
+            behavior_id,
+            "gathering",
+            {"resource": "wood"},
+            progress=0.6,
+            context={"required_resources": ["axe"]},
+            success_probability=0.8,
         )
 
         current_context = {"has_axe": True}
-        can_resume, reason = self.manager.can_resume_behavior(behavior_id, current_context)
+        can_resume, reason = self.manager.can_resume_behavior(
+            behavior_id, current_context
+        )
 
         assert can_resume
         assert reason == "Can resume"
@@ -286,12 +309,18 @@ class TestInterruptManager:
         """Test can resume behavior with missing resources"""
         behavior_id = "resource_dependent"
         self.manager.preserve_behavior_state(
-            behavior_id, "crafting", {"item": "bow"}, progress=0.3,
-            context={"required_resources": ["string", "wood"]}, success_probability=0.9
+            behavior_id,
+            "crafting",
+            {"item": "bow"},
+            progress=0.3,
+            context={"required_resources": ["string", "wood"]},
+            success_probability=0.9,
         )
 
         current_context = {"has_string": True, "has_wood": False}
-        can_resume, reason = self.manager.can_resume_behavior(behavior_id, current_context)
+        can_resume, reason = self.manager.can_resume_behavior(
+            behavior_id, current_context
+        )
 
         assert not can_resume
         assert "wood" in reason
@@ -300,8 +329,11 @@ class TestInterruptManager:
         """Test can resume behavior with low success probability"""
         behavior_id = "failing_behavior"
         self.manager.preserve_behavior_state(
-            behavior_id, "combat", {"enemy": "dragon"}, progress=0.1,
-            success_probability=0.2  # Very low
+            behavior_id,
+            "combat",
+            {"enemy": "dragon"},
+            progress=0.1,
+            success_probability=0.2,  # Very low
         )
 
         can_resume, reason = self.manager.can_resume_behavior(behavior_id, {})
@@ -321,7 +353,7 @@ class TestInterruptManager:
             progress=0.5,
             context={},
             start_time=old_time,
-            last_update_time=old_time
+            last_update_time=old_time,
         )
 
         self.manager.preserved_behaviors[behavior_id] = state
@@ -334,16 +366,14 @@ class TestInterruptManager:
     def test_get_resumption_strategy_emergency(self):
         """Test resumption strategy for emergency interrupts"""
         behavior_id = "emergency_test"
-        self.manager.preserve_behavior_state(
-            behavior_id, "trading", {}, progress=0.5
-        )
+        self.manager.preserve_behavior_state(behavior_id, "trading", {}, progress=0.5)
 
         interrupt_event = InterruptEvent(
             interrupt_id="emergency",
             priority=InterruptPriority.EMERGENCY,
             reason=InterruptReason.HEALTH_CRITICAL,
             interrupted_behavior_id=behavior_id,
-            interrupt_time=time.time()
+            interrupt_time=time.time(),
         )
 
         strategy = self.manager.get_resumption_strategy(behavior_id, interrupt_event)
@@ -361,7 +391,7 @@ class TestInterruptManager:
             priority=InterruptPriority.NORMAL,
             reason=InterruptReason.EXTERNAL_REQUEST,
             interrupted_behavior_id=behavior_id,
-            interrupt_time=time.time()
+            interrupt_time=time.time(),
         )
 
         strategy = self.manager.get_resumption_strategy(behavior_id, interrupt_event)
@@ -379,7 +409,7 @@ class TestInterruptManager:
             priority=InterruptPriority.NORMAL,
             reason=InterruptReason.EXTERNAL_REQUEST,
             interrupted_behavior_id=behavior_id,
-            interrupt_time=time.time()
+            interrupt_time=time.time(),
         )
 
         strategy = self.manager.get_resumption_strategy(behavior_id, interrupt_event)
@@ -458,18 +488,15 @@ class TestInterruptManager:
         """Test getting next behavior to resume"""
         # Create multiple behaviors with different priorities
         self.manager.preserve_behavior_state(
-            "low_priority", "exploration", {}, progress=0.2,
-            success_probability=0.6
+            "low_priority", "exploration", {}, progress=0.2, success_probability=0.6
         )
 
         self.manager.preserve_behavior_state(
-            "high_priority", "crafting", {}, progress=0.8,
-            success_probability=0.9
+            "high_priority", "crafting", {}, progress=0.8, success_probability=0.9
         )
 
         self.manager.preserve_behavior_state(
-            "medium_priority", "trading", {}, progress=0.5,
-            success_probability=0.7
+            "medium_priority", "trading", {}, progress=0.5, success_probability=0.7
         )
 
         # Get next behavior to resume
@@ -485,8 +512,11 @@ class TestInterruptManager:
         """Test getting next behavior when none can be resumed"""
         # Create behavior that can't be resumed (missing resources)
         self.manager.preserve_behavior_state(
-            "blocked_behavior", "crafting", {}, progress=0.5,
-            context={"required_resources": ["rare_material"]}
+            "blocked_behavior",
+            "crafting",
+            {},
+            progress=0.5,
+            context={"required_resources": ["rare_material"]},
         )
 
         # Context doesn't have required resource
@@ -514,7 +544,10 @@ class TestInterruptManager:
 
         # Check that the event was marked as resolved
         assert interrupt_event.resolved
-        assert interrupt_event.resumption_strategy == ResumptionStrategy.RESUME_WHEN_OPTIMAL
+        assert (
+            interrupt_event.resumption_strategy
+            == ResumptionStrategy.RESUME_WHEN_OPTIMAL
+        )
 
     def test_resolve_interrupt_not_found(self):
         """Test resolving non-existent interrupt"""
@@ -543,7 +576,10 @@ class TestInterruptManager:
         self.manager.periodic_cleanup()
 
         # Should be reduced to max capacity
-        assert len(self.manager.preserved_behaviors) <= self.manager.max_preserved_behaviors
+        assert (
+            len(self.manager.preserved_behaviors)
+            <= self.manager.max_preserved_behaviors
+        )
 
     def test_context_factor_calculation_under_attack(self):
         """Test context factor calculation for under attack scenario"""
@@ -552,10 +588,7 @@ class TestInterruptManager:
         )
 
         # High threat scenario
-        high_threat_context = {
-            "health_percentage": 20.0,
-            "attacker_count": 3
-        }
+        high_threat_context = {"health_percentage": 20.0, "attacker_count": 3}
 
         factor = self.manager._calculate_context_factor(
             InterruptReason.UNDER_ATTACK, high_threat_context, current_behavior
@@ -564,10 +597,7 @@ class TestInterruptManager:
         assert factor > 1.0  # Should increase interrupt likelihood
 
         # Low threat scenario
-        low_threat_context = {
-            "health_percentage": 80.0,
-            "attacker_count": 1
-        }
+        low_threat_context = {"health_percentage": 80.0, "attacker_count": 1}
 
         low_factor = self.manager._calculate_context_factor(
             InterruptReason.UNDER_ATTACK, low_threat_context, current_behavior
@@ -578,7 +608,13 @@ class TestInterruptManager:
     def test_context_factor_calculation_better_opportunity(self):
         """Test context factor calculation for better opportunity"""
         current_behavior = BehaviorState(
-            "test", "gathering", {}, 0.5, {"expected_value": 10.0}, time.time(), time.time()
+            "test",
+            "gathering",
+            {},
+            0.5,
+            {"expected_value": 10.0},
+            time.time(),
+            time.time(),
         )
 
         # Much better opportunity
@@ -619,8 +655,11 @@ class TestInterruptManager:
         """Test behavior state summary generation"""
         behavior_id = "summary_test"
         self.manager.preserve_behavior_state(
-            behavior_id, "crafting", {"item": "sword"}, progress=0.6,
-            success_probability=0.85
+            behavior_id,
+            "crafting",
+            {"item": "sword"},
+            progress=0.6,
+            success_probability=0.85,
         )
 
         # Add an interrupt
@@ -651,7 +690,7 @@ class TestInterruptManager:
             InterruptPriority.URGENT,
             InterruptPriority.HIGH,
             InterruptPriority.NORMAL,
-            InterruptPriority.LOW
+            InterruptPriority.LOW,
         ]
 
         # Check that values are in descending order
@@ -663,7 +702,12 @@ class TestInterruptManager:
         behavior_type = "test_behavior"
 
         # Add some success/failure data
-        self.manager.behavior_resumption_success[behavior_type] = [True, True, False, True]
+        self.manager.behavior_resumption_success[behavior_type] = [
+            True,
+            True,
+            False,
+            True,
+        ]
 
         # Get statistics
         stats = self.manager.get_interrupt_statistics()
@@ -675,9 +719,7 @@ class TestInterruptManager:
     def test_multiple_interrupts_same_behavior(self):
         """Test multiple interrupts on the same behavior"""
         behavior_id = "multi_interrupt"
-        self.manager.preserve_behavior_state(
-            behavior_id, "trading", {}, progress=0.4
-        )
+        self.manager.preserve_behavior_state(behavior_id, "trading", {}, progress=0.4)
 
         # First interrupt
         interrupt1 = self.manager.interrupt_behavior(
@@ -710,30 +752,36 @@ class TestInterruptIntegration:
         # Agent is gathering resources
         gathering_id = "peaceful_gathering"
         self.manager.preserve_behavior_state(
-            gathering_id, "resource_gathering",
+            gathering_id,
+            "resource_gathering",
             {"resource": "wood", "collected": 5, "target": 10},
-            progress=0.5, success_probability=0.9
+            progress=0.5,
+            success_probability=0.9,
         )
 
         # Suddenly under attack!
         attack_context = {
             "health_percentage": 60.0,
             "attacker_count": 2,
-            "attacker_types": ["bandit", "wolf"]
+            "attacker_types": ["bandit", "wolf"],
         }
 
         # Should definitely interrupt
         should_interrupt = self.manager.should_interrupt(
-            gathering_id, InterruptPriority.CRITICAL,
-            InterruptReason.UNDER_ATTACK, attack_context
+            gathering_id,
+            InterruptPriority.CRITICAL,
+            InterruptReason.UNDER_ATTACK,
+            attack_context,
         )
 
         assert should_interrupt
 
         # Interrupt the gathering
         interrupt_event = self.manager.interrupt_behavior(
-            gathering_id, InterruptPriority.CRITICAL,
-            InterruptReason.UNDER_ATTACK, context=attack_context
+            gathering_id,
+            InterruptPriority.CRITICAL,
+            InterruptReason.UNDER_ATTACK,
+            context=attack_context,
         )
 
         # Combat ensues... eventually resolved
@@ -741,7 +789,9 @@ class TestInterruptIntegration:
 
         # Later, try to resume gathering
         safe_context = {"health_percentage": 90.0, "enemies_nearby": False}
-        can_resume, reason = self.manager.can_resume_behavior(gathering_id, safe_context)
+        can_resume, reason = self.manager.can_resume_behavior(
+            gathering_id, safe_context
+        )
 
         assert can_resume
 
@@ -756,21 +806,22 @@ class TestInterruptIntegration:
         # Agent is mining iron
         mining_id = "iron_mining"
         self.manager.preserve_behavior_state(
-            mining_id, "mining",
+            mining_id,
+            "mining",
             {"resource": "iron", "location": (30, 40), "ore_remaining": 0},
-            progress=0.8, context={"target_resource": "iron"}
+            progress=0.8,
+            context={"target_resource": "iron"},
         )
 
         # Resource gets depleted
-        depletion_context = {
-            "resource_type": "iron",
-            "location": (30, 40)
-        }
+        depletion_context = {"resource_type": "iron", "location": (30, 40)}
 
         # Should interrupt because resource depleted
         should_interrupt = self.manager.should_interrupt(
-            mining_id, InterruptPriority.HIGH,
-            InterruptReason.RESOURCE_DEPLETED, depletion_context
+            mining_id,
+            InterruptPriority.HIGH,
+            InterruptReason.RESOURCE_DEPLETED,
+            depletion_context,
         )
 
         # Context factor should be high because target resource matches depleted resource
@@ -778,41 +829,51 @@ class TestInterruptIntegration:
 
         # Interrupt the mining
         interrupt_event = self.manager.interrupt_behavior(
-            mining_id, InterruptPriority.HIGH,
-            InterruptReason.RESOURCE_DEPLETED, context=depletion_context
+            mining_id,
+            InterruptPriority.HIGH,
+            InterruptReason.RESOURCE_DEPLETED,
+            context=depletion_context,
         )
 
         # Strategy should be to abandon since resource is gone
         strategy = self.manager.get_resumption_strategy(mining_id, interrupt_event)
-        assert strategy in [ResumptionStrategy.ABANDON_GRACEFULLY, ResumptionStrategy.REEVALUATE_NECESSITY]
+        assert strategy in [
+            ResumptionStrategy.ABANDON_GRACEFULLY,
+            ResumptionStrategy.REEVALUATE_NECESSITY,
+        ]
 
     def test_opportunity_interrupt_scenario(self):
         """Test better opportunity interrupt scenario"""
         # Agent is doing routine exploration
         exploration_id = "routine_exploration"
         self.manager.preserve_behavior_state(
-            exploration_id, "exploration",
+            exploration_id,
+            "exploration",
             {"area": "forest", "tiles_explored": 20},
-            progress=0.3, context={"expected_value": 5.0}
+            progress=0.3,
+            context={"expected_value": 5.0},
         )
 
         # Rare resource discovered nearby!
         opportunity_context = {
             "opportunity_value": 25.0,  # Much higher than current expected value
             "resource_type": "rare_gems",
-            "distance": 50.0
+            "distance": 50.0,
         }
 
         # Should likely interrupt for this great opportunity
         should_interrupt = self.manager.should_interrupt(
-            exploration_id, InterruptPriority.URGENT,
-            InterruptReason.BETTER_OPPORTUNITY, opportunity_context
+            exploration_id,
+            InterruptPriority.URGENT,
+            InterruptReason.BETTER_OPPORTUNITY,
+            opportunity_context,
         )
 
         # May or may not interrupt due to randomness, but context factor should be high
         context_factor = self.manager._calculate_context_factor(
-            InterruptReason.BETTER_OPPORTUNITY, opportunity_context,
-            self.manager.preserved_behaviors[exploration_id]
+            InterruptReason.BETTER_OPPORTUNITY,
+            opportunity_context,
+            self.manager.preserved_behaviors[exploration_id],
         )
 
         assert context_factor > 2.0  # Much better opportunity
@@ -830,7 +891,7 @@ class TestInterruptIntegration:
             progress=0.7,
             context={"deadline": start_time + 300},  # 5 minute deadline
             start_time=start_time,
-            last_update_time=time.time() - 60
+            last_update_time=time.time() - 60,
         )
 
         self.manager.preserved_behaviors[crafting_id] = crafting_state
@@ -838,13 +899,15 @@ class TestInterruptIntegration:
         # Time limit exceeded
         timeout_context = {
             "time_exceeded_seconds": 300,  # 5 minutes over deadline
-            "original_deadline": start_time + 300
+            "original_deadline": start_time + 300,
         }
 
         # Should interrupt due to time limit
         should_interrupt = self.manager.should_interrupt(
-            crafting_id, InterruptPriority.HIGH,
-            InterruptReason.TIME_LIMIT_EXCEEDED, timeout_context
+            crafting_id,
+            InterruptPriority.HIGH,
+            InterruptReason.TIME_LIMIT_EXCEEDED,
+            timeout_context,
         )
 
         # Context factor should increase with time exceeded

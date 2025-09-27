@@ -3,23 +3,27 @@ Wood harvesting action nodes for behavior trees.
 """
 
 import logging
-import time
 import math
+import time
 from typing import Any, Dict, List, Optional, Tuple
 
 from shared.actions import ActionRequest, ActionType, harvest_wood_params
 from world.tiles import TileType
 
-from .base import ActionNode, ConditionNode, NodeStatus
 from .action import MoveToTargetWithPathfinding
+from .base import ActionNode, ConditionNode, NodeStatus
 from .two_phase_action import ResourceActionNode
 
 try:
-    from debug_tracker import track_resource_event, track_agent_position
+    from debug_tracker import track_agent_position, track_resource_event
 except ImportError:
     # Fallback if debug tracker is not available
-    def track_resource_event(*args, **kwargs): pass
-    def track_agent_position(*args, **kwargs): pass
+    def track_resource_event(*args, **kwargs):
+        pass
+
+    def track_agent_position(*args, **kwargs):
+        pass
+
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +39,12 @@ class HarvestWood(ResourceActionNode):
         # Send harvesting request to server
         self._request_wood_harvest(agent, target_pos[0], target_pos[1])
 
-        logger.info(f"🌲 Agent {agent.id[:8]} executing wood harvesting at ({target_pos[0]:.2f}, {target_pos[1]:.2f})")
-        print(f"🌲 Agent {agent.id[:8]} harvesting wood at validated position - distance should be ≤1.0")
+        logger.info(
+            f"🌲 Agent {agent.id[:8]} executing wood harvesting at ({target_pos[0]:.2f}, {target_pos[1]:.2f})"
+        )
+        print(
+            f"🌲 Agent {agent.id[:8]} harvesting wood at validated position - distance should be ≤1.0"
+        )
 
         return True
 
@@ -52,7 +60,7 @@ class HarvestWood(ResourceActionNode):
 
     def _find_nearby_wood(self, agent) -> Optional[tuple]:
         """Find nearby wood tiles - returns the absolutely closest wood tile"""
-        if not hasattr(agent, 'agent_map') or not agent.agent_map:
+        if not hasattr(agent, "agent_map") or not agent.agent_map:
             return None
 
         # Use agent's exact position for more accurate distance calculations
@@ -75,45 +83,78 @@ class HarvestWood(ResourceActionNode):
                         wood_center_x = check_x + 0.5
                         wood_center_y = check_y + 0.5
 
-                        real_distance = ((wood_center_x - agent_x) ** 2 + (wood_center_y - agent_y) ** 2) ** 0.5
+                        real_distance = (
+                            (wood_center_x - agent_x) ** 2
+                            + (wood_center_y - agent_y) ** 2
+                        ) ** 0.5
 
                         # Only include wood within our max distance
                         if real_distance <= self.max_distance:
-                            wood_tiles.append((check_x, check_y, real_distance, wood_center_x, wood_center_y))
+                            wood_tiles.append(
+                                (
+                                    check_x,
+                                    check_y,
+                                    real_distance,
+                                    wood_center_x,
+                                    wood_center_y,
+                                )
+                            )
 
         if not wood_tiles:
-            logger.debug(f"Agent {agent.id[:8]} at ({agent_x:.2f}, {agent_y:.2f}) found NO wood tiles within {self.max_distance} units")
+            logger.debug(
+                f"Agent {agent.id[:8]} at ({agent_x:.2f}, {agent_y:.2f}) found NO wood tiles within {self.max_distance} units"
+            )
             return None
 
         # Sort by actual distance and return the closest
-        wood_tiles.sort(key=lambda t: (t[2], t[0], t[1]))  # Sort by real distance, then by tile coordinates
+        wood_tiles.sort(
+            key=lambda t: (t[2], t[0], t[1])
+        )  # Sort by real distance, then by tile coordinates
         closest_wood = wood_tiles[0]
 
-        logger.info(f"Agent {agent.id[:8]} at ({agent_x:.2f}, {agent_y:.2f}) found {len(wood_tiles)} wood tiles, chose tile ({closest_wood[0]}, {closest_wood[1]}) at real distance {closest_wood[2]:.2f}")
+        logger.info(
+            f"Agent {agent.id[:8]} at ({agent_x:.2f}, {agent_y:.2f}) found {len(wood_tiles)} wood tiles, chose tile ({closest_wood[0]}, {closest_wood[1]}) at real distance {closest_wood[2]:.2f}"
+        )
 
         # Track wood discovery for debugging
-        track_resource_event(agent.id, "discovered", "wood",
-                           (closest_wood[0], closest_wood[1]), (agent_x, agent_y), "find_nearby_wood")
+        track_resource_event(
+            agent.id,
+            "discovered",
+            "wood",
+            (closest_wood[0], closest_wood[1]),
+            (agent_x, agent_y),
+            "find_nearby_wood",
+        )
 
         # Log all nearby wood for debugging
         for i, (wx, wy, dist, cx, cy) in enumerate(wood_tiles[:5]):  # Show top 5
-            logger.debug(f"  Wood option {i+1}: tile ({wx}, {wy}) center ({cx:.1f}, {cy:.1f}) distance {dist:.2f}")
+            logger.debug(
+                f"  Wood option {i+1}: tile ({wx}, {wy}) center ({cx:.1f}, {cy:.1f}) distance {dist:.2f}"
+            )
 
         return (closest_wood[0], closest_wood[1])
 
     def _request_wood_harvest(self, agent, x: float, y: float):
         """Request wood harvesting action from the server"""
-        if hasattr(agent, 'action_manager') and agent.action_manager:
+        if hasattr(agent, "action_manager") and agent.action_manager:
             import asyncio
-            asyncio.create_task(agent.action_manager.request_action(
-                action_type=ActionType.HARVEST_WOOD,
-                parameters=harvest_wood_params(x, y)
-            ))
+
+            asyncio.create_task(
+                agent.action_manager.request_action(
+                    action_type=ActionType.HARVEST_WOOD,
+                    parameters=harvest_wood_params(x, y),
+                )
+            )
         else:
             # Fallback for legacy system
-            if hasattr(agent, 'client') and agent.client:
+            if hasattr(agent, "client") and agent.client:
                 import asyncio
-                asyncio.create_task(agent.client.request_action(ActionType.HARVEST_WOOD, harvest_wood_params(x, y)))
+
+                asyncio.create_task(
+                    agent.client.request_action(
+                        ActionType.HARVEST_WOOD, harvest_wood_params(x, y)
+                    )
+                )
 
     def reset(self):
         """Reset the harvesting state"""
@@ -140,15 +181,15 @@ class MoveToWoodHarvestingSpot(ActionNode):
             return False
 
         # Calculate optimal harvesting position near the wood
-        self.harvesting_position = self._calculate_harvesting_position(agent, self.target_wood_pos)
+        self.harvesting_position = self._calculate_harvesting_position(
+            agent, self.target_wood_pos
+        )
         if not self.harvesting_position:
             return False
 
         # Start pathfinding to the harvesting position
         self.move_action = MoveToTargetWithPathfinding(
-            self.harvesting_position[0],
-            self.harvesting_position[1],
-            threshold=0.5
+            self.harvesting_position[0], self.harvesting_position[1], threshold=0.5
         )
 
         return self.move_action.start_action(agent)
@@ -162,13 +203,19 @@ class MoveToWoodHarvestingSpot(ActionNode):
 
         if status == NodeStatus.SUCCESS:
             # Check if we're in range to harvest the target wood
-            if self.target_wood_pos and self._is_in_harvesting_range(agent, self.target_wood_pos):
+            if self.target_wood_pos and self._is_in_harvesting_range(
+                agent, self.target_wood_pos
+            ):
                 return NodeStatus.SUCCESS
             else:
                 # Try to find a better harvesting position
-                self.harvesting_position = self._calculate_harvesting_position(agent, self.target_wood_pos)
+                self.harvesting_position = self._calculate_harvesting_position(
+                    agent, self.target_wood_pos
+                )
                 if self.harvesting_position:
-                    self.move_action.update_target(self.harvesting_position[0], self.harvesting_position[1])
+                    self.move_action.update_target(
+                        self.harvesting_position[0], self.harvesting_position[1]
+                    )
                     return NodeStatus.RUNNING
                 else:
                     return NodeStatus.FAILURE
@@ -182,12 +229,12 @@ class MoveToWoodHarvestingSpot(ActionNode):
 
     def _find_nearest_wood(self, agent) -> Optional[Tuple[int, int]]:
         """Find the nearest discovered wood tile"""
-        if not hasattr(agent, 'agent_map') or not agent.agent_map:
+        if not hasattr(agent, "agent_map") or not agent.agent_map:
             return None
 
         agent_x, agent_y = int(agent.x), int(agent.y)
         nearest_wood = None
-        nearest_distance = float('inf')
+        nearest_distance = float("inf")
 
         # Search in expanding squares around the agent
         for radius in range(1, 50):  # Search up to 50 tiles away
@@ -215,7 +262,9 @@ class MoveToWoodHarvestingSpot(ActionNode):
 
         return nearest_wood
 
-    def _calculate_harvesting_position(self, agent, wood_pos: Tuple[int, int]) -> Optional[Tuple[float, float]]:
+    def _calculate_harvesting_position(
+        self, agent, wood_pos: Tuple[int, int]
+    ) -> Optional[Tuple[float, float]]:
         """Calculate the best position to harvest from near the wood"""
         wood_x, wood_y = wood_pos
 
@@ -233,7 +282,10 @@ class MoveToWoodHarvestingSpot(ActionNode):
             # Check if this position is valid (not in water, not in mountains)
             if self._is_valid_harvesting_position(agent, harvest_x, harvest_y):
                 # Score based on distance from agent (prefer closer positions)
-                distance_score = 1.0 / (1.0 + math.sqrt((harvest_x - agent.x)**2 + (harvest_y - agent.y)**2))
+                distance_score = 1.0 / (
+                    1.0
+                    + math.sqrt((harvest_x - agent.x) ** 2 + (harvest_y - agent.y) ** 2)
+                )
 
                 if distance_score > best_score:
                     best_score = distance_score
@@ -243,7 +295,7 @@ class MoveToWoodHarvestingSpot(ActionNode):
 
     def _is_valid_harvesting_position(self, agent, x: float, y: float) -> bool:
         """Check if a position is valid for harvesting (not in water or impassable terrain)"""
-        if not hasattr(agent, 'agent_map') or not agent.agent_map:
+        if not hasattr(agent, "agent_map") or not agent.agent_map:
             return True  # Assume valid if no map
 
         tile_x, tile_y = int(x), int(y)
@@ -285,7 +337,7 @@ class WoodNearby(ConditionNode):
 
     def check_condition(self, agent) -> bool:
         """Check if wood is nearby and discovered"""
-        if not hasattr(agent, 'agent_map') or not agent.agent_map:
+        if not hasattr(agent, "agent_map") or not agent.agent_map:
             logger.debug(f"WoodNearby: Agent {agent.id[:8]} has no agent_map")
             return False
 
@@ -294,7 +346,7 @@ class WoodNearby(ConditionNode):
         search_radius = 5  # Same as HarvestWood
 
         wood_found = False
-        closest_distance = float('inf')
+        closest_distance = float("inf")
 
         for dy in range(-search_radius, search_radius + 1):
             for dx in range(-search_radius, search_radius + 1):
@@ -308,7 +360,10 @@ class WoodNearby(ConditionNode):
                         # Calculate real distance to wood tile center
                         wood_center_x = check_x + 0.5
                         wood_center_y = check_y + 0.5
-                        real_distance = ((wood_center_x - agent_x) ** 2 + (wood_center_y - agent_y) ** 2) ** 0.5
+                        real_distance = (
+                            (wood_center_x - agent_x) ** 2
+                            + (wood_center_y - agent_y) ** 2
+                        ) ** 0.5
 
                         if real_distance <= self.max_distance:
                             wood_found = True
@@ -316,7 +371,9 @@ class WoodNearby(ConditionNode):
                                 closest_distance = real_distance
 
         result = wood_found
-        logger.info(f"🌲 WoodNearby: Agent {agent.id[:8]} at ({agent_x:.2f}, {agent_y:.2f}) wood within {self.max_distance}: {result} (closest: {closest_distance:.2f})")
+        logger.info(
+            f"🌲 WoodNearby: Agent {agent.id[:8]} at ({agent_x:.2f}, {agent_y:.2f}) wood within {self.max_distance}: {result} (closest: {closest_distance:.2f})"
+        )
         return result
 
 
@@ -329,7 +386,7 @@ class WoodDiscoveredButNotNearby(ConditionNode):
 
     def check_condition(self, agent) -> bool:
         """Check if wood is discovered but not nearby (requiring movement to reach)"""
-        if not hasattr(agent, 'agent_map') or not agent.agent_map:
+        if not hasattr(agent, "agent_map") or not agent.agent_map:
             return False
 
         agent_x, agent_y = int(agent.x), int(agent.y)

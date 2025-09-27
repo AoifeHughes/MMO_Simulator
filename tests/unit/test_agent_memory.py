@@ -5,14 +5,19 @@ Tests memory storage, retrieval, decay mechanisms, and integration
 with utility calculations and decision making.
 """
 
-import pytest
-import time
 import math
+import time
 from unittest.mock import Mock, patch
 
+import pytest
+
 from client.agent_memory import (
-    AgentMemory, Memory, LocationMemory, SocialMemory,
-    MemoryType, MemoryRelevance
+    AgentMemory,
+    LocationMemory,
+    Memory,
+    MemoryRelevance,
+    MemoryType,
+    SocialMemory,
 )
 
 
@@ -24,7 +29,7 @@ class TestMemory:
         memory = Memory(
             memory_id="test_memory",
             memory_type=MemoryType.RESOURCE_LOCATION,
-            content={"resource_type": "wood", "quality": 0.8}
+            content={"resource_type": "wood", "quality": 0.8},
         )
 
         assert memory.memory_id == "test_memory"
@@ -41,7 +46,7 @@ class TestMemory:
             memory_type=MemoryType.RESOURCE_LOCATION,
             content={},
             relevance=MemoryRelevance.HIGH,
-            decay_rate=0.1
+            decay_rate=0.1,
         )
 
         # Fresh memory should have high strength
@@ -58,7 +63,7 @@ class TestMemory:
         memory = Memory(
             memory_id="test_memory",
             memory_type=MemoryType.RESOURCE_LOCATION,
-            content={}
+            content={},
         )
 
         initial_access_count = memory.access_count
@@ -76,7 +81,7 @@ class TestMemory:
             memory_id="test_memory",
             memory_type=MemoryType.RESOURCE_LOCATION,
             content={},
-            confidence=0.5
+            confidence=0.5,
         )
 
         initial_confidence = memory.confidence
@@ -93,7 +98,7 @@ class TestMemory:
             memory_id="test_memory",
             memory_type=MemoryType.RESOURCE_LOCATION,
             content={},
-            confidence=0.8
+            confidence=0.8,
         )
 
         initial_confidence = memory.confidence
@@ -124,7 +129,7 @@ class TestLocationMemory:
             memory_id="resource_1",
             memory_type=MemoryType.RESOURCE_LOCATION,
             content={"resource_type": "wood"},
-            location=(10.0, 15.0)
+            location=(10.0, 15.0),
         )
 
         self.location_memory.add_memory(memory)
@@ -140,21 +145,21 @@ class TestLocationMemory:
             memory_id="resource_1",
             memory_type=MemoryType.RESOURCE_LOCATION,
             content={"resource_type": "wood"},
-            location=(10.0, 10.0)
+            location=(10.0, 10.0),
         )
 
         memory2 = Memory(
             memory_id="resource_2",
             memory_type=MemoryType.RESOURCE_LOCATION,
             content={"resource_type": "stone"},
-            location=(15.0, 15.0)
+            location=(15.0, 15.0),
         )
 
         memory3 = Memory(
             memory_id="danger_1",
             memory_type=MemoryType.DANGER_ZONE,
             content={"danger_type": "enemy"},
-            location=(100.0, 100.0)  # Far away
+            location=(100.0, 100.0),  # Far away
         )
 
         self.location_memory.add_memory(memory1)
@@ -175,14 +180,14 @@ class TestLocationMemory:
             memory_id="resource_1",
             memory_type=MemoryType.RESOURCE_LOCATION,
             content={"resource_type": "wood"},
-            location=(10.0, 10.0)
+            location=(10.0, 10.0),
         )
 
         memory2 = Memory(
             memory_id="danger_1",
             memory_type=MemoryType.DANGER_ZONE,
             content={"danger_type": "enemy"},
-            location=(12.0, 12.0)
+            location=(12.0, 12.0),
         )
 
         self.location_memory.add_memory(memory1)
@@ -205,7 +210,7 @@ class TestLocationMemory:
             memory_type=MemoryType.RESOURCE_LOCATION,
             content={},
             location=(10.0, 10.0),
-            decay_rate=100.0  # Very high decay
+            decay_rate=100.0,  # Very high decay
         )
 
         # Set last accessed to long ago
@@ -232,7 +237,7 @@ class TestSocialMemory:
             agent_id="agent_1",
             interaction_type="trade",
             outcome="successful",
-            details={"items_traded": ["wood", "stone"]}
+            details={"items_traded": ["wood", "stone"]},
         )
 
         assert memory.memory_type == MemoryType.SOCIAL_INTERACTION
@@ -245,16 +250,12 @@ class TestSocialMemory:
         agent_id = "agent_1"
 
         # Successful trade should improve relationship
-        self.social_memory.add_interaction_memory(
-            agent_id, "trade", "successful", {}
-        )
+        self.social_memory.add_interaction_memory(agent_id, "trade", "successful", {})
         score_after_trade = self.social_memory.get_relationship_score(agent_id)
         assert score_after_trade > 0
 
         # Being attacked should worsen relationship
-        self.social_memory.add_interaction_memory(
-            agent_id, "combat", "attacked_by", {}
-        )
+        self.social_memory.add_interaction_memory(agent_id, "combat", "attacked_by", {})
         score_after_attack = self.social_memory.get_relationship_score(agent_id)
         assert score_after_attack < score_after_trade
 
@@ -277,15 +278,9 @@ class TestSocialMemory:
         agent_id = "agent_1"
 
         # Add different types of interactions
-        self.social_memory.add_interaction_memory(
-            agent_id, "trade", "successful", {}
-        )
-        self.social_memory.add_interaction_memory(
-            agent_id, "combat", "attacked_by", {}
-        )
-        self.social_memory.add_interaction_memory(
-            agent_id, "trade", "failed", {}
-        )
+        self.social_memory.add_interaction_memory(agent_id, "trade", "successful", {})
+        self.social_memory.add_interaction_memory(agent_id, "combat", "attacked_by", {})
+        self.social_memory.add_interaction_memory(agent_id, "trade", "failed", {})
 
         # Get only trade memories
         trade_memories = self.social_memory.get_agent_memories(agent_id, "trade")
@@ -318,8 +313,11 @@ class TestAgentMemory:
     def test_remember_danger_zone(self):
         """Test remembering danger zones"""
         memory = self.agent_memory.remember_danger_zone(
-            x=15.0, y=25.0, danger_type="enemy", severity=0.9,
-            details={"enemy_type": "aggressive", "weapon": "sword"}
+            x=15.0,
+            y=25.0,
+            danger_type="enemy",
+            severity=0.9,
+            details={"enemy_type": "aggressive", "weapon": "sword"},
         )
 
         assert memory.memory_type == MemoryType.DANGER_ZONE
@@ -335,7 +333,7 @@ class TestAgentMemory:
             interaction_type="trade",
             outcome="successful",
             location=(5.0, 5.0),
-            details={"items": ["wood", "stone"]}
+            details={"items": ["wood", "stone"]},
         )
 
         assert memory.memory_type == MemoryType.SOCIAL_INTERACTION
@@ -352,7 +350,7 @@ class TestAgentMemory:
             items_given=items_given,
             items_received=items_received,
             success=True,
-            location=(10.0, 10.0)
+            location=(10.0, 10.0),
         )
 
         assert memory.content["details"]["items_given"] == items_given
@@ -363,18 +361,16 @@ class TestAgentMemory:
     def test_get_known_resources(self):
         """Test retrieving known resource locations"""
         # Add several resource memories
-        self.agent_memory.remember_resource_location(
-            10.0, 10.0, "wood", 0.8, 5
-        )
-        self.agent_memory.remember_resource_location(
-            15.0, 15.0, "stone", 0.6, 3
-        )
+        self.agent_memory.remember_resource_location(10.0, 10.0, "wood", 0.8, 5)
+        self.agent_memory.remember_resource_location(15.0, 15.0, "stone", 0.6, 3)
         self.agent_memory.remember_resource_location(
             50.0, 50.0, "wood", 0.9, 10  # Far away
         )
 
         # Search near (12, 12)
-        nearby_resources = self.agent_memory.get_known_resources(12.0, 12.0, radius=10.0)
+        nearby_resources = self.agent_memory.get_known_resources(
+            12.0, 12.0, radius=10.0
+        )
         assert len(nearby_resources) == 2
 
         # Search for specific resource type
@@ -527,9 +523,12 @@ class TestAgentMemory:
         self.agent_memory.periodic_cleanup()
 
         total_memories = (
-            len(self.agent_memory.location_memory.memories) +
-            sum(len(memories) for memories in self.agent_memory.social_memory.agent_memories.values()) +
-            len(self.agent_memory.general_memories)
+            len(self.agent_memory.location_memory.memories)
+            + sum(
+                len(memories)
+                for memories in self.agent_memory.social_memory.agent_memories.values()
+            )
+            + len(self.agent_memory.general_memories)
         )
 
         assert total_memories <= self.agent_memory.max_memories
@@ -615,7 +614,9 @@ class TestMemoryIntegration:
         utility_modifier = self.agent_memory.calculate_location_utility_modifier(
             location[0], location[1], "gather_resources"
         )
-        assert utility_modifier > 1.0  # Should be boosted by known high-quality resource
+        assert (
+            utility_modifier > 1.0
+        )  # Should be boosted by known high-quality resource
 
     def test_danger_avoidance_scenario(self):
         """Test danger zone creation and avoidance"""
@@ -623,8 +624,11 @@ class TestMemoryIntegration:
 
         # Agent gets attacked and remembers it as dangerous
         self.agent_memory.remember_danger_zone(
-            danger_location[0], danger_location[1], "ambush", 0.9,
-            {"attacker": "bandit_leader", "weapon": "sword"}
+            danger_location[0],
+            danger_location[1],
+            "ambush",
+            0.9,
+            {"attacker": "bandit_leader", "weapon": "sword"},
         )
 
         # Later, agent checks if location is dangerous
@@ -655,7 +659,7 @@ class TestMemoryIntegration:
                 partner_id,
                 items_given=[{"type": "wood", "quantity": 2, "value": 4}],
                 items_received=[{"type": "stone", "quantity": 1, "value": 5}],
-                success=True
+                success=True,
             )
 
         final_relationship = self.agent_memory.get_agent_relationship(partner_id)
@@ -676,18 +680,23 @@ class TestMemoryIntegration:
 
         # Both locations have resources
         self.agent_memory.remember_resource_location(
-            safe_resource_location[0], safe_resource_location[1],
-            "wood", 0.7, 5
+            safe_resource_location[0], safe_resource_location[1], "wood", 0.7, 5
         )
         self.agent_memory.remember_resource_location(
-            dangerous_resource_location[0], dangerous_resource_location[1],
-            "wood", 0.8, 8  # Better resource
+            dangerous_resource_location[0],
+            dangerous_resource_location[1],
+            "wood",
+            0.8,
+            8,  # Better resource
         )
 
         # But one location is dangerous
         self.agent_memory.remember_danger_zone(
-            dangerous_resource_location[0], dangerous_resource_location[1],
-            "enemy", 0.7, {}
+            dangerous_resource_location[0],
+            dangerous_resource_location[1],
+            "enemy",
+            0.7,
+            {},
         )
 
         # Calculate utility modifiers
@@ -695,7 +704,9 @@ class TestMemoryIntegration:
             safe_resource_location[0], safe_resource_location[1], "gather_resources"
         )
         dangerous_utility = self.agent_memory.calculate_location_utility_modifier(
-            dangerous_resource_location[0], dangerous_resource_location[1], "gather_resources"
+            dangerous_resource_location[0],
+            dangerous_resource_location[1],
+            "gather_resources",
         )
 
         # Safe location should have higher net utility despite lower resource quality

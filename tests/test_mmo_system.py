@@ -14,8 +14,8 @@ import logging
 import time
 from typing import List
 
-from server.mmo_server import MMOGameServer
 from client.mmo_client import MMOClientAdapter
+from server.mmo_server import MMOGameServer
 from shared.actions import ActionType
 from world.terrain_generator import TerrainType
 
@@ -38,7 +38,7 @@ class MMOTestRunner:
             "wood_successes": 0,
             "inventory_updates": 0,
             "position_updates": 0,
-            "no_position_jumps": True
+            "no_position_jumps": True,
         }
 
     async def run_test(self, duration: int = 20):
@@ -71,10 +71,7 @@ class MMOTestRunner:
         logger.info("Starting MMO server...")
 
         self.server = MMOGameServer(
-            world_width=20,
-            world_height=20,
-            terrain_type=TerrainType.MIXED,
-            seed=300
+            world_width=20, world_height=20, terrain_type=TerrainType.MIXED, seed=300
         )
 
         # Start server in background
@@ -126,8 +123,7 @@ class MMOTestRunner:
                 self.results["fishing_attempts"] += 1
 
                 response = await fisher_client.request_action(
-                    ActionType.FISH,
-                    {"target_x": 15.0, "target_y": 10.0}
+                    ActionType.FISH, {"target_x": 15.0, "target_y": 10.0}
                 )
 
                 if response.success:
@@ -149,8 +145,7 @@ class MMOTestRunner:
                 self.results["wood_attempts"] += 1
 
                 response = await harvester_client.request_action(
-                    ActionType.HARVEST_WOOD,
-                    {"target_x": 5.0, "target_y": 10.0}
+                    ActionType.HARVEST_WOOD, {"target_x": 5.0, "target_y": 10.0}
                 )
 
                 if response.success:
@@ -176,12 +171,7 @@ class MMOTestRunner:
 
         try:
             # Test series of movements
-            positions = [
-                (10.0, 10.0),
-                (5.0, 15.0),
-                (15.0, 5.0),
-                (10.0, 10.0)
-            ]
+            positions = [(10.0, 10.0), (5.0, 15.0), (15.0, 5.0), (10.0, 10.0)]
 
             for target_x, target_y in positions:
                 logger.info(f"🎯 Moving to ({target_x}, {target_y})")
@@ -196,11 +186,15 @@ class MMOTestRunner:
                 self.results["position_updates"] += 1
 
                 # Check for position jumps
-                distance_moved = ((new_pos[0] - old_pos[0])**2 + (new_pos[1] - old_pos[1])**2)**0.5
+                distance_moved = (
+                    (new_pos[0] - old_pos[0]) ** 2 + (new_pos[1] - old_pos[1]) ** 2
+                ) ** 0.5
 
                 if distance_moved > 20.0:  # Suspicious jump
                     self.results["no_position_jumps"] = False
-                    logger.warning(f"⚠️ Possible position jump detected: {distance_moved:.2f} units")
+                    logger.warning(
+                        f"⚠️ Possible position jump detected: {distance_moved:.2f} units"
+                    )
                 else:
                     logger.info(f"✅ Smooth movement: {distance_moved:.2f} units")
 
@@ -227,34 +221,46 @@ class MMOTestRunner:
 
     def print_results(self):
         """Print test results"""
-        logger.info("\n" + "="*60)
+        logger.info("\n" + "=" * 60)
         logger.info("🏆 MMO SYSTEM TEST RESULTS")
-        logger.info("="*60)
+        logger.info("=" * 60)
 
         logger.info(f"Server Started: {'✅' if self.results['server_started'] else '❌'}")
         logger.info(f"Clients Connected: {self.results['clients_connected']}/2")
-        logger.info(f"Fishing Success Rate: {self.results['fishing_successes']}/{self.results['fishing_attempts']}")
-        logger.info(f"Wood Harvesting Success Rate: {self.results['wood_successes']}/{self.results['wood_attempts']}")
+        logger.info(
+            f"Fishing Success Rate: {self.results['fishing_successes']}/{self.results['fishing_attempts']}"
+        )
+        logger.info(
+            f"Wood Harvesting Success Rate: {self.results['wood_successes']}/{self.results['wood_attempts']}"
+        )
         logger.info(f"Inventory Updates: {self.results['inventory_updates']}")
         logger.info(f"Position Updates: {self.results['position_updates']}")
-        logger.info(f"No Position Jumps: {'✅' if self.results['no_position_jumps'] else '❌'}")
+        logger.info(
+            f"No Position Jumps: {'✅' if self.results['no_position_jumps'] else '❌'}"
+        )
 
         # Overall assessment
-        total_actions = self.results['fishing_attempts'] + self.results['wood_attempts']
-        total_successes = self.results['fishing_successes'] + self.results['wood_successes']
+        total_actions = self.results["fishing_attempts"] + self.results["wood_attempts"]
+        total_successes = (
+            self.results["fishing_successes"] + self.results["wood_successes"]
+        )
 
         if total_actions > 0:
             success_rate = (total_successes / total_actions) * 100
             logger.info(f"Overall Action Success Rate: {success_rate:.1f}%")
 
-            if success_rate >= 50 and self.results['no_position_jumps'] and self.results['clients_connected'] >= 1:
+            if (
+                success_rate >= 50
+                and self.results["no_position_jumps"]
+                and self.results["clients_connected"] >= 1
+            ):
                 logger.info("🎉 MMO SYSTEM TEST: PASSED")
             else:
                 logger.info("⚠️ MMO SYSTEM TEST: NEEDS IMPROVEMENT")
         else:
             logger.info("⚠️ MMO SYSTEM TEST: NO ACTIONS COMPLETED")
 
-        logger.info("="*60)
+        logger.info("=" * 60)
 
 
 async def main():

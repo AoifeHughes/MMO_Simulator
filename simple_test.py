@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 import asyncio
 import logging
+
 import pytest
+
 from server.mmo_server import MMOGameServer
 from world.terrain_generator import TerrainType
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
 
 @pytest.mark.asyncio
 async def test():
@@ -23,6 +26,7 @@ async def test():
         print(f"Server start failed: {e}")
 
     print("Test complete")
+
 
 if __name__ == "__main__":
     asyncio.run(test())

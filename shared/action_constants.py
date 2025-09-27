@@ -6,7 +6,7 @@ to eliminate hardcoded values and ensure consistency across client and server.
 """
 
 from dataclasses import dataclass
-from typing import Dict, Any
+from typing import Any, Dict
 
 
 @dataclass
@@ -38,16 +38,18 @@ class PositionThresholds:
 
     # Server position validation
     POSITION_CORRECTION_THRESHOLD: float = 1.0  # Max distance for small corrections
-    LARGE_CORRECTION_THRESHOLD: float = 2.0     # Threshold for large position jumps
-    SMOOTH_CORRECTION_THRESHOLD: float = 0.5    # When to apply smooth corrections
+    LARGE_CORRECTION_THRESHOLD: float = 2.0  # Threshold for large position jumps
+    SMOOTH_CORRECTION_THRESHOLD: float = 0.5  # When to apply smooth corrections
 
     # Client-side validation
-    VALIDATION_BUFFER: float = 0.05             # Floating point precision buffer
-    POSITIONING_TOLERANCE: float = 0.1          # Two-phase action positioning tolerance
+    VALIDATION_BUFFER: float = 0.05  # Floating point precision buffer
+    POSITIONING_TOLERANCE: float = 0.1  # Two-phase action positioning tolerance
 
     # Smoothing parameters
-    SMOOTH_CORRECTION_FACTOR: float = 0.7       # Percentage of correction to apply immediately
-    INTERPOLATION_THRESHOLD: float = 0.1        # When to interpolate vs snap
+    SMOOTH_CORRECTION_FACTOR: float = (
+        0.7  # Percentage of correction to apply immediately
+    )
+    INTERPOLATION_THRESHOLD: float = 0.1  # When to interpolate vs snap
 
 
 @dataclass
@@ -61,8 +63,8 @@ class ActionTimeouts:
     TRADING_TIMEOUT: float = 30.0
 
     # Movement timeouts
-    POSITIONING_TIMEOUT: float = 10.0           # Max time to reach action position
-    PATHFINDING_TIMEOUT: float = 15.0           # Max time for pathfinding to complete
+    POSITIONING_TIMEOUT: float = 10.0  # Max time to reach action position
+    PATHFINDING_TIMEOUT: float = 15.0  # Max time for pathfinding to complete
 
 
 @dataclass
@@ -70,14 +72,14 @@ class DebugConfig:
     """Debug and statistics configuration"""
 
     # Distance tracking
-    TRACK_POSITION_DISCREPANCIES: bool = True   # Log client-server position differences
-    MAX_ACCEPTABLE_DISCREPANCY: float = 0.5     # Log if difference exceeds this
-    POSITION_HISTORY_SIZE: int = 100            # How many position updates to track
+    TRACK_POSITION_DISCREPANCIES: bool = True  # Log client-server position differences
+    MAX_ACCEPTABLE_DISCREPANCY: float = 0.5  # Log if difference exceeds this
+    POSITION_HISTORY_SIZE: int = 100  # How many position updates to track
 
     # Performance monitoring
-    LOG_ACTION_PROCESSING_TIME: bool = True     # Track action processing performance
-    LOG_DISTANCE_VALIDATION: bool = False       # Detailed distance validation logs
-    LOG_POSITION_CORRECTIONS: bool = True       # Log all position corrections
+    LOG_ACTION_PROCESSING_TIME: bool = True  # Track action processing performance
+    LOG_DISTANCE_VALIDATION: bool = False  # Detailed distance validation logs
+    LOG_POSITION_CORRECTIONS: bool = True  # Log all position corrections
 
 
 # Global instances for easy access
@@ -101,18 +103,20 @@ def get_action_range(action_name: str) -> float:
         ValueError: If action_name is not recognized
     """
     action_ranges = {
-        'fishing': DISTANCES.FISHING_RANGE,
-        'wood_harvesting': DISTANCES.WOOD_HARVESTING_RANGE,
-        'mining': DISTANCES.MINING_RANGE,
-        'melee_attack': DISTANCES.MELEE_ATTACK_RANGE,
-        'ranged_attack': DISTANCES.RANGED_ATTACK_RANGE,
-        'spell_cast': DISTANCES.SPELL_CAST_RANGE,
-        'trade': DISTANCES.TRADE_RANGE,
-        'chat': DISTANCES.CHAT_RANGE,
+        "fishing": DISTANCES.FISHING_RANGE,
+        "wood_harvesting": DISTANCES.WOOD_HARVESTING_RANGE,
+        "mining": DISTANCES.MINING_RANGE,
+        "melee_attack": DISTANCES.MELEE_ATTACK_RANGE,
+        "ranged_attack": DISTANCES.RANGED_ATTACK_RANGE,
+        "spell_cast": DISTANCES.SPELL_CAST_RANGE,
+        "trade": DISTANCES.TRADE_RANGE,
+        "chat": DISTANCES.CHAT_RANGE,
     }
 
     if action_name not in action_ranges:
-        raise ValueError(f"Unknown action: {action_name}. Valid actions: {list(action_ranges.keys())}")
+        raise ValueError(
+            f"Unknown action: {action_name}. Valid actions: {list(action_ranges.keys())}"
+        )
 
     return action_ranges[action_name]
 
@@ -125,35 +129,35 @@ def get_distance_stats() -> Dict[str, Any]:
         Dictionary containing all distance constants
     """
     return {
-        'action_distances': {
-            'fishing_range': DISTANCES.FISHING_RANGE,
-            'wood_harvesting_range': DISTANCES.WOOD_HARVESTING_RANGE,
-            'mining_range': DISTANCES.MINING_RANGE,
-            'melee_attack_range': DISTANCES.MELEE_ATTACK_RANGE,
-            'ranged_attack_range': DISTANCES.RANGED_ATTACK_RANGE,
-            'spell_cast_range': DISTANCES.SPELL_CAST_RANGE,
-            'trade_range': DISTANCES.TRADE_RANGE,
-            'chat_range': DISTANCES.CHAT_RANGE,
-            'arrival_threshold': DISTANCES.ARRIVAL_THRESHOLD,
-            'pathfinding_threshold': DISTANCES.PATHFINDING_THRESHOLD,
+        "action_distances": {
+            "fishing_range": DISTANCES.FISHING_RANGE,
+            "wood_harvesting_range": DISTANCES.WOOD_HARVESTING_RANGE,
+            "mining_range": DISTANCES.MINING_RANGE,
+            "melee_attack_range": DISTANCES.MELEE_ATTACK_RANGE,
+            "ranged_attack_range": DISTANCES.RANGED_ATTACK_RANGE,
+            "spell_cast_range": DISTANCES.SPELL_CAST_RANGE,
+            "trade_range": DISTANCES.TRADE_RANGE,
+            "chat_range": DISTANCES.CHAT_RANGE,
+            "arrival_threshold": DISTANCES.ARRIVAL_THRESHOLD,
+            "pathfinding_threshold": DISTANCES.PATHFINDING_THRESHOLD,
         },
-        'position_thresholds': {
-            'position_correction_threshold': THRESHOLDS.POSITION_CORRECTION_THRESHOLD,
-            'large_correction_threshold': THRESHOLDS.LARGE_CORRECTION_THRESHOLD,
-            'smooth_correction_threshold': THRESHOLDS.SMOOTH_CORRECTION_THRESHOLD,
-            'validation_buffer': THRESHOLDS.VALIDATION_BUFFER,
-            'positioning_tolerance': THRESHOLDS.POSITIONING_TOLERANCE,
-            'smooth_correction_factor': THRESHOLDS.SMOOTH_CORRECTION_FACTOR,
-            'interpolation_threshold': THRESHOLDS.INTERPOLATION_THRESHOLD,
+        "position_thresholds": {
+            "position_correction_threshold": THRESHOLDS.POSITION_CORRECTION_THRESHOLD,
+            "large_correction_threshold": THRESHOLDS.LARGE_CORRECTION_THRESHOLD,
+            "smooth_correction_threshold": THRESHOLDS.SMOOTH_CORRECTION_THRESHOLD,
+            "validation_buffer": THRESHOLDS.VALIDATION_BUFFER,
+            "positioning_tolerance": THRESHOLDS.POSITIONING_TOLERANCE,
+            "smooth_correction_factor": THRESHOLDS.SMOOTH_CORRECTION_FACTOR,
+            "interpolation_threshold": THRESHOLDS.INTERPOLATION_THRESHOLD,
         },
-        'timeouts': {
-            'fishing_timeout': TIMEOUTS.FISHING_TIMEOUT,
-            'harvesting_timeout': TIMEOUTS.HARVESTING_TIMEOUT,
-            'crafting_timeout': TIMEOUTS.CRAFTING_TIMEOUT,
-            'trading_timeout': TIMEOUTS.TRADING_TIMEOUT,
-            'positioning_timeout': TIMEOUTS.POSITIONING_TIMEOUT,
-            'pathfinding_timeout': TIMEOUTS.PATHFINDING_TIMEOUT,
-        }
+        "timeouts": {
+            "fishing_timeout": TIMEOUTS.FISHING_TIMEOUT,
+            "harvesting_timeout": TIMEOUTS.HARVESTING_TIMEOUT,
+            "crafting_timeout": TIMEOUTS.CRAFTING_TIMEOUT,
+            "trading_timeout": TIMEOUTS.TRADING_TIMEOUT,
+            "positioning_timeout": TIMEOUTS.POSITIONING_TIMEOUT,
+            "pathfinding_timeout": TIMEOUTS.PATHFINDING_TIMEOUT,
+        },
     }
 
 
@@ -161,16 +165,25 @@ class PositionDiscrepancyTracker:
     """Track and report client-server position discrepancies for debugging"""
 
     def __init__(self):
-        self.position_history: Dict[str, list] = {}  # agent_id -> list of (client_pos, server_pos, timestamp)
+        self.position_history: Dict[
+            str, list
+        ] = {}  # agent_id -> list of (client_pos, server_pos, timestamp)
         self.total_discrepancies = 0
         self.max_discrepancy_seen = 0.0
 
-    def record_discrepancy(self, agent_id: str, client_pos: tuple, server_pos: tuple, timestamp: float = None):
+    def record_discrepancy(
+        self,
+        agent_id: str,
+        client_pos: tuple,
+        server_pos: tuple,
+        timestamp: float = None,
+    ):
         """Record a position discrepancy between client and server"""
         if not DEBUG.TRACK_POSITION_DISCREPANCIES:
             return
 
         import time
+
         if timestamp is None:
             timestamp = time.time()
 
@@ -183,7 +196,9 @@ class PositionDiscrepancyTracker:
         if agent_id not in self.position_history:
             self.position_history[agent_id] = []
 
-        self.position_history[agent_id].append((client_pos, server_pos, timestamp, distance))
+        self.position_history[agent_id].append(
+            (client_pos, server_pos, timestamp, distance)
+        )
 
         # Keep only recent history
         if len(self.position_history[agent_id]) > DEBUG.POSITION_HISTORY_SIZE:
@@ -196,11 +211,14 @@ class PositionDiscrepancyTracker:
         # Log significant discrepancies
         if distance > DEBUG.MAX_ACCEPTABLE_DISCREPANCY:
             import logging
+
             logger = logging.getLogger(__name__)
-            logger.warning(f"Large position discrepancy for {agent_id[:8]}: "
-                          f"client=({client_pos[0]:.2f}, {client_pos[1]:.2f}) "
-                          f"server=({server_pos[0]:.2f}, {server_pos[1]:.2f}) "
-                          f"distance={distance:.2f}")
+            logger.warning(
+                f"Large position discrepancy for {agent_id[:8]}: "
+                f"client=({client_pos[0]:.2f}, {client_pos[1]:.2f}) "
+                f"server=({server_pos[0]:.2f}, {server_pos[1]:.2f}) "
+                f"distance={distance:.2f}"
+            )
 
     def get_stats(self, agent_id: str = None) -> Dict[str, Any]:
         """Get position discrepancy statistics"""
@@ -209,21 +227,28 @@ class PositionDiscrepancyTracker:
             distances = [entry[3] for entry in history]
 
             return {
-                'agent_id': agent_id,
-                'total_records': len(history),
-                'avg_discrepancy': sum(distances) / len(distances) if distances else 0.0,
-                'max_discrepancy': max(distances) if distances else 0.0,
-                'recent_discrepancies': distances[-10:] if len(distances) >= 10 else distances
+                "agent_id": agent_id,
+                "total_records": len(history),
+                "avg_discrepancy": sum(distances) / len(distances)
+                if distances
+                else 0.0,
+                "max_discrepancy": max(distances) if distances else 0.0,
+                "recent_discrepancies": distances[-10:]
+                if len(distances) >= 10
+                else distances,
             }
         else:
             return {
-                'total_discrepancies': self.total_discrepancies,
-                'max_discrepancy_seen': self.max_discrepancy_seen,
-                'tracked_agents': len(self.position_history),
-                'agents_with_large_discrepancies': sum(
-                    1 for history in self.position_history.values()
-                    if any(entry[3] > DEBUG.MAX_ACCEPTABLE_DISCREPANCY for entry in history)
-                )
+                "total_discrepancies": self.total_discrepancies,
+                "max_discrepancy_seen": self.max_discrepancy_seen,
+                "tracked_agents": len(self.position_history),
+                "agents_with_large_discrepancies": sum(
+                    1
+                    for history in self.position_history.values()
+                    if any(
+                        entry[3] > DEBUG.MAX_ACCEPTABLE_DISCREPANCY for entry in history
+                    )
+                ),
             }
 
 

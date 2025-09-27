@@ -10,8 +10,13 @@ import logging
 from typing import Any, Dict, Optional
 
 from client.mmo_client import MMOClientAdapter
-from shared.actions import ActionType, ActionResult
-from shared.actions import fish_params, harvest_wood_params, move_to_params
+from shared.actions import (
+    ActionResult,
+    ActionType,
+    fish_params,
+    harvest_wood_params,
+    move_to_params,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -127,18 +132,24 @@ class BehaviorTreeMMOAgent:
         except Exception as e:
             logger.error(f"Error requesting action {action_type}: {e}")
 
-    async def move_to_position(self, target_x: float, target_y: float, speed: float = 1.0):
+    async def move_to_position(
+        self, target_x: float, target_y: float, speed: float = 1.0
+    ):
         """Move to target position through MMO client"""
         await self.mmo_client.move_to(target_x, target_y, speed)
 
     # Action-specific methods for behavior tree compatibility
     async def fish_at_location(self, target_x: float, target_y: float):
         """Fish at specific location"""
-        return await self.request_action(ActionType.FISH, fish_params(target_x, target_y))
+        return await self.request_action(
+            ActionType.FISH, fish_params(target_x, target_y)
+        )
 
     async def harvest_wood_at_location(self, target_x: float, target_y: float):
         """Harvest wood at specific location"""
-        return await self.request_action(ActionType.HARVEST_WOOD, harvest_wood_params(target_x, target_y))
+        return await self.request_action(
+            ActionType.HARVEST_WOOD, harvest_wood_params(target_x, target_y)
+        )
 
     def get_world_state(self) -> Dict[str, Any]:
         """Get world state for behavior tree compatibility"""
@@ -173,10 +184,14 @@ class MMOActionManager:
 
     async def harvest_wood(self, target_x: float, target_y: float):
         """Harvest wood action"""
-        return await self.request_action(ActionType.HARVEST_WOOD, harvest_wood_params(target_x, target_y))
+        return await self.request_action(
+            ActionType.HARVEST_WOOD, harvest_wood_params(target_x, target_y)
+        )
 
 
-def create_mmo_behavior_tree_agent(agent_type: str = "explorer") -> BehaviorTreeMMOAgent:
+def create_mmo_behavior_tree_agent(
+    agent_type: str = "explorer",
+) -> BehaviorTreeMMOAgent:
     """
     Factory function to create a behavior tree compatible agent
     that uses the MMO architecture.
@@ -190,7 +205,9 @@ def create_mmo_behavior_tree_agent(agent_type: str = "explorer") -> BehaviorTree
     return agent
 
 
-async def connect_behavior_tree_agent(agent_type: str = "explorer") -> Optional[BehaviorTreeMMOAgent]:
+async def connect_behavior_tree_agent(
+    agent_type: str = "explorer",
+) -> Optional[BehaviorTreeMMOAgent]:
     """
     Create and connect a behavior tree agent to the MMO server.
 
@@ -240,7 +257,9 @@ class MMOAgentMap:
         self.set_tile_type(x, y, tile_type)
 
 
-def setup_mmo_agent_with_map(agent: BehaviorTreeMMOAgent, world_width: int = 100, world_height: int = 100):
+def setup_mmo_agent_with_map(
+    agent: BehaviorTreeMMOAgent, world_width: int = 100, world_height: int = 100
+):
     """Set up an MMO agent with basic map functionality"""
     agent._agent_map = MMOAgentMap(world_width, world_height)
     return agent

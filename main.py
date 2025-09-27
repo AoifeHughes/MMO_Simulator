@@ -21,7 +21,11 @@ logger = logging.getLogger(__name__)
 
 class SimulatorApp:
     def __init__(
-        self, mode: str = "both", visualize: bool = True, scenario: Optional[str] = None, timeout: Optional[int] = None
+        self,
+        mode: str = "both",
+        visualize: bool = True,
+        scenario: Optional[str] = None,
+        timeout: Optional[int] = None,
     ):
         self.mode = mode
         self.visualize = visualize
@@ -60,7 +64,9 @@ class SimulatorApp:
                 return None
 
         # Create server with terrain parameters
-        self.server = GameServer(world_width, world_height, terrain_type=terrain_type, seed=seed)
+        self.server = GameServer(
+            world_width, world_height, terrain_type=terrain_type, seed=seed
+        )
         logger.info("Starting server...")
 
         # Load scenario if specified
@@ -116,12 +122,18 @@ class SimulatorApp:
                 client = GameClient()
 
                 # Inject behavior tree provider from scenario if available
-                if scenario and hasattr(scenario, 'get_custom_behavior_tree'):
-                    from client.behavior_tree.provider import BehaviorTreeInjector, ScenarioTreeProvider
+                if scenario and hasattr(scenario, "get_custom_behavior_tree"):
+                    from client.behavior_tree.provider import (
+                        BehaviorTreeInjector,
+                        ScenarioTreeProvider,
+                    )
+
                     scenario_provider = ScenarioTreeProvider(scenario)
                     injector = BehaviorTreeInjector(scenario_provider)
                     client.set_behavior_tree_provider(injector)
-                    logger.info(f"Injected scenario behavior tree provider for {agent_type}")
+                    logger.info(
+                        f"Injected scenario behavior tree provider for {agent_type}"
+                    )
 
                 connected = await client.connect(agent_type=agent_type)
                 if connected:
@@ -399,7 +411,12 @@ def main():
         else:
             mode = args.mode
 
-        app = SimulatorApp(mode=mode, visualize=not args.no_viz, scenario=args.scenario, timeout=args.timeout)
+        app = SimulatorApp(
+            mode=mode,
+            visualize=not args.no_viz,
+            scenario=args.scenario,
+            timeout=args.timeout,
+        )
         asyncio.run(app.run())
 
 

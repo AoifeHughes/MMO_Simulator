@@ -108,7 +108,9 @@ class CollisionDetector:
                 correction_y = -dy * correction_factor * 0.5
             else:
                 # Same position - move entities apart by minimum distance
-                correction_x = min_distance * 0.5  # Move one entity by half the minimum distance
+                correction_x = (
+                    min_distance * 0.5
+                )  # Move one entity by half the minimum distance
                 correction_y = 0.0
 
             return CollisionResult(

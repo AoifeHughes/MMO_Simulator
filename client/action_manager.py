@@ -109,7 +109,9 @@ class ActionManager:
         if predict and self._can_predict_action(action_type):
             predicted_state = await self._apply_prediction(request)
             if predicted_state:
-                self.predictions[request.action_id] = PredictionState(request, predicted_state)
+                self.predictions[request.action_id] = PredictionState(
+                    request, predicted_state
+                )
                 self.stats["predictions_made"] += 1
 
                 # Notify prediction callbacks
@@ -252,7 +254,9 @@ class ActionManager:
         }
         return action_type in safe_predictions
 
-    async def _apply_prediction(self, request: ActionRequest) -> Optional[Dict[str, Any]]:
+    async def _apply_prediction(
+        self, request: ActionRequest
+    ) -> Optional[Dict[str, Any]]:
         """Apply optimistic client-side prediction"""
         if request.action_type == ActionType.MOVE_TO:
             return await self._predict_move_to(request)
@@ -261,7 +265,9 @@ class ActionManager:
         else:
             return None
 
-    async def _predict_move_to(self, request: ActionRequest) -> Optional[Dict[str, Any]]:
+    async def _predict_move_to(
+        self, request: ActionRequest
+    ) -> Optional[Dict[str, Any]]:
         """Predict MOVE_TO action client-side"""
         params = request.parameters
         target_x = params.get("target_x")
@@ -279,7 +285,9 @@ class ActionManager:
             "predicted_time": time.time(),
         }
 
-    async def _predict_stop_movement(self, request: ActionRequest) -> Optional[Dict[str, Any]]:
+    async def _predict_stop_movement(
+        self, request: ActionRequest
+    ) -> Optional[Dict[str, Any]]:
         """Predict STOP_MOVEMENT action client-side"""
         return {
             "action_type": "stop_prediction",
@@ -287,7 +295,10 @@ class ActionManager:
         }
 
     async def _handle_approved_action(
-        self, request: ActionRequest, response: ActionResponse, prediction: Optional[PredictionState]
+        self,
+        request: ActionRequest,
+        response: ActionResponse,
+        prediction: Optional[PredictionState],
     ):
         """Handle server approval of action"""
         if prediction:
@@ -303,16 +314,25 @@ class ActionManager:
 
             if success and caught_item:
                 logger.info(f"🎣 Agent {self.agent_id[:8]} successfully caught a fish!")
-                print(f"🎣 Agent {self.agent_id[:8]} successfully caught a fish! (took {fishing_time:.1f}s)")
+                print(
+                    f"🎣 Agent {self.agent_id[:8]} successfully caught a fish! (took {fishing_time:.1f}s)"
+                )
 
                 # Query server for current inventory state to get accurate fish count
                 await self._query_inventory_and_report_fish(fishing_time)
             else:
-                logger.info(f"🎣 Agent {self.agent_id[:8]} completed fishing (no catch this time)")
-                print(f"🎣 Agent {self.agent_id[:8]} completed fishing (no catch this time, took {fishing_time:.1f}s)")
+                logger.info(
+                    f"🎣 Agent {self.agent_id[:8]} completed fishing (no catch this time)"
+                )
+                print(
+                    f"🎣 Agent {self.agent_id[:8]} completed fishing (no catch this time, took {fishing_time:.1f}s)"
+                )
 
     async def _handle_modified_action(
-        self, request: ActionRequest, response: ActionResponse, prediction: Optional[PredictionState]
+        self,
+        request: ActionRequest,
+        response: ActionResponse,
+        prediction: Optional[PredictionState],
     ):
         """Handle server modification of action"""
         if prediction and not prediction.rollback_applied:
@@ -322,10 +342,15 @@ class ActionManager:
 
         # Apply the server's modified version
         if response.approved_parameters:
-            logger.debug(f"Applying server modifications for action {request.action_id}")
+            logger.debug(
+                f"Applying server modifications for action {request.action_id}"
+            )
 
     async def _handle_rejected_action(
-        self, request: ActionRequest, response: ActionResponse, prediction: Optional[PredictionState]
+        self,
+        request: ActionRequest,
+        response: ActionResponse,
+        prediction: Optional[PredictionState],
     ):
         """Handle server rejection of action"""
         if prediction and not prediction.rollback_applied:
@@ -333,27 +358,40 @@ class ActionManager:
 
         # Special handling for rejected fishing actions
         if request.action_type == ActionType.FISH:
-            logger.warning(f"🎣 Agent {self.agent_id[:8]} fishing was rejected: {response.message}")
-            print(f"🎣 Agent {self.agent_id[:8]} fishing was rejected: {response.message}")
+            logger.warning(
+                f"🎣 Agent {self.agent_id[:8]} fishing was rejected: {response.message}"
+            )
+            print(
+                f"🎣 Agent {self.agent_id[:8]} fishing was rejected: {response.message}"
+            )
 
         logger.debug(f"Rolled back prediction for rejected action {request.action_id}")
 
         # Check if we should retry
         if request.retry_count < request.max_retries and self._should_retry(response):
             request.retry_count += 1
-            delay = self.retry_delays[min(request.retry_count - 1, len(self.retry_delays) - 1)]
+            delay = self.retry_delays[
+                min(request.retry_count - 1, len(self.retry_delays) - 1)
+            ]
             asyncio.create_task(self._retry_after_delay(request, delay))
-            logger.debug(f"Scheduling retry {request.retry_count} for action {request.action_id}")
+            logger.debug(
+                f"Scheduling retry {request.retry_count} for action {request.action_id}"
+            )
 
     async def _handle_error_action(
-        self, request: ActionRequest, response: ActionResponse, prediction: Optional[PredictionState]
+        self,
+        request: ActionRequest,
+        response: ActionResponse,
+        prediction: Optional[PredictionState],
     ):
         """Handle server error processing action"""
         self.stats["errors"] += 1
 
         if prediction and not prediction.rollback_applied:
             await self._apply_rollback(prediction)
-            logger.debug(f"Rolled back prediction due to server error for action {request.action_id}")
+            logger.debug(
+                f"Rolled back prediction due to server error for action {request.action_id}"
+            )
 
         logger.error(f"Server error for action {request.action_id}: {response.message}")
 
@@ -414,7 +452,11 @@ class ActionManager:
 
         for action_id in expired_predictions:
             prediction = self.predictions.pop(action_id, None)
-            if prediction and not prediction.confirmed and not prediction.rollback_applied:
+            if (
+                prediction
+                and not prediction.confirmed
+                and not prediction.rollback_applied
+            ):
                 await self._apply_rollback(prediction)
                 logger.warning(f"Rolled back expired prediction for action {action_id}")
 
@@ -423,37 +465,52 @@ class ActionManager:
         try:
             # Request inventory from server
             inventory_action_id = await self.request_action(
-                action_type=ActionType.QUERY_INVENTORY,
-                parameters={},
-                predict=False
+                action_type=ActionType.QUERY_INVENTORY, parameters={}, predict=False
             )
 
             # Note: The response will be handled by handle_response, but we need to track it
             # to extract inventory data when it arrives. For now, we'll register a temporary
             # callback to handle inventory responses specifically for fishing.
-            async def handle_inventory_response(request: ActionRequest, response: ActionResponse, prediction):
-                if (request.action_id == inventory_action_id and
-                    response.result == ActionResult.APPROVED and
-                    "inventory" in response.approved_parameters):
-
+            async def handle_inventory_response(
+                request: ActionRequest, response: ActionResponse, prediction
+            ):
+                if (
+                    request.action_id == inventory_action_id
+                    and response.result == ActionResult.APPROVED
+                    and "inventory" in response.approved_parameters
+                ):
                     inventory_data = response.approved_parameters["inventory"]
 
                     # Count fish items from server inventory
                     fish_count = 0
                     for slot in inventory_data.get("slots", []):
-                        if slot.get("item") and slot["item"].get("name") == "Fresh Fish":
+                        if (
+                            slot.get("item")
+                            and slot["item"].get("name") == "Fresh Fish"
+                        ):
                             fish_count += slot.get("quantity", 0)
 
                     # Report the authoritative fish count
-                    logger.info(f"🎣 Agent {self.agent_id[:8]} fish inventory updated - Total fish: {fish_count}")
-                    print(f"🎣 Agent {self.agent_id[:8]} fish inventory updated - Total fish: {fish_count}")
+                    logger.info(
+                        f"🎣 Agent {self.agent_id[:8]} fish inventory updated - Total fish: {fish_count}"
+                    )
+                    print(
+                        f"🎣 Agent {self.agent_id[:8]} fish inventory updated - Total fish: {fish_count}"
+                    )
 
                     # Remove this temporary callback
-                    if handle_inventory_response in self.action_callbacks[ActionType.QUERY_INVENTORY]:
-                        self.action_callbacks[ActionType.QUERY_INVENTORY].remove(handle_inventory_response)
+                    if (
+                        handle_inventory_response
+                        in self.action_callbacks[ActionType.QUERY_INVENTORY]
+                    ):
+                        self.action_callbacks[ActionType.QUERY_INVENTORY].remove(
+                            handle_inventory_response
+                        )
 
             # Register temporary callback
-            self.register_action_callback(ActionType.QUERY_INVENTORY, handle_inventory_response)
+            self.register_action_callback(
+                ActionType.QUERY_INVENTORY, handle_inventory_response
+            )
 
         except Exception as e:
             logger.error(f"Error querying inventory after fishing: {e}")

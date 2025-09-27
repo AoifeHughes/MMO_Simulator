@@ -39,23 +39,32 @@ class MovementValidator:
             "movements_rejected": 0,
             "terrain_violations": 0,
             "distance_violations": 0,
-            "bound_violations": 0
+            "bound_violations": 0,
         }
 
     def set_world_bounds(self, width: int, height: int):
         """Set world boundaries for validation"""
         self.world_bounds = (width, height)
-        logger.debug(f"Movement validator for {self.agent_id[:8]} set bounds: {width}x{height}")
+        logger.debug(
+            f"Movement validator for {self.agent_id[:8]} set bounds: {width}x{height}"
+        )
 
     def update_terrain_cache(self, terrain_data: dict):
         """Update terrain cache for better validation"""
         if terrain_data:
             self.terrain_cache.update(terrain_data)
-            logger.debug(f"Movement validator updated terrain cache with {len(terrain_data)} tiles")
+            logger.debug(
+                f"Movement validator updated terrain cache with {len(terrain_data)} tiles"
+            )
 
-    def validate_movement(self, current_x: float, current_y: float,
-                         target_x: float, target_y: float,
-                         max_distance: Optional[float] = None) -> Tuple[bool, str]:
+    def validate_movement(
+        self,
+        current_x: float,
+        current_y: float,
+        target_x: float,
+        target_y: float,
+        max_distance: Optional[float] = None,
+    ) -> Tuple[bool, str]:
         """
         Validate a movement from current position to target position
 
@@ -79,11 +88,16 @@ class MovementValidator:
             return True, "Movement too small to matter"
 
         # Check maximum movement distance
-        max_allowed = max_distance if max_distance is not None else self.max_single_movement
+        max_allowed = (
+            max_distance if max_distance is not None else self.max_single_movement
+        )
         if distance > max_allowed:
             self.stats["movements_rejected"] += 1
             self.stats["distance_violations"] += 1
-            return False, f"Movement distance {distance:.2f} exceeds maximum {max_allowed:.2f}"
+            return (
+                False,
+                f"Movement distance {distance:.2f} exceeds maximum {max_allowed:.2f}",
+            )
 
         # Check world bounds
         if self.world_bounds:
@@ -91,22 +105,31 @@ class MovementValidator:
             if not (0 <= target_x < width and 0 <= target_y < height):
                 self.stats["movements_rejected"] += 1
                 self.stats["bound_violations"] += 1
-                return False, f"Target ({target_x:.2f}, {target_y:.2f}) outside world bounds {width}x{height}"
+                return (
+                    False,
+                    f"Target ({target_x:.2f}, {target_y:.2f}) outside world bounds {width}x{height}",
+                )
 
         # Check terrain walkability if we have terrain data
         if self.terrain_cache:
             if not self._is_path_walkable(current_x, current_y, target_x, target_y):
                 self.stats["movements_rejected"] += 1
                 self.stats["terrain_violations"] += 1
-                return False, f"Path from ({current_x:.2f}, {current_y:.2f}) to ({target_x:.2f}, {target_y:.2f}) blocked by terrain"
+                return (
+                    False,
+                    f"Path from ({current_x:.2f}, {current_y:.2f}) to ({target_x:.2f}, {target_y:.2f}) blocked by terrain",
+                )
 
         return True, "Movement valid"
 
-    def _is_path_walkable(self, start_x: float, start_y: float,
-                         end_x: float, end_y: float) -> bool:
+    def _is_path_walkable(
+        self, start_x: float, start_y: float, end_x: float, end_y: float
+    ) -> bool:
         """Check if path between two points is walkable based on terrain cache"""
         # Simple line sampling - check key points along the path
-        num_samples = max(3, int(math.sqrt((end_x - start_x) ** 2 + (end_y - start_y) ** 2)))
+        num_samples = max(
+            3, int(math.sqrt((end_x - start_x) ** 2 + (end_y - start_y) ** 2))
+        )
 
         for i in range(num_samples + 1):
             t = i / num_samples if num_samples > 0 else 0
@@ -118,12 +141,12 @@ class MovementValidator:
             if (tile_x, tile_y) in self.terrain_cache:
                 tile_type = self.terrain_cache[(tile_x, tile_y)]
                 # Check if tile is walkable (this depends on your terrain system)
-                if hasattr(tile_type, 'walkable'):
+                if hasattr(tile_type, "walkable"):
                     if not tile_type.walkable:
                         return False
-                elif hasattr(tile_type, 'name'):
+                elif hasattr(tile_type, "name"):
                     # Common non-walkable tile types
-                    if tile_type.name in ['WALL', 'WATER', 'VOID', 'OBSTACLE']:
+                    if tile_type.name in ["WALL", "WATER", "VOID", "OBSTACLE"]:
                         return False
 
         return True
@@ -140,8 +163,9 @@ class MovementValidator:
 
         return True, "Speed valid"
 
-    def suggest_corrected_movement(self, current_x: float, current_y: float,
-                                  target_x: float, target_y: float) -> Tuple[float, float]:
+    def suggest_corrected_movement(
+        self, current_x: float, current_y: float, target_x: float, target_y: float
+    ) -> Tuple[float, float]:
         """
         Suggest a corrected movement when the original is invalid
 
@@ -168,7 +192,9 @@ class MovementValidator:
 
         return corrected_x, corrected_y
 
-    def validate_behavior_tree_movement(self, agent, target_x: float, target_y: float) -> Tuple[bool, str]:
+    def validate_behavior_tree_movement(
+        self, agent, target_x: float, target_y: float
+    ) -> Tuple[bool, str]:
         """
         Special validation for behavior tree movements
 
@@ -182,12 +208,14 @@ class MovementValidator:
         current_x, current_y = agent.x, agent.y
 
         # Check if agent has sufficient terrain coverage for safe movement
-        if hasattr(agent, 'agent_map') and agent.agent_map:
-            if hasattr(agent, '_has_sufficient_terrain_coverage'):
+        if hasattr(agent, "agent_map") and agent.agent_map:
+            if hasattr(agent, "_has_sufficient_terrain_coverage"):
                 if not agent._has_sufficient_terrain_coverage():
                     # More conservative movement when terrain data is sparse
                     max_distance = self.max_single_movement * 0.3  # Very conservative
-                    logger.debug(f"Movement validator using conservative limits for {self.agent_id[:8]} due to insufficient terrain data")
+                    logger.debug(
+                        f"Movement validator using conservative limits for {self.agent_id[:8]} due to insufficient terrain data"
+                    )
                 else:
                     max_distance = self.max_single_movement
             else:
@@ -195,30 +223,43 @@ class MovementValidator:
         else:
             # No terrain data - be very conservative
             max_distance = self.max_single_movement * 0.2
-            logger.debug(f"Movement validator using very conservative limits for {self.agent_id[:8]} due to no terrain data")
+            logger.debug(
+                f"Movement validator using very conservative limits for {self.agent_id[:8]} due to no terrain data"
+            )
 
         # Use position reconciler data if available for more accurate validation
-        if hasattr(agent, 'position_reconciler') and agent.position_reconciler:
+        if hasattr(agent, "position_reconciler") and agent.position_reconciler:
             # Check against server position for better accuracy
             server_error = agent.position_reconciler.get_position_error()
             if server_error > 2.0:  # Large position error
-                return False, f"Agent position too far from server (error: {server_error:.2f})"
+                return (
+                    False,
+                    f"Agent position too far from server (error: {server_error:.2f})",
+                )
 
             # Use more conservative limits when position is uncertain
-            max_distance = max_distance * 0.7  # Further reduce limit when position uncertain
+            max_distance = (
+                max_distance * 0.7
+            )  # Further reduce limit when position uncertain
 
-        return self.validate_movement(current_x, current_y, target_x, target_y, max_distance)
+        return self.validate_movement(
+            current_x, current_y, target_x, target_y, max_distance
+        )
 
     def get_stats(self) -> dict:
         """Get validation statistics"""
         total_validated = self.stats["movements_validated"]
-        rejection_rate = (self.stats["movements_rejected"] / total_validated * 100) if total_validated > 0 else 0
+        rejection_rate = (
+            (self.stats["movements_rejected"] / total_validated * 100)
+            if total_validated > 0
+            else 0
+        )
 
         return {
             **self.stats,
             "rejection_rate_percent": round(rejection_rate, 1),
             "terrain_cache_size": len(self.terrain_cache),
-            "world_bounds": self.world_bounds
+            "world_bounds": self.world_bounds,
         }
 
     def reset_stats(self):
@@ -243,7 +284,9 @@ class MovementValidator:
 
         return True
 
-    def validate_movement_speed(self, pos1: tuple, pos2: tuple, time_delta: float) -> bool:
+    def validate_movement_speed(
+        self, pos1: tuple, pos2: tuple, time_delta: float
+    ) -> bool:
         """Validate if movement speed is within acceptable limits"""
         if time_delta <= 0:
             return False
@@ -272,7 +315,9 @@ class MovementValidator:
         """Get world height from bounds"""
         return self.world_bounds[1] if self.world_bounds else None
 
-    def validate_complete_movement(self, current_pos: tuple, target_pos: tuple, delta_time: float) -> bool:
+    def validate_complete_movement(
+        self, current_pos: tuple, target_pos: tuple, delta_time: float
+    ) -> bool:
         """Complete movement validation combining distance, speed, and bounds checks"""
         x1, y1 = current_pos
         x2, y2 = target_pos

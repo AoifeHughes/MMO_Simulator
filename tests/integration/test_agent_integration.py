@@ -5,17 +5,22 @@ Comprehensive tests for the integration testing framework to ensure
 proper testing of component interactions and system behavior.
 """
 
-import pytest
-import time
-import tempfile
 import json
+import tempfile
+import time
 from pathlib import Path
 from unittest.mock import Mock, patch
 
+import pytest
+
 from tests.integration.agent_integration import (
-    AgentIntegrationTester, IntegrationTestReport, IntegrationTestSuite,
-    IntegrationTestLevel, Result, run_quick_integration_test,
-    run_comprehensive_integration_test
+    AgentIntegrationTester,
+    IntegrationTestLevel,
+    IntegrationTestReport,
+    IntegrationTestSuite,
+    Result,
+    run_comprehensive_integration_test,
+    run_quick_integration_test,
 )
 
 
@@ -32,7 +37,7 @@ class TestIntegrationTestReport:
             components_tested=["ComponentA", "ComponentB"],
             performance_metrics={"metric1": 0.8},
             memory_usage={"peak_memory": 1024},
-            details={"extra_info": "test_data"}
+            details={"extra_info": "test_data"},
         )
 
         assert report.test_name == "test_component_integration"
@@ -52,7 +57,7 @@ class TestIntegrationTestReport:
             error_message="Test failed",
             performance_metrics={"response_time": 1.2},
             memory_usage={"memory_used": 512},
-            details={"failure_reason": "timeout"}
+            details={"failure_reason": "timeout"},
         )
 
         data = report.to_dict()
@@ -72,8 +77,12 @@ class TestIntegrationTestSuite:
     def test_suite_creation(self):
         """Test creating integration test suites"""
         reports = [
-            IntegrationTestReport("test1", IntegrationTestLevel.UNIT, Result.PASS, 1.0, ["A"]),
-            IntegrationTestReport("test2", IntegrationTestLevel.COMPONENT, Result.FAIL, 2.0, ["B"])
+            IntegrationTestReport(
+                "test1", IntegrationTestLevel.UNIT, Result.PASS, 1.0, ["A"]
+            ),
+            IntegrationTestReport(
+                "test2", IntegrationTestLevel.COMPONENT, Result.FAIL, 2.0, ["B"]
+            ),
         ]
 
         suite = IntegrationTestSuite(
@@ -87,7 +96,7 @@ class TestIntegrationTestSuite:
             errors=0,
             test_reports=reports,
             overall_performance={"avg_duration": 1.5},
-            summary="Mixed results"
+            summary="Mixed results",
         )
 
         assert suite.suite_name == "test_suite"
@@ -98,28 +107,24 @@ class TestIntegrationTestSuite:
 
     def test_success_rate_calculation(self):
         """Test success rate calculation"""
-        suite = IntegrationTestSuite(
-            "test", 0, 0, 10, 8, 2, 0, 0, [], {}, ""
-        )
+        suite = IntegrationTestSuite("test", 0, 0, 10, 8, 2, 0, 0, [], {}, "")
         assert suite.success_rate == 0.8
 
         # Test edge case with no tests
-        empty_suite = IntegrationTestSuite(
-            "empty", 0, 0, 0, 0, 0, 0, 0, [], {}, ""
-        )
+        empty_suite = IntegrationTestSuite("empty", 0, 0, 0, 0, 0, 0, 0, [], {}, "")
         assert empty_suite.success_rate == 0.0
 
     def test_duration_calculation(self):
         """Test duration calculation"""
-        suite = IntegrationTestSuite(
-            "test", 1000.0, 1005.5, 0, 0, 0, 0, 0, [], {}, ""
-        )
+        suite = IntegrationTestSuite("test", 1000.0, 1005.5, 0, 0, 0, 0, 0, [], {}, "")
         assert suite.duration == 5.5
 
     def test_save_to_file(self):
         """Test saving suite to file"""
         reports = [
-            IntegrationTestReport("test1", IntegrationTestLevel.UNIT, Result.PASS, 1.0, ["A"])
+            IntegrationTestReport(
+                "test1", IntegrationTestLevel.UNIT, Result.PASS, 1.0, ["A"]
+            )
         ]
 
         suite = IntegrationTestSuite(
@@ -133,19 +138,19 @@ class TestIntegrationTestSuite:
             errors=0,
             test_reports=reports,
             overall_performance={"avg_time": 1.0},
-            summary="All passed"
+            summary="All passed",
         )
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             suite.save_to_file(f.name)
 
             # Verify file was created and contains valid JSON
-            with open(f.name, 'r') as read_f:
+            with open(f.name, "r") as read_f:
                 data = json.load(read_f)
-                assert data['suite_name'] == "save_test"
-                assert data['total_tests'] == 1
-                assert data['success_rate'] == 1.0
-                assert len(data['test_reports']) == 1
+                assert data["suite_name"] == "save_test"
+                assert data["total_tests"] == 1
+                assert data["success_rate"] == 1.0
+                assert len(data["test_reports"]) == 1
 
             # Cleanup
             Path(f.name).unlink()
@@ -169,18 +174,16 @@ class TestAgentIntegrationTester:
 
     def test_run_test_success(self):
         """Test running a successful test"""
+
         def mock_test_func():
             return {
                 "success": True,
                 "performance": {"test_metric": 0.9},
-                "details": {"test_info": "completed"}
+                "details": {"test_info": "completed"},
             }
 
         report = self.tester._run_test(
-            "test_success",
-            IntegrationTestLevel.UNIT,
-            ["TestComponent"],
-            mock_test_func
+            "test_success", IntegrationTestLevel.UNIT, ["TestComponent"], mock_test_func
         )
 
         assert report.test_name == "test_success"
@@ -191,17 +194,15 @@ class TestAgentIntegrationTester:
 
     def test_run_test_failure(self):
         """Test running a failed test"""
+
         def mock_test_func():
-            return {
-                "success": False,
-                "error": "Test failed for some reason"
-            }
+            return {"success": False, "error": "Test failed for some reason"}
 
         report = self.tester._run_test(
             "test_failure",
             IntegrationTestLevel.COMPONENT,
             ["FailingComponent"],
-            mock_test_func
+            mock_test_func,
         )
 
         assert report.test_name == "test_failure"
@@ -210,6 +211,7 @@ class TestAgentIntegrationTester:
 
     def test_run_test_exception(self):
         """Test running a test that throws an exception"""
+
         def mock_test_func():
             raise ValueError("Unexpected error in test")
 
@@ -217,7 +219,7 @@ class TestAgentIntegrationTester:
             "test_exception",
             IntegrationTestLevel.SYSTEM,
             ["ErrorComponent"],
-            mock_test_func
+            mock_test_func,
         )
 
         assert report.test_name == "test_exception"
@@ -290,7 +292,10 @@ class TestAgentIntegrationTester:
 
         assert report.test_name == "performance_integration"
         assert report.test_level == IntegrationTestLevel.SYSTEM
-        assert "performance" in report.performance_metrics or report.performance_metrics is not None
+        assert (
+            "performance" in report.performance_metrics
+            or report.performance_metrics is not None
+        )
 
     def test_stress_test_integration(self):
         """Test stress test integration"""
@@ -318,13 +323,21 @@ class TestAgentIntegrationTester:
         # Add some mock test reports
         self.tester.test_reports = [
             IntegrationTestReport(
-                "test1", IntegrationTestLevel.UNIT, Result.PASS, 1.0, ["A"],
-                performance_metrics={"metric1": 0.8, "metric2": 1.2}
+                "test1",
+                IntegrationTestLevel.UNIT,
+                Result.PASS,
+                1.0,
+                ["A"],
+                performance_metrics={"metric1": 0.8, "metric2": 1.2},
             ),
             IntegrationTestReport(
-                "test2", IntegrationTestLevel.COMPONENT, Result.PASS, 2.0, ["B"],
-                performance_metrics={"metric1": 0.9, "metric3": 0.7}
-            )
+                "test2",
+                IntegrationTestLevel.COMPONENT,
+                Result.PASS,
+                2.0,
+                ["B"],
+                performance_metrics={"metric1": 0.9, "metric3": 0.7},
+            ),
         ]
 
         performance = self.tester._calculate_overall_performance()
@@ -382,10 +395,10 @@ class TestAgentIntegrationTester:
         assert results_file.exists()
 
         # Verify file contents
-        with open(results_file, 'r') as f:
+        with open(results_file, "r") as f:
             data = json.load(f)
-            assert data['suite_name'] == "test_suite"
-            assert data['total_tests'] > 0
+            assert data["suite_name"] == "test_suite"
+            assert data["total_tests"] > 0
 
     def test_suite_includes_all_test_levels(self):
         """Test that suite includes tests from all levels"""
@@ -417,7 +430,9 @@ class TestAgentIntegrationTester:
     def test_suite_error_handling(self):
         """Test suite handles errors gracefully"""
         # Patch one of the test methods to raise an exception
-        with patch.object(self.tester, '_run_memory_behavior_integration') as mock_method:
+        with patch.object(
+            self.tester, "_run_memory_behavior_integration"
+        ) as mock_method:
             mock_method.side_effect = RuntimeError("Simulated test failure")
 
             suite = self.tester.run_integration_test_suite("error_test")
@@ -427,8 +442,9 @@ class TestAgentIntegrationTester:
             assert suite.total_tests > 0
 
             # Should have some errors recorded - either in error count or individual reports
-            has_errors = (suite.errors > 0 or
-                         any(report.result == Result.ERROR for report in suite.test_reports))
+            has_errors = suite.errors > 0 or any(
+                report.result == Result.ERROR for report in suite.test_reports
+            )
             # Note: The error might be caught and handled, so we just verify the suite completes
 
 
@@ -475,7 +491,7 @@ class TestIntegrationResults:
             "BehaviorComposer",
             "InterruptManager",
             "FlexibilityHarness",
-            "BehaviorRegressionTester"
+            "BehaviorRegressionTester",
         ]
 
         for component in expected_components:
@@ -509,7 +525,9 @@ class TestIntegrationResults:
         # Performance metrics should be reasonable
         if "avg_test_duration" in suite.overall_performance:
             assert suite.overall_performance["avg_test_duration"] > 0
-            assert suite.overall_performance["avg_test_duration"] < 60  # Should be under 1 minute
+            assert (
+                suite.overall_performance["avg_test_duration"] < 60
+            )  # Should be under 1 minute
 
     def test_integration_results_persistence(self):
         """Test that integration results are properly saved"""
@@ -521,13 +539,23 @@ class TestIntegrationResults:
         assert results_file.exists()
 
         # File should contain valid JSON with all expected fields
-        with open(results_file, 'r') as f:
+        with open(results_file, "r") as f:
             data = json.load(f)
 
         required_fields = [
-            "suite_name", "start_time", "end_time", "duration",
-            "total_tests", "passed", "failed", "skipped", "errors",
-            "success_rate", "test_reports", "overall_performance", "summary"
+            "suite_name",
+            "start_time",
+            "end_time",
+            "duration",
+            "total_tests",
+            "passed",
+            "failed",
+            "skipped",
+            "errors",
+            "success_rate",
+            "test_reports",
+            "overall_performance",
+            "summary",
         ]
 
         for field in required_fields:
@@ -538,7 +566,7 @@ class TestIntegrationResults:
         tester = AgentIntegrationTester(self.temp_dir)
 
         # Patch a method to always fail
-        with patch.object(tester, '_run_performance_integration') as mock_method:
+        with patch.object(tester, "_run_performance_integration") as mock_method:
             mock_method.side_effect = Exception("Intentional test failure")
 
             suite = tester.run_integration_test_suite("error_reporting_test")
@@ -548,10 +576,14 @@ class TestIntegrationResults:
             assert suite.total_tests > 0
 
             # Check if any error was captured (either in error count or in reports)
-            has_error_info = (suite.errors > 0 or
-                            any(r.result == Result.ERROR for r in suite.test_reports) or
-                            any(r.error_message and "Intentional test failure" in r.error_message
-                                for r in suite.test_reports))
+            has_error_info = (
+                suite.errors > 0
+                or any(r.result == Result.ERROR for r in suite.test_reports)
+                or any(
+                    r.error_message and "Intentional test failure" in r.error_message
+                    for r in suite.test_reports
+                )
+            )
 
             # Note: We just verify the suite handles errors gracefully
 
@@ -572,7 +604,10 @@ class TestIntegrationScenarios:
 
         report = self.tester.test_reports[-1]
         assert report.result in [Result.PASS, Result.FAIL]  # Should complete
-        assert "memory_influence" in report.performance_metrics or report.performance_metrics is None
+        assert (
+            "memory_influence" in report.performance_metrics
+            or report.performance_metrics is None
+        )
 
     def test_interrupt_behavior_coordination(self):
         """Test coordination between interrupt and behavior systems"""

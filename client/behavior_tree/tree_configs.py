@@ -7,12 +7,20 @@ adding stability mechanisms to prevent stuttering.
 import math
 from typing import Optional
 
-from .nodes import *
-from .nodes.wood_harvesting_action import *
-from .nodes.fishing_action_simple import FishingAction, FishingRodRequirement, WaterNearbyCondition
-from .nodes.wood_harvesting_action_simple import WoodHarvestingAction, WoodNearbyCondition
-from .tree import BehaviorTree
 from shared.action_constants import DISTANCES
+
+from .nodes import *
+from .nodes.fishing_action_simple import (
+    FishingAction,
+    FishingRodRequirement,
+    WaterNearbyCondition,
+)
+from .nodes.wood_harvesting_action import *
+from .nodes.wood_harvesting_action_simple import (
+    WoodHarvestingAction,
+    WoodNearbyCondition,
+)
+from .tree import BehaviorTree
 
 
 def create_npc_tree(
@@ -78,21 +86,26 @@ def create_explorer_tree(
                     "FishingBehavior",
                     [
                         FishingRodRequirement(),  # OOP-based fishing rod check
-                        WaterNearbyCondition(DISTANCES.FISHING_RANGE),  # Server-authoritative water detection
+                        WaterNearbyCondition(
+                            DISTANCES.FISHING_RANGE
+                        ),  # Server-authoritative water detection
                         CooldownDecorator(
                             "FishingCooldown",
-                            FishingAction(DISTANCES.FISHING_RANGE),  # OOP-based fishing action with server queries
+                            FishingAction(
+                                DISTANCES.FISHING_RANGE
+                            ),  # OOP-based fishing action with server queries
                             cooldown_duration=2.0,
                         ),
                     ],
                 ),
-
                 # Priority 2: Move to water if we know where it is but aren't close enough
                 Sequence(
                     "MoveToWaterBehavior",
                     [
                         FishingRodRequirement(),  # OOP-based fishing rod check
-                        WaterDiscoveredButNotNearby(DISTANCES.FISHING_RANGE),  # Water is known but not fishing-close
+                        WaterDiscoveredButNotNearby(
+                            DISTANCES.FISHING_RANGE
+                        ),  # Water is known but not fishing-close
                         CooldownDecorator(
                             "MoveToWaterCooldown",
                             TimerDecorator(
@@ -104,18 +117,18 @@ def create_explorer_tree(
                         ),
                     ],
                 ),
-
                 # Priority 3: Explore to find water if none discovered yet
                 CooldownDecorator(
                     "ExplorationCooldown",
                     TimerDecorator(
                         "ExploreTimer",
-                        Explore(exploration_radius, "frontier"),  # Use frontier mode for water discovery
+                        Explore(
+                            exploration_radius, "frontier"
+                        ),  # Use frontier mode for water discovery
                         minimum_duration=3.0,
                     ),
                     cooldown_duration=1.0,
                 ),
-
                 # Priority 4: Wander if stuck or need to move
                 Sequence(
                     "UnstuckBehavior",
@@ -128,7 +141,6 @@ def create_explorer_tree(
                         ),
                     ],
                 ),
-
                 # Priority 5: Default idle
                 Idle(1.0),
             ],
@@ -145,43 +157,50 @@ def create_explorer_tree(
                 Sequence(
                     "WoodHarvestingBehavior",
                     [
-                        WoodNearbyCondition(DISTANCES.WOOD_HARVESTING_RANGE),  # Server-authoritative wood detection
+                        WoodNearbyCondition(
+                            DISTANCES.WOOD_HARVESTING_RANGE
+                        ),  # Server-authoritative wood detection
                         CooldownDecorator(
                             "HarvestingCooldown",
-                            WoodHarvestingAction(DISTANCES.WOOD_HARVESTING_RANGE),  # OOP-based wood harvesting with server queries
+                            WoodHarvestingAction(
+                                DISTANCES.WOOD_HARVESTING_RANGE
+                            ),  # OOP-based wood harvesting with server queries
                             cooldown_duration=2.0,
                         ),
                     ],
                 ),
-
                 # Priority 2: Move to wood if we know where it is but aren't close enough
                 Sequence(
                     "MoveToWoodBehavior",
                     [
-                        WoodDiscoveredButNotNearby(DISTANCES.WOOD_HARVESTING_RANGE),  # Wood is known but not harvesting-close
+                        WoodDiscoveredButNotNearby(
+                            DISTANCES.WOOD_HARVESTING_RANGE
+                        ),  # Wood is known but not harvesting-close
                         CooldownDecorator(
                             "MoveToWoodCooldown",
                             TimerDecorator(
                                 "MoveToWoodTimer",
-                                MoveToWoodHarvestingSpot(DISTANCES.WOOD_HARVESTING_RANGE),
+                                MoveToWoodHarvestingSpot(
+                                    DISTANCES.WOOD_HARVESTING_RANGE
+                                ),
                                 minimum_duration=2.0,
                             ),
                             cooldown_duration=1.0,
                         ),
                     ],
                 ),
-
                 # Priority 3: Explore to find wood if none discovered yet
                 CooldownDecorator(
                     "ExplorationCooldown",
                     TimerDecorator(
                         "ExploreTimer",
-                        Explore(exploration_radius, "frontier"),  # Use frontier mode for wood discovery
+                        Explore(
+                            exploration_radius, "frontier"
+                        ),  # Use frontier mode for wood discovery
                         minimum_duration=3.0,
                     ),
                     cooldown_duration=1.0,
                 ),
-
                 # Priority 4: Wander if stuck or need to move
                 Sequence(
                     "UnstuckBehavior",
@@ -194,7 +213,6 @@ def create_explorer_tree(
                         ),
                     ],
                 ),
-
                 # Priority 5: Default idle
                 Idle(1.0),
             ],
@@ -278,7 +296,6 @@ def create_player_tree(
                     ),
                 ],
             ),
-
             # Priority 2: Combat Engagement (only if healthy)
             Sequence(
                 "CombatEngagement",
@@ -286,7 +303,6 @@ def create_player_tree(
                     # Must be healthy enough to fight
                     HealthAboveThreshold(25.0),  # Hysteresis with emergency
                     DynamicEnemyInChaseRange(20.0, ["enemy"]),
-
                     # Combat state machine with commitment
                     TimerDecorator(
                         "CombatCommitment",
@@ -310,13 +326,11 @@ def create_player_tree(
                                         ),
                                     ],
                                 ),
-
                                 # State 2: Chase to get in range
                                 CooldownDecorator(
                                     "ChaseExecution",
                                     ChaseNearestEnemy(
-                                        enemy_types=["enemy"],
-                                        chase_range=20.0
+                                        enemy_types=["enemy"], chase_range=20.0
                                     ),
                                     cooldown_duration=0.3,  # Faster chase updates
                                 ),
@@ -326,7 +340,6 @@ def create_player_tree(
                     ),
                 ],
             ),
-
             # Priority 3: Patrol (peaceful behavior)
             CooldownDecorator(
                 "PatrolBehavior",
@@ -337,7 +350,6 @@ def create_player_tree(
                 ),
                 cooldown_duration=2.0,
             ),
-
             # Priority 4: Idle (lowest priority fallback)
             TimerDecorator(
                 "IdleCommitment",
@@ -379,7 +391,6 @@ def create_enemy_tree(
                 "AggressiveHunt",
                 [
                     DynamicEnemyInChaseRange(18.0, ["player"]),  # Longer pursuit range
-
                     # Combat commitment - stick with it once engaged
                     TimerDecorator(
                         "CombatCommitment",
@@ -403,11 +414,10 @@ def create_enemy_tree(
                                         ),
                                     ],
                                 ),
-
                                 # State 2: Aggressive pursuit
                                 ChaseNearestEnemy(
                                     enemy_types=["player"],
-                                    chase_range=18.0  # Extended chase range
+                                    chase_range=18.0,  # Extended chase range
                                 ),
                             ],
                         ),
@@ -415,7 +425,6 @@ def create_enemy_tree(
                     ),
                 ],
             ),
-
             # Priority 2: Patrol when no players detected
             CooldownDecorator(
                 "HuntPatrol",
@@ -426,7 +435,6 @@ def create_enemy_tree(
                 ),
                 cooldown_duration=1.5,
             ),
-
             # Priority 3: Alert idle (scanning for targets)
             TimerDecorator(
                 "AlertIdle",

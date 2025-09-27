@@ -6,14 +6,14 @@ This system tracks agent movement, actions, and resource-seeking behavior
 to identify position jumping and pathfinding issues.
 """
 
-import logging
-import time
 import json
+import logging
 import sqlite3
-from dataclasses import dataclass, asdict
-from typing import Dict, List, Optional, Tuple, Any
-from pathlib import Path
 import threading
+import time
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PositionSnapshot:
     """Single position measurement"""
+
     agent_id: str
     timestamp: float
     x: float
@@ -33,6 +34,7 @@ class PositionSnapshot:
 @dataclass
 class ActionAttempt:
     """Action attempt with position context"""
+
     agent_id: str
     timestamp: float
     action_type: str
@@ -48,6 +50,7 @@ class ActionAttempt:
 @dataclass
 class ResourceSeekingEvent:
     """Resource discovery and seeking behavior"""
+
     agent_id: str
     timestamp: float
     event_type: str  # 'discovered', 'seeking', 'reached', 'lost'
@@ -89,20 +92,26 @@ class AgentDebugTracker:
 
             # Detect position jumps (large distance changes without time for movement)
             time_delta = timestamp - (self.last_position_time or timestamp)
-            if time_delta < 0.5 and distance_from_previous > self.position_jump_threshold:
+            if (
+                time_delta < 0.5
+                and distance_from_previous > self.position_jump_threshold
+            ):
                 is_jump = True
-                logger.warning(f"🚨 POSITION JUMP detected for {self.agent_id[:8]}: "
-                             f"moved {distance_from_previous:.2f} units in {time_delta:.2f}s "
-                             f"from ({self.last_position[0]:.2f}, {self.last_position[1]:.2f}) "
-                             f"to ({x:.2f}, {y:.2f}) during {action_type or 'unknown action'}")
+                logger.warning(
+                    f"🚨 POSITION JUMP detected for {self.agent_id[:8]}: "
+                    f"moved {distance_from_previous:.2f} units in {time_delta:.2f}s "
+                    f"from ({self.last_position[0]:.2f}, {self.last_position[1]:.2f}) "
+                    f"to ({x:.2f}, {y:.2f}) during {action_type or 'unknown action'}"
+                )
 
         snapshot = PositionSnapshot(
             agent_id=self.agent_id,
             timestamp=timestamp,
-            x=x, y=y,
+            x=x,
+            y=y,
             action_type=action_type,
             distance_from_previous=distance_from_previous,
-            is_jump=is_jump
+            is_jump=is_jump,
         )
 
         self.positions.append(snapshot)
@@ -112,9 +121,14 @@ class AgentDebugTracker:
         self.last_position = (x, y)
         self.last_position_time = timestamp
 
-    def add_action_attempt(self, action_type: str, target_pos: Optional[Tuple[float, float]],
-                          agent_pos: Tuple[float, float], success: bool,
-                          error_message: Optional[str] = None):
+    def add_action_attempt(
+        self,
+        action_type: str,
+        target_pos: Optional[Tuple[float, float]],
+        agent_pos: Tuple[float, float],
+        success: bool,
+        error_message: Optional[str] = None,
+    ):
         """Record action attempt"""
         target_x, target_y = target_pos if target_pos else (None, None)
         distance_to_target = None
@@ -128,11 +142,13 @@ class AgentDebugTracker:
             agent_id=self.agent_id,
             timestamp=time.time(),
             action_type=action_type,
-            target_x=target_x, target_y=target_y,
-            agent_x=agent_pos[0], agent_y=agent_pos[1],
+            target_x=target_x,
+            target_y=target_y,
+            agent_x=agent_pos[0],
+            agent_y=agent_pos[1],
             distance_to_target=distance_to_target,
             success=success,
-            error_message=error_message
+            error_message=error_message,
         )
 
         self.actions.append(attempt)
@@ -141,12 +157,19 @@ class AgentDebugTracker:
 
         # Log failed actions with distance issues
         if not success and distance_to_target and distance_to_target > 1.5:
-            logger.warning(f"🚨 ACTION DISTANCE ISSUE: {self.agent_id[:8]} {action_type} failed, "
-                         f"distance to target: {distance_to_target:.2f} > 1.5 limit")
+            logger.warning(
+                f"🚨 ACTION DISTANCE ISSUE: {self.agent_id[:8]} {action_type} failed, "
+                f"distance to target: {distance_to_target:.2f} > 1.5 limit"
+            )
 
-    def add_resource_event(self, event_type: str, resource_type: str,
-                          resource_pos: Tuple[int, int], agent_pos: Tuple[float, float],
-                          behavior_node: Optional[str] = None):
+    def add_resource_event(
+        self,
+        event_type: str,
+        resource_type: str,
+        resource_pos: Tuple[int, int],
+        agent_pos: Tuple[float, float],
+        behavior_node: Optional[str] = None,
+    ):
         """Record resource-related events"""
         dx = resource_pos[0] - agent_pos[0]
         dy = resource_pos[1] - agent_pos[1]
@@ -160,7 +183,7 @@ class AgentDebugTracker:
             resource_pos=resource_pos,
             agent_pos=agent_pos,
             distance=distance,
-            behavior_tree_node=behavior_node
+            behavior_tree_node=behavior_node,
         )
 
         self.resource_events.append(event)
@@ -168,9 +191,11 @@ class AgentDebugTracker:
             self.resource_events.pop(0)
 
         # Log when agents discover resources but don't immediately head to them
-        if event_type == 'discovered' and distance > 5.0:
-            logger.info(f"🎯 RESOURCE DISCOVERY: {self.agent_id[:8]} found {resource_type} "
-                       f"at {resource_pos} but is {distance:.1f} units away")
+        if event_type == "discovered" and distance > 5.0:
+            logger.info(
+                f"🎯 RESOURCE DISCOVERY: {self.agent_id[:8]} found {resource_type} "
+                f"at {resource_pos} but is {distance:.1f} units away"
+            )
 
     def get_position_jumps(self) -> List[PositionSnapshot]:
         """Get all detected position jumps"""
@@ -178,19 +203,24 @@ class AgentDebugTracker:
 
     def get_failed_actions_by_distance(self) -> List[ActionAttempt]:
         """Get actions that failed due to distance issues"""
-        return [a for a in self.actions
-                if not a.success and a.distance_to_target and a.distance_to_target > 1.5]
+        return [
+            a
+            for a in self.actions
+            if not a.success and a.distance_to_target and a.distance_to_target > 1.5
+        ]
 
     def get_resource_seeking_inefficiency(self) -> List[ResourceSeekingEvent]:
         """Get cases where agents discovered resources but didn't immediately pursue"""
         inefficient = []
         for event in self.resource_events:
-            if event.event_type == 'discovered' and event.distance > 3.0:
+            if event.event_type == "discovered" and event.distance > 3.0:
                 # Check if agent sought this resource within reasonable time
-                seek_found = any(e.event_type == 'seeking' and
-                               e.resource_pos == event.resource_pos and
-                               e.timestamp - event.timestamp < 10.0
-                               for e in self.resource_events)
+                seek_found = any(
+                    e.event_type == "seeking"
+                    and e.resource_pos == event.resource_pos
+                    and e.timestamp - event.timestamp < 10.0
+                    for e in self.resource_events
+                )
                 if not seek_found:
                     inefficient.append(event)
         return inefficient
@@ -216,7 +246,8 @@ class MMOSimulatorDebugger:
         cursor = conn.cursor()
 
         # Position tracking table
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS positions (
                 agent_id TEXT,
                 timestamp REAL,
@@ -226,10 +257,12 @@ class MMOSimulatorDebugger:
                 distance_from_previous REAL,
                 is_jump BOOLEAN
             )
-        ''')
+        """
+        )
 
         # Action attempts table
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS actions (
                 agent_id TEXT,
                 timestamp REAL,
@@ -242,10 +275,12 @@ class MMOSimulatorDebugger:
                 success BOOLEAN,
                 error_message TEXT
             )
-        ''')
+        """
+        )
 
         # Resource events table
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS resource_events (
                 agent_id TEXT,
                 timestamp REAL,
@@ -258,20 +293,21 @@ class MMOSimulatorDebugger:
                 distance REAL,
                 behavior_tree_node TEXT
             )
-        ''')
+        """
+        )
 
         conn.commit()
         conn.close()
 
     def _setup_debug_logging(self):
         """Setup dedicated debug logging"""
-        debug_logger = logging.getLogger('mmo_debug')
+        debug_logger = logging.getLogger("mmo_debug")
         debug_logger.setLevel(logging.DEBUG)
 
-        handler = logging.FileHandler('mmo_debug.log')
+        handler = logging.FileHandler("mmo_debug.log")
         handler.setLevel(logging.DEBUG)
 
-        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
         handler.setFormatter(formatter)
 
         debug_logger.addHandler(handler)
@@ -283,7 +319,9 @@ class MMOSimulatorDebugger:
                 self.agents[agent_id] = AgentDebugTracker(agent_id)
             return self.agents[agent_id]
 
-    def track_position(self, agent_id: str, x: float, y: float, action_type: Optional[str] = None):
+    def track_position(
+        self, agent_id: str, x: float, y: float, action_type: Optional[str] = None
+    ):
         """Track agent position"""
         tracker = self.get_or_create_agent_tracker(agent_id)
         tracker.add_position(x, y, action_type)
@@ -291,23 +329,38 @@ class MMOSimulatorDebugger:
         # Save to database
         self._save_position_to_db(tracker.positions[-1])
 
-    def track_action_attempt(self, agent_id: str, action_type: str,
-                           target_pos: Optional[Tuple[float, float]],
-                           agent_pos: Tuple[float, float], success: bool,
-                           error_message: Optional[str] = None):
+    def track_action_attempt(
+        self,
+        agent_id: str,
+        action_type: str,
+        target_pos: Optional[Tuple[float, float]],
+        agent_pos: Tuple[float, float],
+        success: bool,
+        error_message: Optional[str] = None,
+    ):
         """Track action attempt"""
         tracker = self.get_or_create_agent_tracker(agent_id)
-        tracker.add_action_attempt(action_type, target_pos, agent_pos, success, error_message)
+        tracker.add_action_attempt(
+            action_type, target_pos, agent_pos, success, error_message
+        )
 
         # Save to database
         self._save_action_to_db(tracker.actions[-1])
 
-    def track_resource_event(self, agent_id: str, event_type: str, resource_type: str,
-                           resource_pos: Tuple[int, int], agent_pos: Tuple[float, float],
-                           behavior_node: Optional[str] = None):
+    def track_resource_event(
+        self,
+        agent_id: str,
+        event_type: str,
+        resource_type: str,
+        resource_pos: Tuple[int, int],
+        agent_pos: Tuple[float, float],
+        behavior_node: Optional[str] = None,
+    ):
         """Track resource-related event"""
         tracker = self.get_or_create_agent_tracker(agent_id)
-        tracker.add_resource_event(event_type, resource_type, resource_pos, agent_pos, behavior_node)
+        tracker.add_resource_event(
+            event_type, resource_type, resource_pos, agent_pos, behavior_node
+        )
 
         # Save to database
         self._save_resource_event_to_db(tracker.resource_events[-1])
@@ -317,10 +370,20 @@ class MMOSimulatorDebugger:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        cursor.execute('''
+        cursor.execute(
+            """
             INSERT INTO positions VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (position.agent_id, position.timestamp, position.x, position.y,
-              position.action_type, position.distance_from_previous, position.is_jump))
+        """,
+            (
+                position.agent_id,
+                position.timestamp,
+                position.x,
+                position.y,
+                position.action_type,
+                position.distance_from_previous,
+                position.is_jump,
+            ),
+        )
 
         conn.commit()
         conn.close()
@@ -330,11 +393,23 @@ class MMOSimulatorDebugger:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        cursor.execute('''
+        cursor.execute(
+            """
             INSERT INTO actions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (action.agent_id, action.timestamp, action.action_type,
-              action.target_x, action.target_y, action.agent_x, action.agent_y,
-              action.distance_to_target, action.success, action.error_message))
+        """,
+            (
+                action.agent_id,
+                action.timestamp,
+                action.action_type,
+                action.target_x,
+                action.target_y,
+                action.agent_x,
+                action.agent_y,
+                action.distance_to_target,
+                action.success,
+                action.error_message,
+            ),
+        )
 
         conn.commit()
         conn.close()
@@ -344,11 +419,23 @@ class MMOSimulatorDebugger:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
 
-        cursor.execute('''
+        cursor.execute(
+            """
             INSERT INTO resource_events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (event.agent_id, event.timestamp, event.event_type, event.resource_type,
-              event.resource_pos[0], event.resource_pos[1],
-              event.agent_pos[0], event.agent_pos[1], event.distance, event.behavior_tree_node))
+        """,
+            (
+                event.agent_id,
+                event.timestamp,
+                event.event_type,
+                event.resource_type,
+                event.resource_pos[0],
+                event.resource_pos[1],
+                event.agent_pos[0],
+                event.agent_pos[1],
+                event.distance,
+                event.behavior_tree_node,
+            ),
+        )
 
         conn.commit()
         conn.close()
@@ -371,21 +458,29 @@ class MMOSimulatorDebugger:
             jumps = tracker.get_position_jumps()
             report_lines.append(f"Position jumps detected: {len(jumps)}")
             for jump in jumps[-5:]:  # Show last 5
-                report_lines.append(f"  {jump.timestamp:.2f}: Jumped {jump.distance_from_previous:.2f} units "
-                                  f"to ({jump.x:.2f}, {jump.y:.2f}) during {jump.action_type}")
+                report_lines.append(
+                    f"  {jump.timestamp:.2f}: Jumped {jump.distance_from_previous:.2f} units "
+                    f"to ({jump.x:.2f}, {jump.y:.2f}) during {jump.action_type}"
+                )
 
             # Distance failures
             distance_failures = tracker.get_failed_actions_by_distance()
-            report_lines.append(f"Distance-related action failures: {len(distance_failures)}")
+            report_lines.append(
+                f"Distance-related action failures: {len(distance_failures)}"
+            )
             for failure in distance_failures[-3:]:  # Show last 3
-                report_lines.append(f"  {failure.action_type} failed: distance {failure.distance_to_target:.2f}")
+                report_lines.append(
+                    f"  {failure.action_type} failed: distance {failure.distance_to_target:.2f}"
+                )
 
             # Resource seeking inefficiency
             inefficient = tracker.get_resource_seeking_inefficiency()
             report_lines.append(f"Inefficient resource seeking: {len(inefficient)}")
             for event in inefficient[-3:]:  # Show last 3
-                report_lines.append(f"  Found {event.resource_type} at distance {event.distance:.1f} "
-                                  f"but didn't pursue immediately")
+                report_lines.append(
+                    f"  Found {event.resource_type} at distance {event.distance:.1f} "
+                    f"but didn't pursue immediately"
+                )
 
             report_lines.append("")
 
@@ -398,7 +493,7 @@ class MMOSimulatorDebugger:
 
         report = self.generate_debug_report()
 
-        with open(filename, 'w') as f:
+        with open(filename, "w") as f:
             f.write(report)
 
         logger.info(f"Debug report saved to {filename}")
@@ -415,22 +510,39 @@ def get_debugger() -> MMOSimulatorDebugger:
 
 
 # Convenience functions for easy integration
-def track_agent_position(agent_id: str, x: float, y: float, action_type: Optional[str] = None):
+def track_agent_position(
+    agent_id: str, x: float, y: float, action_type: Optional[str] = None
+):
     """Track agent position - convenience function"""
     global_debugger.track_position(agent_id, x, y, action_type)
 
 
-def track_agent_action(agent_id: str, action_type: str, target_pos: Optional[Tuple[float, float]],
-                      agent_pos: Tuple[float, float], success: bool, error_message: Optional[str] = None):
+def track_agent_action(
+    agent_id: str,
+    action_type: str,
+    target_pos: Optional[Tuple[float, float]],
+    agent_pos: Tuple[float, float],
+    success: bool,
+    error_message: Optional[str] = None,
+):
     """Track agent action attempt - convenience function"""
-    global_debugger.track_action_attempt(agent_id, action_type, target_pos, agent_pos, success, error_message)
+    global_debugger.track_action_attempt(
+        agent_id, action_type, target_pos, agent_pos, success, error_message
+    )
 
 
-def track_resource_event(agent_id: str, event_type: str, resource_type: str,
-                        resource_pos: Tuple[int, int], agent_pos: Tuple[float, float],
-                        behavior_node: Optional[str] = None):
+def track_resource_event(
+    agent_id: str,
+    event_type: str,
+    resource_type: str,
+    resource_pos: Tuple[int, int],
+    agent_pos: Tuple[float, float],
+    behavior_node: Optional[str] = None,
+):
     """Track resource event - convenience function"""
-    global_debugger.track_resource_event(agent_id, event_type, resource_type, resource_pos, agent_pos, behavior_node)
+    global_debugger.track_resource_event(
+        agent_id, event_type, resource_type, resource_pos, agent_pos, behavior_node
+    )
 
 
 def generate_debug_report() -> str:
@@ -451,8 +563,12 @@ if __name__ == "__main__":
     debugger.track_position("agent_123", 10.0, 10.0, "fishing")
     debugger.track_position("agent_123", 15.5, 10.2, "fishing")  # Large jump
 
-    debugger.track_action_attempt("agent_123", "fish", (16.0, 10.0), (10.0, 10.0), False, "Too far from water")
+    debugger.track_action_attempt(
+        "agent_123", "fish", (16.0, 10.0), (10.0, 10.0), False, "Too far from water"
+    )
 
-    debugger.track_resource_event("agent_123", "discovered", "water", (20, 15), (10.0, 10.0))
+    debugger.track_resource_event(
+        "agent_123", "discovered", "water", (20, 15), (10.0, 10.0)
+    )
 
     print(debugger.generate_debug_report())

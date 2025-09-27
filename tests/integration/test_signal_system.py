@@ -5,18 +5,26 @@ Tests that signals work properly between agents through the server broadcaster,
 including signal creation, broadcasting, filtering, and reception.
 """
 
-import pytest
 import time
-from unittest.mock import Mock, MagicMock
+from unittest.mock import MagicMock, Mock
+
+import pytest
 
 from client.agent import BaseAgent
 from server.signal_broadcaster import SignalBroadcaster, SignalQueue
-from shared.signals import (
-    Signal, SignalType, SignalPriority, SignalFilter,
-    create_help_request, create_resource_found, create_enemy_spotted,
-    create_trade_offer, create_area_clear, create_gather_signal
-)
 from shared.personality import Personality
+from shared.signals import (
+    Signal,
+    SignalFilter,
+    SignalPriority,
+    SignalType,
+    create_area_clear,
+    create_enemy_spotted,
+    create_gather_signal,
+    create_help_request,
+    create_resource_found,
+    create_trade_offer,
+)
 
 
 class MockSignalAgent(BaseAgent):
@@ -72,12 +80,15 @@ class TestSignalSystemIntegration:
         self.broadcaster = SignalBroadcaster(self.server)
 
         # Create test agents
-        self.agent1 = MockSignalAgent("agent1", 10.0, 10.0, "player",
-                                     Personality(social=8.0, cooperativeness=7.0))
-        self.agent2 = MockSignalAgent("agent2", 15.0, 15.0, "player",
-                                     Personality(social=6.0, cooperativeness=9.0))
-        self.agent3 = MockSignalAgent("agent3", 50.0, 50.0, "player",
-                                     Personality(social=3.0, cooperativeness=4.0))
+        self.agent1 = MockSignalAgent(
+            "agent1", 10.0, 10.0, "player", Personality(social=8.0, cooperativeness=7.0)
+        )
+        self.agent2 = MockSignalAgent(
+            "agent2", 15.0, 15.0, "player", Personality(social=6.0, cooperativeness=9.0)
+        )
+        self.agent3 = MockSignalAgent(
+            "agent3", 50.0, 50.0, "player", Personality(social=3.0, cooperativeness=4.0)
+        )
 
         # Add agents to server
         self.server.add_agent(self.agent1)
@@ -103,9 +114,12 @@ class TestSignalSystemIntegration:
     def test_signal_range_limitations(self):
         """Test that signals respect range limitations"""
         # Create a signal with limited range
-        signal = create_trade_offer("agent1", (10.0, 10.0),
-                                  [{"item": "wood", "quantity": 5}],
-                                  [{"item": "fish", "quantity": 3}])
+        signal = create_trade_offer(
+            "agent1",
+            (10.0, 10.0),
+            [{"item": "wood", "quantity": 5}],
+            [{"item": "fish", "quantity": 3}],
+        )
 
         self.broadcaster.broadcast_signal(signal)
 
@@ -138,11 +152,15 @@ class TestSignalSystemIntegration:
         # (Note: filtering happens at agent level, not broadcaster level)
         # We need to test the filter directly
         agent2_filter = self.agent2.get_signal_filter()
-        should_receive = agent2_filter.should_receive_signal(signal, self.agent2.personality)
+        should_receive = agent2_filter.should_receive_signal(
+            signal, self.agent2.personality
+        )
         assert should_receive is False
 
         agent3_filter = self.agent3.get_signal_filter()
-        should_receive = agent3_filter.should_receive_signal(signal, self.agent3.personality)
+        should_receive = agent3_filter.should_receive_signal(
+            signal, self.agent3.personality
+        )
         assert should_receive is True
 
     def test_signal_priority_handling(self):
@@ -156,7 +174,7 @@ class TestSignalSystemIntegration:
             message="Urgent danger!",
             priority=SignalPriority.URGENT,
             sender_position=(10.0, 10.0),
-            range_limit=80.0
+            range_limit=80.0,
         )
 
         # Broadcast both signals
@@ -176,7 +194,7 @@ class TestSignalSystemIntegration:
         signals = [
             create_help_request("agent1", (10.0, 10.0)),
             create_resource_found("agent1", (10.0, 10.0), "wood", (12.0, 12.0), 3),
-            create_enemy_spotted("agent1", (10.0, 10.0), (8.0, 8.0), 2)
+            create_enemy_spotted("agent1", (10.0, 10.0), (8.0, 8.0), 2),
         ]
 
         # Broadcast all signals
@@ -189,7 +207,11 @@ class TestSignalSystemIntegration:
 
         # Verify signal types
         received_types = {s.signal_type for s in self.agent2.received_signals}
-        expected_types = {SignalType.HELP_REQUEST, SignalType.RESOURCE_FOUND, SignalType.ENEMY_SPOTTED}
+        expected_types = {
+            SignalType.HELP_REQUEST,
+            SignalType.RESOURCE_FOUND,
+            SignalType.ENEMY_SPOTTED,
+        }
         assert received_types == expected_types
 
     def test_signal_expiration(self):
@@ -201,7 +223,7 @@ class TestSignalSystemIntegration:
             sender_id="agent1",
             message="Quick help!",
             duration=0.01,  # 10ms duration
-            sender_position=(10.0, 10.0)
+            sender_position=(10.0, 10.0),
         )
 
         self.broadcaster.broadcast_signal(signal)
@@ -218,7 +240,9 @@ class TestSignalSystemIntegration:
 
         # Signal queue should clean expired signals
         self.agent2.signal_queue.clear_expired()
-        expired_signals = [s for s in self.agent2.signal_queue.signals if s.is_expired()]
+        expired_signals = [
+            s for s in self.agent2.signal_queue.signals if s.is_expired()
+        ]
         assert len(expired_signals) == 0
 
     def test_rate_limiting(self):
@@ -233,7 +257,7 @@ class TestSignalSystemIntegration:
                 signal_type=SignalType.HELP_REQUEST,
                 sender_id="agent1",
                 message=f"Spam signal {i}",
-                sender_position=(10.0, 10.0)
+                sender_position=(10.0, 10.0),
             )
 
             success = self.broadcaster.broadcast_signal(signal)
@@ -254,7 +278,7 @@ class TestSignalSystemIntegration:
                 signal_type=SignalType.HELP_REQUEST,
                 sender_id="agent1",
                 message=f"Help request {i}",
-                sender_position=(10.0, 10.0)
+                sender_position=(10.0, 10.0),
             )
             self.broadcaster.broadcast_signal(signal)
 
@@ -271,9 +295,13 @@ class TestSignalSystemIntegration:
         """Test signals with complex data payloads"""
         # Create signal with complex data
         trade_signal = create_trade_offer(
-            "agent1", (10.0, 10.0),
-            offering=[{"item": "wood", "quantity": 10}, {"item": "stone", "quantity": 5}],
-            requesting=[{"item": "fish", "quantity": 8}]
+            "agent1",
+            (10.0, 10.0),
+            offering=[
+                {"item": "wood", "quantity": 10},
+                {"item": "stone", "quantity": 5},
+            ],
+            requesting=[{"item": "fish", "quantity": 8}],
         )
 
         self.broadcaster.broadcast_signal(trade_signal)
@@ -291,10 +319,11 @@ class TestSignalSystemIntegration:
         """Test signals targeted to specific agents"""
         # Create targeted signal
         targeted_signal = create_trade_offer(
-            "agent1", (10.0, 10.0),
+            "agent1",
+            (10.0, 10.0),
             offering=[{"item": "wood", "quantity": 5}],
             requesting=[{"item": "fish", "quantity": 3}],
-            target_agent="agent2"
+            target_agent="agent2",
         )
 
         self.broadcaster.broadcast_signal(targeted_signal)
@@ -320,8 +349,8 @@ class TestSignalSystemIntegration:
                 signal_type=SignalType.DANGER_WARNING,
                 sender_id="agent1",
                 priority=SignalPriority.HIGH,
-                sender_position=(10.0, 10.0)
-            )
+                sender_position=(10.0, 10.0),
+            ),
         ]
 
         for signal in signals:
@@ -363,7 +392,7 @@ class TestSignalSystemIntegration:
             signal_type=SignalType.HELP_REQUEST,
             sender_id="agent1",
             message="",  # Invalid empty message
-            sender_position=(10.0, 10.0)
+            sender_position=(10.0, 10.0),
         )
 
         success = self.broadcaster.broadcast_signal(invalid_signal)
@@ -375,7 +404,7 @@ class TestSignalSystemIntegration:
             signal_type=SignalType.HELP_REQUEST,
             sender_id="non_existent_agent",
             message="Help!",
-            sender_position=(10.0, 10.0)
+            sender_position=(10.0, 10.0),
         )
 
         success = self.broadcaster.broadcast_signal(ghost_signal)
@@ -391,7 +420,7 @@ class TestSignalSystemIntegration:
             sender_id="agent1",
             message="Quick!",
             duration=0.01,
-            sender_position=(10.0, 10.0)
+            sender_position=(10.0, 10.0),
         )
 
         self.broadcaster.broadcast_signal(signal1)
@@ -417,11 +446,13 @@ class TestSignalSystemIntegration:
         # Test distance calculations
         assert signal.is_in_range_of(10.0, 10.0) is True  # Same position
         assert signal.is_in_range_of(15.0, 15.0) is True  # ~7 units away, within range
-        assert signal.is_in_range_of(60.0, 60.0) is False  # ~70 units away, out of range
+        assert (
+            signal.is_in_range_of(60.0, 60.0) is False
+        )  # ~70 units away, out of range
 
         # Test distance calculation
         distance = signal.get_distance_from(15.0, 15.0)
-        expected_distance = ((15-10)**2 + (15-10)**2)**0.5  # ~7.07
+        expected_distance = ((15 - 10) ** 2 + (15 - 10) ** 2) ** 0.5  # ~7.07
         assert abs(distance - expected_distance) < 0.01
 
 

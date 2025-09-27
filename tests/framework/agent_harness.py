@@ -7,21 +7,22 @@ and behavioral invariants.
 """
 
 import asyncio
-import time
 import math
-from typing import Callable, Dict, List, Optional, Tuple, Any
+import time
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from client.agent import BaseAgent
+from client.agent_types.enemy import EnemyAgent
 from client.agent_types.explorer import ExplorerAgent
 from client.agent_types.player import PlayerAgent
-from client.agent_types.enemy import EnemyAgent
 from server.world import ServerWorld
 
 
 class BehaviorContract(Enum):
     """Predefined behavioral contracts for agent testing"""
+
     EVENTUALLY_MOVES = "eventually_moves"
     REACHES_TARGET = "reaches_target"
     AVOIDS_OBSTACLES = "avoids_obstacles"
@@ -34,17 +35,19 @@ class BehaviorContract(Enum):
 @dataclass
 class TestPosition:
     """Position data for test tracking"""
+
     x: float
     y: float
     timestamp: float
 
-    def distance_to(self, other: 'TestPosition') -> float:
+    def distance_to(self, other: "TestPosition") -> float:
         return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
 
 
 @dataclass
 class BehaviorExpectation:
     """Defines what behavior is expected from an agent"""
+
     contract: BehaviorContract
     timeout_seconds: float
     tolerance: float = 1.0
@@ -74,8 +77,14 @@ class AgentTestHarness:
         self.start_time = time.time()
         self.current_test_time = 0.0
 
-    def add_agent(self, agent_type: str, agent_id: str, x: float, y: float,
-                  behavior_config: Optional[Dict] = None) -> BaseAgent:
+    def add_agent(
+        self,
+        agent_type: str,
+        agent_id: str,
+        x: float,
+        y: float,
+        behavior_config: Optional[Dict] = None,
+    ) -> BaseAgent:
         """Add agent to test harness with optional behavior configuration"""
         # Create agent based on type
         if agent_type == "explorer":
@@ -95,8 +104,8 @@ class AgentTestHarness:
         agent.use_behavior_tree = True
 
         # Initialize behavior tree if needed
-        if hasattr(agent, '_initialize_behavior_tree'):
-            if not getattr(agent, 'behavior_tree_initialized', True):
+        if hasattr(agent, "_initialize_behavior_tree"):
+            if not getattr(agent, "behavior_tree_initialized", True):
                 agent._initialize_behavior_tree()
 
         # Create test action manager that updates position directly
@@ -129,8 +138,12 @@ class AgentTestHarness:
         while self.current_test_time < end_time:
             self.step_simulation(step_size)
 
-    async def run_until_condition(self, condition: Callable[[], bool],
-                                  max_duration: float = 30.0, step_size: float = 0.1) -> bool:
+    async def run_until_condition(
+        self,
+        condition: Callable[[], bool],
+        max_duration: float = 30.0,
+        step_size: float = 0.1,
+    ) -> bool:
         """Run simulation until condition is met or timeout"""
         end_time = self.current_test_time + max_duration
         while self.current_test_time < end_time:
@@ -167,18 +180,23 @@ class AgentTestHarness:
         elif contract == BehaviorContract.MAINTAINS_DISTANCE:
             other_agent_id = params.get("other_agent_id")
             min_distance = params.get("min_distance", 2.0)
-            return self._verify_maintains_distance(agent_id, other_agent_id, min_distance)
+            return self._verify_maintains_distance(
+                agent_id, other_agent_id, min_distance
+            )
 
         elif contract == BehaviorContract.RESPONDS_TO_STIMULUS:
             stimulus_time = params.get("stimulus_time", 0)
             response_window = params.get("response_window", 5.0)
-            return self._verify_responds_to_stimulus(positions, stimulus_time, response_window)
+            return self._verify_responds_to_stimulus(
+                positions, stimulus_time, response_window
+            )
 
         else:
             raise ValueError(f"Unknown contract: {contract}")
 
-    def _verify_eventually_moves(self, positions: List[TestPosition],
-                                timeout: float, tolerance: float) -> bool:
+    def _verify_eventually_moves(
+        self, positions: List[TestPosition], timeout: float, tolerance: float
+    ) -> bool:
         """Verify agent eventually moves from starting position"""
         if len(positions) < 2:
             return False
@@ -191,8 +209,13 @@ class AgentTestHarness:
                 return True
         return False
 
-    def _verify_reaches_target(self, positions: List[TestPosition],
-                              target: Tuple[float, float], timeout: float, tolerance: float) -> bool:
+    def _verify_reaches_target(
+        self,
+        positions: List[TestPosition],
+        target: Tuple[float, float],
+        timeout: float,
+        tolerance: float,
+    ) -> bool:
         """Verify agent reaches target within timeout"""
         target_x, target_y = target
         for pos in positions:
@@ -203,8 +226,12 @@ class AgentTestHarness:
                 return True
         return False
 
-    def _verify_avoids_obstacles(self, positions: List[TestPosition],
-                               obstacles: List[Tuple[float, float]], tolerance: float) -> bool:
+    def _verify_avoids_obstacles(
+        self,
+        positions: List[TestPosition],
+        obstacles: List[Tuple[float, float]],
+        tolerance: float,
+    ) -> bool:
         """Verify agent doesn't collide with obstacles"""
         for pos in positions:
             for obs_x, obs_y in obstacles:
@@ -213,8 +240,9 @@ class AgentTestHarness:
                     return False
         return True
 
-    def _verify_maintains_distance(self, agent1_id: str, agent2_id: str,
-                                 min_distance: float) -> bool:
+    def _verify_maintains_distance(
+        self, agent1_id: str, agent2_id: str, min_distance: float
+    ) -> bool:
         """Verify two agents maintain minimum distance"""
         if agent2_id not in self.position_history:
             return False
@@ -225,14 +253,20 @@ class AgentTestHarness:
         # Check positions at same timestamps
         for pos1 in pos1_list:
             # Find closest timestamp in agent2's history
-            closest_pos2 = min(pos2_list, key=lambda p: abs(p.timestamp - pos1.timestamp))
+            closest_pos2 = min(
+                pos2_list, key=lambda p: abs(p.timestamp - pos1.timestamp)
+            )
             if pos1.distance_to(closest_pos2) < min_distance:
                 return False
 
         return True
 
-    def _verify_responds_to_stimulus(self, positions: List[TestPosition],
-                                   stimulus_time: float, response_window: float) -> bool:
+    def _verify_responds_to_stimulus(
+        self,
+        positions: List[TestPosition],
+        stimulus_time: float,
+        response_window: float,
+    ) -> bool:
         """Verify agent responds to stimulus within window"""
         # Find position before stimulus
         pre_stimulus_pos = None
@@ -266,7 +300,7 @@ class AgentTestHarness:
 
         total_distance = 0.0
         for i in range(1, len(positions)):
-            total_distance += positions[i-1].distance_to(positions[i])
+            total_distance += positions[i - 1].distance_to(positions[i])
 
         return total_distance
 
@@ -278,9 +312,9 @@ class AgentTestHarness:
 
         velocities = []
         for i in range(1, len(positions)):
-            dt = positions[i].timestamp - positions[i-1].timestamp
+            dt = positions[i].timestamp - positions[i - 1].timestamp
             if dt > 0:
-                distance = positions[i-1].distance_to(positions[i])
+                distance = positions[i - 1].distance_to(positions[i])
                 velocity = distance / dt
                 velocities.append((positions[i].timestamp, velocity))
 
@@ -300,11 +334,17 @@ class TestActionManager:
         self.world = world
         self.agent_id = agent_id
 
-    async def request_action(self, action_type, parameters: Dict[str, Any],
-                           priority=None, predict: bool = True) -> str:
+    async def request_action(
+        self,
+        action_type,
+        parameters: Dict[str, Any],
+        priority=None,
+        predict: bool = True,
+    ) -> str:
         """Handle action requests by updating world state directly"""
-        from shared.actions import ActionType
         import uuid
+
+        from shared.actions import ActionType
 
         action_id = str(uuid.uuid4())
 
@@ -329,7 +369,10 @@ class TestActionManager:
 
 # Convenience functions for common test scenarios
 
-def create_movement_test(world_builder, agent_type: str = "explorer") -> AgentTestHarness:
+
+def create_movement_test(
+    world_builder, agent_type: str = "explorer"
+) -> AgentTestHarness:
     """Create harness for testing basic movement behaviors"""
     world = world_builder.build()
     harness = AgentTestHarness(world)
@@ -344,8 +387,9 @@ def create_movement_test(world_builder, agent_type: str = "explorer") -> AgentTe
     return harness
 
 
-def create_navigation_test(world_builder, start: Tuple[float, float],
-                          target: Tuple[float, float]) -> AgentTestHarness:
+def create_navigation_test(
+    world_builder, start: Tuple[float, float], target: Tuple[float, float]
+) -> AgentTestHarness:
     """Create harness for testing navigation from start to target"""
     world = world_builder.build()
     harness = AgentTestHarness(world)
@@ -353,13 +397,15 @@ def create_navigation_test(world_builder, start: Tuple[float, float],
     agent = harness.add_agent("explorer", "navigator", start[0], start[1])
 
     # Set target if agent supports it
-    if hasattr(agent, 'set_target'):
+    if hasattr(agent, "set_target"):
         agent.set_target(target[0], target[1])
 
     return harness
 
 
-def create_multi_agent_test(world_builder, agents: List[Tuple[str, str, float, float]]) -> AgentTestHarness:
+def create_multi_agent_test(
+    world_builder, agents: List[Tuple[str, str, float, float]]
+) -> AgentTestHarness:
     """Create harness for testing multiple agent interactions"""
     world = world_builder.build()
     harness = AgentTestHarness(world)

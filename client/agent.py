@@ -2,7 +2,7 @@ import logging
 import math
 import time
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from client.agent_map import AgentMap
 from shared.collision import CollisionDetector
@@ -22,7 +22,14 @@ logger = logging.getLogger(__name__)
 
 
 class BaseAgent(ABC):
-    def __init__(self, agent_id: str, x: float, y: float, agent_type: str, personality: Optional["Personality"] = None):
+    def __init__(
+        self,
+        agent_id: str,
+        x: float,
+        y: float,
+        agent_type: str,
+        personality: Optional["Personality"] = None,
+    ):
         self.id = agent_id
         self.x = x
         self.y = y
@@ -49,9 +56,13 @@ class BaseAgent(ABC):
         self.last_intention_change: float = (
             time.time() - 3.0
         )  # Allow immediate first intention change
-        self.intention_cooldown: float = 2.0  # Increased to 2 seconds for better commitment
+        self.intention_cooldown: float = (
+            2.0  # Increased to 2 seconds for better commitment
+        )
         self.base_intention_cooldown: float = 2.0  # Base cooldown for normal situations
-        self.combat_intention_cooldown: float = 1.5  # Shorter cooldown in combat for responsiveness
+        self.combat_intention_cooldown: float = (
+            1.5  # Shorter cooldown in combat for responsiveness
+        )
         self.emergency_intention_cooldown: float = 0.8  # Even shorter for emergencies
 
         # Collision detection (will be set when world bounds are known)
@@ -68,7 +79,9 @@ class BaseAgent(ABC):
         # Behavior tree system
         self.behavior_tree = None
         self.use_behavior_tree = False
-        self.has_initial_map_data = False  # Flag to ensure map data before behavior tree execution
+        self.has_initial_map_data = (
+            False  # Flag to ensure map data before behavior tree execution
+        )
         self.last_position = (x, y)
         self.last_position_time = time.time()
 
@@ -135,7 +148,9 @@ class BaseAgent(ABC):
                 new_x, new_y, self.rotation, self.velocity_x, self.velocity_y
             )
             # Get reconciled display position
-            display_x, display_y, display_rotation = self.position_reconciler.update(delta_time)
+            display_x, display_y, display_rotation = self.position_reconciler.update(
+                delta_time
+            )
             self.x = display_x
             self.y = display_y
             self.rotation = display_rotation
@@ -168,19 +183,24 @@ class BaseAgent(ABC):
     def set_server_game_data(self, game_data: Dict[str, Any]):
         """Set server game data for agent decision-making"""
         self.server_game_data = game_data
-        logger.info(f"[AGENT] Agent {self.id[:8]} received server game data with {len(game_data.get('attacks', {}))} attacks")
+        logger.info(
+            f"[AGENT] Agent {self.id[:8]} received server game data with {len(game_data.get('attacks', {}))} attacks"
+        )
 
     def get_attack_data(self, attack_name: str) -> Optional[Dict[str, Any]]:
         """Get attack data from server for decision-making"""
-        if not self.server_game_data or 'attacks' not in self.server_game_data:
+        if not self.server_game_data or "attacks" not in self.server_game_data:
             return None
-        return self.server_game_data['attacks'].get(attack_name)
+        return self.server_game_data["attacks"].get(attack_name)
 
     def get_available_attacks(self) -> List[str]:
         """Get list of attacks available to this agent type"""
-        if not self.server_game_data or 'character_attacks' not in self.server_game_data:
+        if (
+            not self.server_game_data
+            or "character_attacks" not in self.server_game_data
+        ):
             return []
-        return self.server_game_data['character_attacks'].get(self.agent_type, [])
+        return self.server_game_data["character_attacks"].get(self.agent_type, [])
 
     def can_change_intention(self) -> bool:
         """Check if enough time has passed to allow intention change"""
@@ -240,11 +260,15 @@ class BaseAgent(ABC):
         elif context == "combat":
             self.intention_cooldown = self.combat_intention_cooldown
         elif context == "patrol":
-            self.intention_cooldown = self.base_intention_cooldown * 1.5  # Longer for stable patrolling
+            self.intention_cooldown = (
+                self.base_intention_cooldown * 1.5
+            )  # Longer for stable patrolling
         else:
             self.intention_cooldown = self.base_intention_cooldown
 
-        logger.debug(f"Agent {self.id[:8]} intention cooldown adjusted to {self.intention_cooldown}s for context: {context}")
+        logger.debug(
+            f"Agent {self.id[:8]} intention cooldown adjusted to {self.intention_cooldown}s for context: {context}"
+        )
 
     def check_health_recovery(self):
         """Check if health has recovered and restore normal intention cooldown"""
@@ -439,6 +463,7 @@ class BaseAgent(ABC):
         # Update through position reconciler if available
         if self.position_reconciler:
             import time
+
             self.position_reconciler.set_server_position(x, y, rotation, time.time())
         else:
             # Direct update for fallback
@@ -474,8 +499,11 @@ class BaseAgent(ABC):
             provider: Provider that can create behavior trees for this agent
         """
         from client.behavior_tree.provider import BehaviorTreeProvider
+
         self.behavior_tree_provider = provider
-        logger.debug(f"Agent {self.id[:8]} behavior tree provider set: {provider is not None}")
+        logger.debug(
+            f"Agent {self.id[:8]} behavior tree provider set: {provider is not None}"
+        )
 
     def initialize_behavior_tree_from_provider(self, **kwargs) -> bool:
         """
@@ -499,10 +527,14 @@ class BaseAgent(ABC):
                 self.set_behavior_tree(tree)
                 return True
             else:
-                logger.warning(f"Provider returned no behavior tree for {self.agent_type}")
+                logger.warning(
+                    f"Provider returned no behavior tree for {self.agent_type}"
+                )
                 return False
         except Exception as e:
-            logger.error(f"Error initializing behavior tree from provider for agent {self.id[:8]}: {e}")
+            logger.error(
+                f"Error initializing behavior tree from provider for agent {self.id[:8]}: {e}"
+            )
             return False
 
     def disable_behavior_tree(self):
@@ -519,12 +551,16 @@ class BaseAgent(ABC):
 
         # Wait for initial map data before executing behavior tree
         if not self.has_initial_map_data:
-            logger.debug(f"Agent {self.id[:8]} waiting for initial map data before behavior tree execution")
+            logger.debug(
+                f"Agent {self.id[:8]} waiting for initial map data before behavior tree execution"
+            )
             return
 
         # Ensure sufficient terrain coverage around agent before allowing behavior tree execution
         if self.agent_map and not self._has_sufficient_terrain_coverage():
-            logger.debug(f"Agent {self.id[:8]} waiting for sufficient terrain coverage before behavior tree execution")
+            logger.debug(
+                f"Agent {self.id[:8]} waiting for sufficient terrain coverage before behavior tree execution"
+            )
             return
 
         # Update position tracking for stuck detection
@@ -628,6 +664,7 @@ class BaseAgent(ABC):
         """Initialize the target management system for this agent"""
         if not self.target_manager:
             from client.behavior_tree.target_manager import TargetManager
+
             self.target_manager = TargetManager(self.id)
             logger.debug(f"Agent {self.id[:8]} initialized target manager")
 
@@ -641,6 +678,7 @@ class BaseAgent(ABC):
         """Initialize the movement management system for this agent"""
         if not self.movement_manager:
             from client.behavior_tree.movement_manager import MovementManager
+
             self.movement_manager = MovementManager(self.id)
             logger.debug(f"Agent {self.id[:8]} initialized movement manager")
 
@@ -654,6 +692,7 @@ class BaseAgent(ABC):
         """Initialize the position reconciliation system for this agent"""
         if not self.position_reconciler:
             from client.position_reconciliation import PositionReconciler
+
             self.position_reconciler = PositionReconciler(self.id)
             logger.debug(f"Agent {self.id[:8]} initialized position reconciler")
 
@@ -674,6 +713,7 @@ class BaseAgent(ABC):
         """Initialize the movement validation system for this agent"""
         if not self.movement_validator:
             from client.movement_validator import MovementValidator
+
             self.movement_validator = MovementValidator(self.id)
             # Set world bounds if we have them
             if self.world_bounds:
@@ -686,17 +726,22 @@ class BaseAgent(ABC):
             self._initialize_movement_validator()
         return self.movement_validator
 
-    def validate_movement_to(self, target_x: float, target_y: float) -> Tuple[bool, str]:
+    def validate_movement_to(
+        self, target_x: float, target_y: float
+    ) -> Tuple[bool, str]:
         """Validate movement to target position"""
         if not self.movement_validator:
             self._initialize_movement_validator()
 
-        return self.movement_validator.validate_behavior_tree_movement(self, target_x, target_y)
+        return self.movement_validator.validate_behavior_tree_movement(
+            self, target_x, target_y
+        )
 
     def _initialize_opportunity_system(self):
         """Initialize the opportunity system for this agent"""
         if not self.opportunity_system:
             from client.opportunity_system import OpportunitySystem
+
             self.opportunity_system = OpportunitySystem(self.id)
             logger.debug(f"Agent {self.id[:8]} initialized opportunity system")
 
@@ -706,24 +751,31 @@ class BaseAgent(ABC):
             self._initialize_opportunity_system()
         return self.opportunity_system
 
-    def get_current_opportunities(self, terrain_data: Optional[Dict[Tuple[int, int], Any]] = None):
+    def get_current_opportunities(
+        self, terrain_data: Optional[Dict[Tuple[int, int], Any]] = None
+    ):
         """Get current opportunities detected by the agent"""
         if not self.opportunity_system:
             self._initialize_opportunity_system()
 
         return self.opportunity_system.update(self, self.visible_entities, terrain_data)
 
-    def get_best_opportunity(self, terrain_data: Optional[Dict[Tuple[int, int], Any]] = None):
+    def get_best_opportunity(
+        self, terrain_data: Optional[Dict[Tuple[int, int], Any]] = None
+    ):
         """Get the best opportunity available to the agent"""
         if not self.opportunity_system:
             self._initialize_opportunity_system()
 
-        return self.opportunity_system.get_best_opportunity(self, self.visible_entities, terrain_data)
+        return self.opportunity_system.get_best_opportunity(
+            self, self.visible_entities, terrain_data
+        )
 
     def _initialize_context_manager(self):
         """Initialize the context manager for this agent"""
         if not self.context_manager:
             from client.context_manager import ContextManager
+
             self.context_manager = ContextManager(self.id)
             logger.debug(f"Agent {self.id[:8]} initialized context manager")
 
@@ -733,12 +785,16 @@ class BaseAgent(ABC):
             self._initialize_context_manager()
         return self.context_manager
 
-    def get_current_context(self, terrain_data: Optional[Dict[Tuple[int, int], Any]] = None):
+    def get_current_context(
+        self, terrain_data: Optional[Dict[Tuple[int, int], Any]] = None
+    ):
         """Get current environmental context"""
         if not self.context_manager:
             self._initialize_context_manager()
 
-        return self.context_manager.update_context(self.x, self.y, self.visible_entities, terrain_data)
+        return self.context_manager.update_context(
+            self.x, self.y, self.visible_entities, terrain_data
+        )
 
     def assess_danger_at(self, target_x: float, target_y: float):
         """Assess danger level at a specific position"""
@@ -766,6 +822,7 @@ class BaseAgent(ABC):
         if not self.signal_queue:
             from server.signal_broadcaster import SignalQueue
             from shared.signals import SignalFilter
+
             self.signal_queue = SignalQueue(self.id)
             self.signal_filter = SignalFilter(self.id)
             logger.debug(f"Agent {self.id[:8]} initialized signal system")
@@ -788,15 +845,21 @@ class BaseAgent(ABC):
             self._initialize_signal_system()
 
         # Check if agent should receive this signal
-        if self.signal_filter and self.signal_filter.should_receive_signal(signal, self.personality):
+        if self.signal_filter and self.signal_filter.should_receive_signal(
+            signal, self.personality
+        ):
             self.signal_queue.add_signal(signal)
-            logger.debug(f"Agent {self.id[:8]} received signal: {signal.signal_type.value}")
+            logger.debug(
+                f"Agent {self.id[:8]} received signal: {signal.signal_type.value}"
+            )
 
     def send_signal(self, signal):
         """Send a signal to other agents (requires server integration)"""
         # This would need to be connected to the server's signal broadcaster
         # For now, just log the intent
-        logger.debug(f"Agent {self.id[:8]} wants to send signal: {signal.signal_type.value}")
+        logger.debug(
+            f"Agent {self.id[:8]} wants to send signal: {signal.signal_type.value}"
+        )
 
     def get_next_signal(self):
         """Get the next highest priority signal from queue"""

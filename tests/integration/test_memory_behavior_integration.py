@@ -5,14 +5,18 @@ Tests the integration between the memory system and behavior composer,
 ensuring that memories influence utility calculations and behavior decisions.
 """
 
-import pytest
 import time
 from unittest.mock import Mock
 
+import pytest
+
 from client.agent_memory import AgentMemory
 from client.behavior_tree.behavior_composer import (
-    BehaviorComposer, BehaviorFragment, BehaviorTemplate,
-    BehaviorFragmentType, BehaviorPriority
+    BehaviorComposer,
+    BehaviorFragment,
+    BehaviorFragmentType,
+    BehaviorPriority,
+    BehaviorTemplate,
 )
 from client.behavior_tree.nodes.base import NodeStatus
 from shared.personality import Personality
@@ -68,7 +72,7 @@ class TestMemoryBehaviorIntegration:
             fragment_type=BehaviorFragmentType.RESOURCE_GATHERING,
             priority=BehaviorPriority.NORMAL,
             node=MockActionNode("gather_wood"),
-            personality_weights={"exploration": 0.3}
+            personality_weights={"exploration": 0.3},
         )
 
         # Calculate base utility without memory
@@ -94,7 +98,7 @@ class TestMemoryBehaviorIntegration:
             fragment_type=BehaviorFragmentType.EXPLORATION,
             priority=BehaviorPriority.NORMAL,
             node=MockActionNode("explore"),
-            personality_weights={"exploration": 0.5}
+            personality_weights={"exploration": 0.5},
         )
 
         # Calculate base utility
@@ -102,8 +106,7 @@ class TestMemoryBehaviorIntegration:
 
         # Add danger memory at agent's location
         self.agent.memory.remember_danger_zone(
-            self.agent.x, self.agent.y, "enemy", 0.8,
-            {"enemy_type": "bandit"}
+            self.agent.x, self.agent.y, "enemy", 0.8, {"enemy_type": "bandit"}
         )
 
         # Calculate utility with danger memory
@@ -120,14 +123,16 @@ class TestMemoryBehaviorIntegration:
             fragment_type=BehaviorFragmentType.TRADING,
             priority=BehaviorPriority.NORMAL,
             node=MockActionNode("trade"),
-            personality_weights={"social": 0.4}
+            personality_weights={"social": 0.4},
         )
 
         partner_id = "trade_partner"
         context_with_partner = {"target_agent_id": partner_id}
 
         # Calculate base utility
-        base_utility = trading_fragment.calculate_utility(self.agent, context_with_partner)
+        base_utility = trading_fragment.calculate_utility(
+            self.agent, context_with_partner
+        )
 
         # Add positive trading memories
         for _ in range(3):
@@ -135,11 +140,13 @@ class TestMemoryBehaviorIntegration:
                 partner_id,
                 items_given=[{"type": "wood", "quantity": 2, "value": 4}],
                 items_received=[{"type": "stone", "quantity": 1, "value": 5}],
-                success=True
+                success=True,
             )
 
         # Calculate utility with positive social memory
-        positive_utility = trading_fragment.calculate_utility(self.agent, context_with_partner)
+        positive_utility = trading_fragment.calculate_utility(
+            self.agent, context_with_partner
+        )
 
         # Positive trading history should increase utility
         assert positive_utility > base_utility
@@ -152,7 +159,7 @@ class TestMemoryBehaviorIntegration:
             fragment_type=BehaviorFragmentType.RESOURCE_GATHERING,
             priority=BehaviorPriority.NORMAL,
             node=MockActionNode("gather", success=True),
-            personality_weights={}
+            personality_weights={},
         )
 
         self.composer.register_fragment(gathering_fragment)
@@ -164,7 +171,9 @@ class TestMemoryBehaviorIntegration:
         initial_reinforcement = resource_memory.reinforcement_count
 
         # Compose and execute behavior
-        composition = self.composer.compose_behavior(self.agent, {"resource_target": "wood"})
+        composition = self.composer.compose_behavior(
+            self.agent, {"resource_target": "wood"}
+        )
         assert composition is not None
 
         # Execute the behavior (success)
@@ -182,7 +191,7 @@ class TestMemoryBehaviorIntegration:
             fragment_type=BehaviorFragmentType.COMBAT,
             priority=BehaviorPriority.HIGH,
             node=MockActionNode("attack", success=False),  # Will fail
-            personality_weights={"combat": 0.5}  # Add personality requirement
+            personality_weights={"combat": 0.5},  # Add personality requirement
         )
 
         self.composer.register_fragment(combat_fragment)
@@ -193,17 +202,20 @@ class TestMemoryBehaviorIntegration:
 
         # Create a composition directly with our fragment
         from client.behavior_tree.behavior_composer import BehaviorComposition
+
         template = self.composer.templates["balanced_explorer"]  # Use existing template
         composition = BehaviorComposition(
             composition_id="test_combat",
             agent_id=self.agent.id,
             template=template,
             fragments={"combat": combat_fragment},
-            creation_time=time.time()
+            creation_time=time.time(),
         )
 
         # Build the behavior tree manually
-        composition.root_node = self.composer._build_behavior_tree(composition, {"enemy_target": "bandit"})
+        composition.root_node = self.composer._build_behavior_tree(
+            composition, {"enemy_target": "bandit"}
+        )
 
         status = composition.execute(self.agent, 0.1)
         # Note: UtilitySelector may return RUNNING instead of FAILURE
@@ -225,28 +237,33 @@ class TestMemoryBehaviorIntegration:
             fragment_type=BehaviorFragmentType.EXPLORATION,
             priority=BehaviorPriority.NORMAL,
             node=MockActionNode("explore", success=True),
-            personality_weights={"exploration": 0.3}
+            personality_weights={"exploration": 0.3},
         )
 
         self.composer.register_fragment(exploration_fragment)
 
         # Check no resources initially
-        initial_resources = self.agent.memory.get_known_resources(self.agent.x, self.agent.y)
+        initial_resources = self.agent.memory.get_known_resources(
+            self.agent.x, self.agent.y
+        )
         assert len(initial_resources) == 0
 
         # Create a composition directly with our fragment
         from client.behavior_tree.behavior_composer import BehaviorComposition
+
         template = self.composer.templates["balanced_explorer"]  # Use existing template
         composition = BehaviorComposition(
             composition_id="test_exploration",
             agent_id=self.agent.id,
             template=template,
             fragments={"exploration": exploration_fragment},
-            creation_time=time.time()
+            creation_time=time.time(),
         )
 
         # Build the behavior tree manually
-        composition.root_node = self.composer._build_behavior_tree(composition, {"explore_target": "unknown_area"})
+        composition.root_node = self.composer._build_behavior_tree(
+            composition, {"explore_target": "unknown_area"}
+        )
 
         status = composition.execute(self.agent, 0.1)
         # Note: UtilitySelector may return RUNNING instead of SUCCESS
@@ -268,7 +285,7 @@ class TestMemoryBehaviorIntegration:
             fragment_type=BehaviorFragmentType.RESOURCE_GATHERING,
             priority=BehaviorPriority.NORMAL,
             node=MockActionNode("safe_gather"),
-            personality_weights={}
+            personality_weights={},
         )
 
         dangerous_fragment = BehaviorFragment(
@@ -276,7 +293,7 @@ class TestMemoryBehaviorIntegration:
             fragment_type=BehaviorFragmentType.RESOURCE_GATHERING,
             priority=BehaviorPriority.HIGH,  # Higher priority normally
             node=MockActionNode("dangerous_gather"),
-            personality_weights={}
+            personality_weights={},
         )
 
         self.composer.register_fragment(safe_fragment)
@@ -285,12 +302,13 @@ class TestMemoryBehaviorIntegration:
         # Add danger memory that affects agent's current location
         # (where dangerous_fragment would operate)
         self.agent.memory.remember_danger_zone(
-            self.agent.x, self.agent.y, "hostile_area", 0.9,
-            {"threat_level": "high"}
+            self.agent.x, self.agent.y, "hostile_area", 0.9, {"threat_level": "high"}
         )
 
         # Compose behavior - memory should influence selection despite priority
-        composition = self.composer.compose_behavior(self.agent, {"resource_target": "wood"})
+        composition = self.composer.compose_behavior(
+            self.agent, {"resource_target": "wood"}
+        )
         assert composition is not None
 
         # The composition should prefer safer options when memory indicates danger
@@ -309,7 +327,7 @@ class TestMemoryBehaviorIntegration:
             fragment_type=BehaviorFragmentType.SOCIAL,
             priority=BehaviorPriority.NORMAL,
             node=MockActionNode("cooperate"),
-            personality_weights={"social": 0.5}
+            personality_weights={"social": 0.5},
         )
 
         self.composer.register_fragment(social_fragment)
@@ -321,8 +339,10 @@ class TestMemoryBehaviorIntegration:
         # Simulate multiple successful interactions over time
         for i in range(5):
             self.agent.memory.remember_social_interaction(
-                partner_id, "cooperation", "successful",
-                details={"session": i, "outcome": "positive"}
+                partner_id,
+                "cooperation",
+                "successful",
+                details={"session": i, "outcome": "positive"},
             )
 
         # Utility should increase with positive interaction history
@@ -344,8 +364,7 @@ class TestMemoryBehaviorIntegration:
 
         # Add one critical danger memory
         critical_memory = self.agent.memory.remember_danger_zone(
-            self.agent.x, self.agent.y, "deadly_trap", 1.0,
-            {"lethality": "extreme"}
+            self.agent.x, self.agent.y, "deadly_trap", 1.0, {"lethality": "extreme"}
         )
 
         # Force cleanup
@@ -374,7 +393,7 @@ class TestMemoryBehaviorIntegration:
         context = {
             "resource_target": "gold",
             "ally_nearby": "ally_1",
-            "location_type": "mixed"
+            "location_type": "mixed",
         }
 
         composition = composer.compose_behavior(agent, context)

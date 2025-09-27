@@ -17,43 +17,44 @@ from typing import Any, Dict, List, Optional, Union
 
 class ActionType(Enum):
     """All possible action types in the game"""
+
     # Movement Actions
-    MOVE_TO = "move_to"                    # Move to absolute position
-    MOVE_DIRECTION = "move_direction"      # Move in direction for duration
-    STOP_MOVEMENT = "stop_movement"        # Halt current movement
-    TELEPORT = "teleport"                  # Instant position change
+    MOVE_TO = "move_to"  # Move to absolute position
+    MOVE_DIRECTION = "move_direction"  # Move in direction for duration
+    STOP_MOVEMENT = "stop_movement"  # Halt current movement
+    TELEPORT = "teleport"  # Instant position change
 
     # Combat Actions
-    ATTACK_TARGET = "attack_target"        # Attack specific target
-    CAST_SPELL = "cast_spell"             # Cast spell with targeting
-    USE_ITEM = "use_item"                 # Consume item for effect
-    BLOCK = "block"                       # Defensive action
+    ATTACK_TARGET = "attack_target"  # Attack specific target
+    CAST_SPELL = "cast_spell"  # Cast spell with targeting
+    USE_ITEM = "use_item"  # Consume item for effect
+    BLOCK = "block"  # Defensive action
 
     # Social Actions
-    CHAT_MESSAGE = "chat_message"         # Send chat message
-    PARTY_INVITE = "party_invite"         # Invite to party
+    CHAT_MESSAGE = "chat_message"  # Send chat message
+    PARTY_INVITE = "party_invite"  # Invite to party
 
     # World Interaction
-    INTERACT_OBJECT = "interact_object"   # Use environmental object
-    PICK_UP_ITEM = "pick_up_item"         # Collect item from ground
+    INTERACT_OBJECT = "interact_object"  # Use environmental object
+    PICK_UP_ITEM = "pick_up_item"  # Collect item from ground
 
     # Inventory Actions
-    QUERY_INVENTORY = "query_inventory"   # Get inventory state
-    EQUIP_ITEM = "equip_item"            # Equip item from inventory
-    UNEQUIP_ITEM = "unequip_item"        # Unequip item to inventory
-    DROP_ITEM = "drop_item"              # Drop item from inventory
+    QUERY_INVENTORY = "query_inventory"  # Get inventory state
+    EQUIP_ITEM = "equip_item"  # Equip item from inventory
+    UNEQUIP_ITEM = "unequip_item"  # Unequip item to inventory
+    DROP_ITEM = "drop_item"  # Drop item from inventory
 
     # Special Actions
-    FISH = "fish"                        # Use fishing rod at water
-    HARVEST_WOOD = "harvest_wood"        # Harvest wood from forest tiles
-    CRAFT_ITEM = "craft_item"           # Craft an item using recipe
+    FISH = "fish"  # Use fishing rod at water
+    HARVEST_WOOD = "harvest_wood"  # Harvest wood from forest tiles
+    CRAFT_ITEM = "craft_item"  # Craft an item using recipe
 
     # Trading Actions
-    TRADE_REQUEST = "trade_request"      # Request a trade with another agent
-    TRADE_ACCEPT = "trade_accept"       # Accept a trade offer
-    TRADE_DECLINE = "trade_decline"     # Decline a trade offer
+    TRADE_REQUEST = "trade_request"  # Request a trade with another agent
+    TRADE_ACCEPT = "trade_accept"  # Accept a trade offer
+    TRADE_DECLINE = "trade_decline"  # Decline a trade offer
     ADVERTISE_TRADE = "advertise_trade"  # Advertise items for trade publicly
-    SEARCH_TRADES = "search_trades"      # Search for available trade advertisements
+    SEARCH_TRADES = "search_trades"  # Search for available trade advertisements
     NEGOTIATE_TRADE = "negotiate_trade"  # Counter-offer in trade negotiation
     CANCEL_TRADE_AD = "cancel_trade_ad"  # Cancel a trade advertisement
 
@@ -61,26 +62,28 @@ class ActionType(Enum):
     EXPLORATION_REPORT = "exploration_report"  # Report exploration progress
 
     # System Actions
-    PING = "ping"                         # Network latency test
-    HEARTBEAT = "heartbeat"               # Keep connection alive
+    PING = "ping"  # Network latency test
+    HEARTBEAT = "heartbeat"  # Keep connection alive
 
 
 class ActionResult(Enum):
     """Result of server action validation"""
-    APPROVED = "approved"      # Action approved as requested
-    REJECTED = "rejected"      # Action rejected, no changes made
-    MODIFIED = "modified"      # Action approved but modified by server
-    PENDING = "pending"        # Action queued for processing
-    ERROR = "error"           # Server error processing action
+
+    APPROVED = "approved"  # Action approved as requested
+    REJECTED = "rejected"  # Action rejected, no changes made
+    MODIFIED = "modified"  # Action approved but modified by server
+    PENDING = "pending"  # Action queued for processing
+    ERROR = "error"  # Server error processing action
 
 
 class ActionPriority(Enum):
     """Action priority for server processing"""
-    CRITICAL = 0    # Emergency actions (death, respawn)
-    HIGH = 1       # Combat actions
-    NORMAL = 2     # Movement, interactions
-    LOW = 3        # Chat, social actions
-    BACKGROUND = 4 # Analytics, logging
+
+    CRITICAL = 0  # Emergency actions (death, respawn)
+    HIGH = 1  # Combat actions
+    NORMAL = 2  # Movement, interactions
+    LOW = 3  # Chat, social actions
+    BACKGROUND = 4  # Analytics, logging
 
 
 @dataclass
@@ -173,8 +176,12 @@ class ActionResponse:
     processing_time_ms: float = 0.0
 
     # Result data
-    approved_parameters: Optional[Dict[str, Any]] = None  # What server actually executed
-    side_effects: List[Dict[str, Any]] = field(default_factory=list)  # Additional effects
+    approved_parameters: Optional[
+        Dict[str, Any]
+    ] = None  # What server actually executed
+    side_effects: List[Dict[str, Any]] = field(
+        default_factory=list
+    )  # Additional effects
 
     # Error details
     error_code: Optional[str] = None
@@ -253,6 +260,7 @@ class ActionBatch:
 
 # Commonly used action parameter helpers
 
+
 def move_to_params(x: float, y: float, speed_multiplier: float = 1.0) -> Dict[str, Any]:
     """Parameters for MOVE_TO action"""
     return {
@@ -270,8 +278,12 @@ def attack_target_params(target_id: str, attack_name: str = "punch") -> Dict[str
     }
 
 
-def cast_spell_params(spell_name: str, target_x: float = None, target_y: float = None,
-                      target_id: str = None) -> Dict[str, Any]:
+def cast_spell_params(
+    spell_name: str,
+    target_x: float = None,
+    target_y: float = None,
+    target_id: str = None,
+) -> Dict[str, Any]:
     """Parameters for CAST_SPELL action"""
     params = {"spell_name": spell_name}
     if target_x is not None and target_y is not None:
@@ -335,7 +347,9 @@ def harvest_wood_params(x: float, y: float) -> Dict[str, Any]:
     }
 
 
-def craft_item_params(recipe_name: str, x: float = 0.0, y: float = 0.0) -> Dict[str, Any]:
+def craft_item_params(
+    recipe_name: str, x: float = 0.0, y: float = 0.0
+) -> Dict[str, Any]:
     """Parameters for CRAFT_ITEM action"""
     return {
         "recipe_name": recipe_name,
@@ -344,7 +358,9 @@ def craft_item_params(recipe_name: str, x: float = 0.0, y: float = 0.0) -> Dict[
     }
 
 
-def trade_request_params(target_agent_id: str, offering_items: List[Dict], requesting_items: List[Dict]) -> Dict[str, Any]:
+def trade_request_params(
+    target_agent_id: str, offering_items: List[Dict], requesting_items: List[Dict]
+) -> Dict[str, Any]:
     """Parameters for TRADE_REQUEST action"""
     return {
         "target_agent_id": target_agent_id,
@@ -367,8 +383,12 @@ def trade_decline_params(trade_id: str) -> Dict[str, Any]:
     }
 
 
-def advertise_trade_params(offering_items: List[Dict], requesting_items: List[Dict],
-                          duration: float = 300.0, max_distance: float = 50.0) -> Dict[str, Any]:
+def advertise_trade_params(
+    offering_items: List[Dict],
+    requesting_items: List[Dict],
+    duration: float = 300.0,
+    max_distance: float = 50.0,
+) -> Dict[str, Any]:
     """Parameters for ADVERTISE_TRADE action"""
     return {
         "offering_items": offering_items,
@@ -378,9 +398,11 @@ def advertise_trade_params(offering_items: List[Dict], requesting_items: List[Di
     }
 
 
-def search_trades_params(desired_items: Optional[List[Dict]] = None,
-                        available_items: Optional[List[Dict]] = None,
-                        max_distance: float = 50.0) -> Dict[str, Any]:
+def search_trades_params(
+    desired_items: Optional[List[Dict]] = None,
+    available_items: Optional[List[Dict]] = None,
+    max_distance: float = 50.0,
+) -> Dict[str, Any]:
     """Parameters for SEARCH_TRADES action"""
     return {
         "desired_items": desired_items or [],
@@ -389,7 +411,9 @@ def search_trades_params(desired_items: Optional[List[Dict]] = None,
     }
 
 
-def negotiate_trade_params(trade_id: str, counter_offer: Dict[str, Any]) -> Dict[str, Any]:
+def negotiate_trade_params(
+    trade_id: str, counter_offer: Dict[str, Any]
+) -> Dict[str, Any]:
     """Parameters for NEGOTIATE_TRADE action"""
     return {
         "trade_id": trade_id,
@@ -408,73 +432,85 @@ def cancel_trade_ad_params(ad_id: str) -> Dict[str, Any]:
 def create_harvest_wood_action(x: float = 0.0, y: float = 0.0) -> ActionRequest:
     """Create a harvest wood action"""
     return ActionRequest(
-        action_type=ActionType.HARVEST_WOOD,
-        parameters={"target_x": x, "target_y": y}
+        action_type=ActionType.HARVEST_WOOD, parameters={"target_x": x, "target_y": y}
     )
 
 
-def create_craft_item_action(recipe_name: str, x: float = 0.0, y: float = 0.0) -> ActionRequest:
+def create_craft_item_action(
+    recipe_name: str, x: float = 0.0, y: float = 0.0
+) -> ActionRequest:
     """Create a craft item action"""
     return ActionRequest(
         action_type=ActionType.CRAFT_ITEM,
-        parameters=craft_item_params(recipe_name, x, y)
+        parameters=craft_item_params(recipe_name, x, y),
     )
 
 
-def create_trade_request_action(target_agent_id: str, offering_items: List[Dict], requesting_items: List[Dict]) -> ActionRequest:
+def create_trade_request_action(
+    target_agent_id: str, offering_items: List[Dict], requesting_items: List[Dict]
+) -> ActionRequest:
     """Create a trade request action"""
     return ActionRequest(
         action_type=ActionType.TRADE_REQUEST,
-        parameters=trade_request_params(target_agent_id, offering_items, requesting_items)
+        parameters=trade_request_params(
+            target_agent_id, offering_items, requesting_items
+        ),
     )
 
 
 def create_trade_accept_action(trade_id: str) -> ActionRequest:
     """Create a trade accept action"""
     return ActionRequest(
-        action_type=ActionType.TRADE_ACCEPT,
-        parameters=trade_accept_params(trade_id)
+        action_type=ActionType.TRADE_ACCEPT, parameters=trade_accept_params(trade_id)
     )
 
 
 def create_trade_decline_action(trade_id: str) -> ActionRequest:
     """Create a trade decline action"""
     return ActionRequest(
-        action_type=ActionType.TRADE_DECLINE,
-        parameters=trade_decline_params(trade_id)
+        action_type=ActionType.TRADE_DECLINE, parameters=trade_decline_params(trade_id)
     )
 
 
-def create_advertise_trade_action(offering_items: List[Dict], requesting_items: List[Dict],
-                                 duration: float = 300.0, max_distance: float = 50.0) -> ActionRequest:
+def create_advertise_trade_action(
+    offering_items: List[Dict],
+    requesting_items: List[Dict],
+    duration: float = 300.0,
+    max_distance: float = 50.0,
+) -> ActionRequest:
     """Create a trade advertisement action"""
     return ActionRequest(
         action_type=ActionType.ADVERTISE_TRADE,
-        parameters=advertise_trade_params(offering_items, requesting_items, duration, max_distance)
+        parameters=advertise_trade_params(
+            offering_items, requesting_items, duration, max_distance
+        ),
     )
 
 
-def create_search_trades_action(desired_items: Optional[List[Dict]] = None,
-                               available_items: Optional[List[Dict]] = None,
-                               max_distance: float = 50.0) -> ActionRequest:
+def create_search_trades_action(
+    desired_items: Optional[List[Dict]] = None,
+    available_items: Optional[List[Dict]] = None,
+    max_distance: float = 50.0,
+) -> ActionRequest:
     """Create a search trades action"""
     return ActionRequest(
         action_type=ActionType.SEARCH_TRADES,
-        parameters=search_trades_params(desired_items, available_items, max_distance)
+        parameters=search_trades_params(desired_items, available_items, max_distance),
     )
 
 
-def create_negotiate_trade_action(trade_id: str, counter_offer: Dict[str, Any]) -> ActionRequest:
+def create_negotiate_trade_action(
+    trade_id: str, counter_offer: Dict[str, Any]
+) -> ActionRequest:
     """Create a trade negotiation action"""
     return ActionRequest(
         action_type=ActionType.NEGOTIATE_TRADE,
-        parameters=negotiate_trade_params(trade_id, counter_offer)
+        parameters=negotiate_trade_params(trade_id, counter_offer),
     )
 
 
 def create_cancel_trade_ad_action(ad_id: str) -> ActionRequest:
     """Create a cancel trade advertisement action"""
     return ActionRequest(
-        action_type=ActionType.CANCEL_TRADE_AD,
-        parameters=cancel_trade_ad_params(ad_id)
+        action_type=ActionType.CANCEL_TRADE_AD, parameters=cancel_trade_ad_params(ad_id)
     )

@@ -12,17 +12,18 @@ Classes:
 
 import logging
 import random
-from typing import Dict, Any, Set
+from typing import Any, Dict, Set
 
+from shared.action_constants import DISTANCES
 from shared.actions import ActionType
 from world.tiles import TileType
+
+from .base import ConditionNode, NodeStatus
 from .resource_action_base import (
     ResourceActionBase,
     ResourceConditionBase,
-    ResourceType
+    ResourceType,
 )
-from .base import ConditionNode, NodeStatus
-from shared.action_constants import DISTANCES
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ class FishingAction(ResourceActionBase):
             max_action_distance=max_distance,
             required_tool="fishing_rod",
             action_duration_range=(2.0, 6.0),
-            success_rate=0.8
+            success_rate=0.8,
         )
 
     def get_action_type(self) -> ActionType:
@@ -62,10 +63,7 @@ class FishingAction(ResourceActionBase):
 
     def get_additional_parameters(self) -> Dict[str, Any]:
         """Get additional parameters for fishing action"""
-        return {
-            'action_name': 'fishing',
-            'tool_type': 'fishing_rod'
-        }
+        return {"action_name": "fishing", "tool_type": "fishing_rod"}
 
     async def start_action(self, agent) -> bool:
         """Start fishing with enhanced logging"""
@@ -75,7 +73,9 @@ class FishingAction(ResourceActionBase):
         success = await super().start_action(agent)
 
         if success:
-            logger.info(f"🎣 Agent {agent.id[:8]} started fishing at {self.current_target['position']}")
+            logger.info(
+                f"🎣 Agent {agent.id[:8]} started fishing at {self.current_target['position']}"
+            )
             print(f"🎣 Agent {agent.id[:8]} casting line at water...")
         else:
             logger.warning(f"🎣 Failed to start fishing for agent {agent.id[:8]}")
@@ -88,11 +88,16 @@ class FishingAction(ResourceActionBase):
             return NodeStatus.FAILURE
 
         import time
+
         elapsed_time = time.time() - self.action_start_time
 
         # Log fishing progress occasionally
-        if elapsed_time > 1.0 and int(elapsed_time) % 2 == 0:  # Every 2 seconds after first second
-            logger.debug(f"🎣 Agent {agent.id[:8]} fishing... ({elapsed_time:.1f}s elapsed)")
+        if (
+            elapsed_time > 1.0 and int(elapsed_time) % 2 == 0
+        ):  # Every 2 seconds after first second
+            logger.debug(
+                f"🎣 Agent {agent.id[:8]} fishing... ({elapsed_time:.1f}s elapsed)"
+            )
 
         return super().update_action(agent, dt)
 
@@ -120,7 +125,9 @@ class FishingRodRequirement(ConditionNode):
         # TODO: Implement proper inventory checking when inventory system is enhanced
         has_rod = agent.agent_type == "explorer"
 
-        logger.info(f"🎣 FishingRod check: Agent {agent.id[:8]} type '{agent.agent_type}' has rod: {has_rod}")
+        logger.info(
+            f"🎣 FishingRod check: Agent {agent.id[:8]} type '{agent.agent_type}' has rod: {has_rod}"
+        )
 
         return has_rod
 
@@ -139,7 +146,7 @@ class WaterNearbyCondition(ResourceConditionBase):
         super().__init__(
             name="WaterNearbyCondition",
             resource_type=ResourceType.WATER,
-            max_distance=max_distance
+            max_distance=max_distance,
         )
 
     def check_condition(self, agent) -> bool:
@@ -150,9 +157,13 @@ class WaterNearbyCondition(ResourceConditionBase):
 
             # Enhanced logging for fishing
             if result:
-                logger.info(f"🎣 Water detected within {self.max_distance} units for agent {agent.id[:8]}")
+                logger.info(
+                    f"🎣 Water detected within {self.max_distance} units for agent {agent.id[:8]}"
+                )
             else:
-                logger.info(f"🎣 No water found within {self.max_distance} units for agent {agent.id[:8]}")
+                logger.info(
+                    f"🎣 No water found within {self.max_distance} units for agent {agent.id[:8]}"
+                )
 
             return result
 
@@ -163,7 +174,7 @@ class WaterNearbyCondition(ResourceConditionBase):
 
     def _fallback_water_check(self, agent) -> bool:
         """Fallback water detection using local agent map"""
-        if not hasattr(agent, 'agent_map') or not agent.agent_map:
+        if not hasattr(agent, "agent_map") or not agent.agent_map:
             logger.debug(f"WaterNearby fallback: Agent {agent.id[:8]} has no agent_map")
             return False
 
@@ -171,7 +182,7 @@ class WaterNearbyCondition(ResourceConditionBase):
         search_radius = int(self.max_distance) + 1
 
         water_found = False
-        closest_distance = float('inf')
+        closest_distance = float("inf")
 
         for dy in range(-search_radius, search_radius + 1):
             for dx in range(-search_radius, search_radius + 1):
@@ -184,32 +195,41 @@ class WaterNearbyCondition(ResourceConditionBase):
                         # Calculate real distance to water tile center
                         water_center_x = check_x + 0.5
                         water_center_y = check_y + 0.5
-                        real_distance = ((water_center_x - agent_x) ** 2 + (water_center_y - agent_y) ** 2) ** 0.5
+                        real_distance = (
+                            (water_center_x - agent_x) ** 2
+                            + (water_center_y - agent_y) ** 2
+                        ) ** 0.5
 
                         if real_distance <= self.max_distance:
                             water_found = True
                             if real_distance < closest_distance:
                                 closest_distance = real_distance
 
-        logger.info(f"🎣 WaterNearby fallback: Agent {agent.id[:8]} at ({agent_x:.2f}, {agent_y:.2f}) water within {self.max_distance}: {water_found} (closest: {closest_distance:.2f})")
+        logger.info(
+            f"🎣 WaterNearby fallback: Agent {agent.id[:8]} at ({agent_x:.2f}, {agent_y:.2f}) water within {self.max_distance}: {water_found} (closest: {closest_distance:.2f})"
+        )
         return water_found
 
 
 # For backward compatibility, provide aliases to the old names
 # This allows existing behavior trees to work without modification
 
+
 class HasFishingRod(FishingRodRequirement):
     """Backward compatibility alias"""
+
     pass
 
 
 class WaterNearby(WaterNearbyCondition):
     """Backward compatibility alias"""
+
     pass
 
 
 class FishAtWater(FishingAction):
     """Backward compatibility alias"""
+
     pass
 
 
@@ -225,12 +245,11 @@ def create_fishing_behavior_nodes(max_distance: float = None):
         max_distance = DISTANCES.FISHING_RANGE
 
     return {
-        'fishing_action': FishingAction(max_distance),
-        'fishing_rod_check': FishingRodRequirement(),
-        'water_nearby_check': WaterNearbyCondition(max_distance),
-
+        "fishing_action": FishingAction(max_distance),
+        "fishing_rod_check": FishingRodRequirement(),
+        "water_nearby_check": WaterNearbyCondition(max_distance),
         # Backward compatibility
-        'fish_at_water': FishAtWater(max_distance),
-        'has_fishing_rod': HasFishingRod(),
-        'water_nearby': WaterNearby(max_distance),
+        "fish_at_water": FishAtWater(max_distance),
+        "has_fishing_rod": HasFishingRod(),
+        "water_nearby": WaterNearby(max_distance),
     }

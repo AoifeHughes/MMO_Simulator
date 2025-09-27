@@ -38,7 +38,8 @@ class AttackNearestEnemy(ActionNode):
             agent,
             agent.visible_entities,
             self.enemy_types,
-            max_range=self.attack_range * 1.2  # Allow targets slightly outside immediate range
+            max_range=self.attack_range
+            * 1.2,  # Allow targets slightly outside immediate range
         )
 
         if not self.current_target:
@@ -64,7 +65,7 @@ class AttackNearestEnemy(ActionNode):
             agent,
             agent.visible_entities,
             self.enemy_types,
-            max_range=self.attack_range * 1.2
+            max_range=self.attack_range * 1.2,
         )
 
         if not self.current_target:
@@ -88,7 +89,9 @@ class AttackNearestEnemy(ActionNode):
                 agent.velocity_x = direction_x * positioning_speed
                 agent.velocity_y = direction_y * positioning_speed
 
-                logger.debug(f"Agent {agent.id[:8]} making positioning movement, distance: {distance:.2f}")
+                logger.debug(
+                    f"Agent {agent.id[:8]} making positioning movement, distance: {distance:.2f}"
+                )
                 return NodeStatus.RUNNING
             else:
                 # Too far, let chase behavior handle it
@@ -101,7 +104,6 @@ class AttackNearestEnemy(ActionNode):
         # Calculate rotation to face target
         target_angle = math.degrees(math.atan2(dy, dx))
         agent.rotation = target_angle
-
 
         # Perform attack
         self.last_attack_time = current_time
@@ -161,24 +163,17 @@ class ChaseNearestEnemy(ActionNode):
         # Use unified target manager for consistent target selection
         target_manager = agent.get_target_manager()
         self.current_target = target_manager.update_target_selection(
-            agent,
-            agent.visible_entities,
-            self.enemy_types,
-            max_range=self.chase_range
+            agent, agent.visible_entities, self.enemy_types, max_range=self.chase_range
         )
         return self.current_target is not None
 
     def update_action(self, agent, delta_time: float) -> NodeStatus:
         current_time = time.time()
 
-
         # Use target manager to maintain target consistency
         target_manager = agent.get_target_manager()
         self.current_target = target_manager.update_target_selection(
-            agent,
-            agent.visible_entities,
-            self.enemy_types,
-            max_range=self.chase_range
+            agent, agent.visible_entities, self.enemy_types, max_range=self.chase_range
         )
 
         if not self.current_target:
@@ -200,21 +195,25 @@ class ChaseNearestEnemy(ActionNode):
 
         # Get optimal attack range from server data if available
         optimal_range = 2.0  # Default safe attack range
-        if hasattr(agent, 'get_attack_data'):
+        if hasattr(agent, "get_attack_data"):
             # Try to get the best available attack range
-            for attack_name in ['sword_slash', 'claw', 'punch']:
+            for attack_name in ["sword_slash", "claw", "punch"]:
                 attack_data = agent.get_attack_data(attack_name)
                 if attack_data:
                     # Use 75% of max range to ensure we get close enough for attacks
                     # This accounts for movement imprecision and hysteresis
-                    optimal_range = min(optimal_range, attack_data.get('max_range', 2.0) * 0.75)
+                    optimal_range = min(
+                        optimal_range, attack_data.get("max_range", 2.0) * 0.75
+                    )
                     break
 
         # Check if we've reached the target
         if distance <= optimal_range:
             self._clear_pathfinding_state()
             if agent.agent_type == "enemy":
-                logger.info(f"[CHASE] Agent {agent.id[:8]} reached target at distance {distance:.2f} <= {optimal_range:.2f}")
+                logger.info(
+                    f"[CHASE] Agent {agent.id[:8]} reached target at distance {distance:.2f} <= {optimal_range:.2f}"
+                )
             return NodeStatus.SUCCESS
 
         # Determine if we need pathfinding by checking for obstacles
@@ -222,28 +221,36 @@ class ChaseNearestEnemy(ActionNode):
 
         if needs_pathfinding:
             # Use pathfinding for complex navigation
-            success = self._update_pathfinding_movement(agent, target_x, target_y, target_id, optimal_range, current_time)
+            success = self._update_pathfinding_movement(
+                agent, target_x, target_y, target_id, optimal_range, current_time
+            )
             if not success:
                 # Fallback: try to get closer using direct movement, but give up after some time
-                if not hasattr(self, 'fallback_start_time'):
+                if not hasattr(self, "fallback_start_time"):
                     self.fallback_start_time = current_time
-                    logger.debug(f"Agent {agent.id[:8]} pathfinding failed, trying fallback movement")
+                    logger.debug(
+                        f"Agent {agent.id[:8]} pathfinding failed, trying fallback movement"
+                    )
 
                 # Give up if fallback has been going too long
                 if current_time - self.fallback_start_time > 3.0:  # 3 second timeout
-                    logger.warning(f"Agent {agent.id[:8]} fallback timeout, giving up chase")
+                    logger.warning(
+                        f"Agent {agent.id[:8]} fallback timeout, giving up chase"
+                    )
                     return NodeStatus.FAILURE
 
                 # Try direct movement as fallback
                 self._update_direct_movement(agent, target_x, target_y, optimal_range)
             else:
                 # Reset fallback timer on successful pathfinding
-                if hasattr(self, 'fallback_start_time'):
-                    delattr(self, 'fallback_start_time')
+                if hasattr(self, "fallback_start_time"):
+                    delattr(self, "fallback_start_time")
         else:
             # Use direct movement for simple cases
             if agent.agent_type == "enemy":
-                logger.info(f"[CHASE] Agent {agent.id[:8]} using direct movement to ({target_x:.1f}, {target_y:.1f}), distance: {distance:.2f}")
+                logger.info(
+                    f"[CHASE] Agent {agent.id[:8]} using direct movement to ({target_x:.1f}, {target_y:.1f}), distance: {distance:.2f}"
+                )
             self._update_direct_movement(agent, target_x, target_y, optimal_range)
 
         return NodeStatus.RUNNING
@@ -263,7 +270,7 @@ class ChaseNearestEnemy(ActionNode):
     def _check_needs_pathfinding(self, agent, target_x: float, target_y: float) -> bool:
         """Check if direct movement to target would hit obstacles"""
         # Get agent map for pathfinding
-        if not hasattr(agent, 'agent_map') or agent.agent_map is None:
+        if not hasattr(agent, "agent_map") or agent.agent_map is None:
             return False  # No map knowledge, use direct movement
 
         # Quick check: if direct line crosses known unwalkable terrain, use pathfinding
@@ -288,9 +295,10 @@ class ChaseNearestEnemy(ActionNode):
                     err += dx
 
                 # Check if this tile is known and unwalkable
-                if (agent_map.is_tile_known(x, y) and
-                    not agent_map.is_walkable(x, y)):
-                    logger.debug(f"Agent {agent.id[:8]} detected obstacle at ({x},{y}), using pathfinding")
+                if agent_map.is_tile_known(x, y) and not agent_map.is_walkable(x, y):
+                    logger.debug(
+                        f"Agent {agent.id[:8]} detected obstacle at ({x},{y}), using pathfinding"
+                    )
                     return True
         else:
             err = dy / 2.0
@@ -302,38 +310,52 @@ class ChaseNearestEnemy(ActionNode):
                     err += dy
 
                 # Check if this tile is known and unwalkable
-                if (agent_map.is_tile_known(x, y) and
-                    not agent_map.is_walkable(x, y)):
-                    logger.debug(f"Agent {agent.id[:8]} detected obstacle at ({x},{y}), using pathfinding")
+                if agent_map.is_tile_known(x, y) and not agent_map.is_walkable(x, y):
+                    logger.debug(
+                        f"Agent {agent.id[:8]} detected obstacle at ({x},{y}), using pathfinding"
+                    )
                     return True
 
         return False
 
-    def _update_pathfinding_movement(self, agent, target_x: float, target_y: float,
-                                   target_id: str, optimal_range: float, current_time: float) -> bool:
+    def _update_pathfinding_movement(
+        self,
+        agent,
+        target_x: float,
+        target_y: float,
+        target_id: str,
+        optimal_range: float,
+        current_time: float,
+    ) -> bool:
         """Update movement using pathfinding to avoid obstacles"""
         # Check if we need to recalculate path
         should_recalculate = (
-            self.current_path is None or
-            self.path_target_id != target_id or
-            current_time - self.last_pathfind_time > self.pathfind_cooldown
+            self.current_path is None
+            or self.path_target_id != target_id
+            or current_time - self.last_pathfind_time > self.pathfind_cooldown
         )
 
         if should_recalculate:
             # Calculate new path using agent's pathfinding system
-            if hasattr(agent, 'agent_map') and hasattr(agent, 'pathfinder'):
+            if hasattr(agent, "agent_map") and hasattr(agent, "pathfinder"):
                 start_pos = (agent.x, agent.y)
                 goal_pos = (target_x, target_y)
 
-                self.current_path = agent.pathfinder.find_path(agent.agent_map, start_pos, goal_pos)
+                self.current_path = agent.pathfinder.find_path(
+                    agent.agent_map, start_pos, goal_pos
+                )
                 self.path_target_id = target_id
                 self.last_pathfind_time = current_time
 
                 if not self.current_path:
-                    logger.warning(f"Agent {agent.id[:8]} could not find path to target at ({target_x:.1f}, {target_y:.1f})")
+                    logger.warning(
+                        f"Agent {agent.id[:8]} could not find path to target at ({target_x:.1f}, {target_y:.1f})"
+                    )
                     return False
                 else:
-                    logger.debug(f"Agent {agent.id[:8]} found path with {len(self.current_path)} waypoints")
+                    logger.debug(
+                        f"Agent {agent.id[:8]} found path with {len(self.current_path)} waypoints"
+                    )
             else:
                 logger.warning(f"Agent {agent.id[:8]} missing pathfinding components")
                 return False
@@ -354,13 +376,15 @@ class ChaseNearestEnemy(ActionNode):
                     agent,
                     next_waypoint,
                     mode=MovementMode.PATHFINDING,  # Use pathfinding mode for waypoints
-                    arrival_threshold=0.5  # Closer threshold for waypoints
+                    arrival_threshold=0.5,  # Closer threshold for waypoints
                 )
                 return True
 
         return False
 
-    def _update_direct_movement(self, agent, target_x: float, target_y: float, optimal_range: float):
+    def _update_direct_movement(
+        self, agent, target_x: float, target_y: float, optimal_range: float
+    ):
         """Update movement using direct path (no obstacles detected)"""
         # Use movement manager for smooth chasing
         movement_manager = agent.get_movement_manager()
@@ -370,10 +394,7 @@ class ChaseNearestEnemy(ActionNode):
         from client.behavior_tree.movement_manager import MovementMode
 
         movement_manager.update_movement(
-            agent,
-            target_pos,
-            mode=MovementMode.CHASE,
-            arrival_threshold=optimal_range
+            agent, target_pos, mode=MovementMode.CHASE, arrival_threshold=optimal_range
         )
 
     # Removed _find_nearest_enemy - now using unified TargetManager

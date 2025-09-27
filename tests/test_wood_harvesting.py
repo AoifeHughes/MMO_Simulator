@@ -2,19 +2,20 @@
 Tests for the wood harvesting system implementation.
 """
 
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import Mock, AsyncMock
-from shared.actions import ActionType, ActionResult, ActionRequest, harvest_wood_params
-from shared.items import create_wood
-from server.action_processor import ActionProcessor, ActionContext
+
+from server.action_processor import ActionContext, ActionProcessor
 from server.agent_state import ServerAgentState
 from server.database import DatabaseManager
-from world.tiles import TileType
+from shared.actions import ActionRequest, ActionResult, ActionType, harvest_wood_params
+from shared.items import create_wood
 from tests.action_test_base import ActionTestBase
+from world.tiles import TileType
 
 
 class TestWoodHarvesting(ActionTestBase):
-
     @pytest.fixture
     def agent_near_forest(self):
         """Create agent positioned near a forest tile"""
@@ -25,7 +26,9 @@ class TestWoodHarvesting(ActionTestBase):
         return agent
 
     @pytest.mark.asyncio
-    async def test_harvest_wood_success(self, action_processor, mock_server, agent_near_forest):
+    async def test_harvest_wood_success(
+        self, action_processor, mock_server, agent_near_forest
+    ):
         """Test successful wood harvesting from forest tile"""
         agent = agent_near_forest
 
@@ -47,7 +50,9 @@ class TestWoodHarvesting(ActionTestBase):
         assert final_wood_count <= initial_wood_count + 3
 
     @pytest.mark.asyncio
-    async def test_harvest_wood_not_on_forest(self, action_processor, mock_server, agent_near_forest):
+    async def test_harvest_wood_not_on_forest(
+        self, action_processor, mock_server, agent_near_forest
+    ):
         """Test wood harvesting failure when not on forest tile"""
         agent = agent_near_forest
 
@@ -61,16 +66,21 @@ class TestWoodHarvesting(ActionTestBase):
         response = await action_processor.submit_action(request)
 
         self.assert_rejected(response)
-        assert "wood" in response.message.lower() or "forest" in response.message.lower()
+        assert (
+            "wood" in response.message.lower() or "forest" in response.message.lower()
+        )
 
     @pytest.mark.asyncio
-    async def test_harvest_wood_full_inventory(self, action_processor, mock_server, agent_near_forest):
+    async def test_harvest_wood_full_inventory(
+        self, action_processor, mock_server, agent_near_forest
+    ):
         """Test wood harvesting when inventory is full"""
         agent = agent_near_forest
 
         # Fill inventory to capacity
         wood_item = create_wood()
         from shared.inventory import Inventory
+
         slots_to_fill = Inventory.MAX_SLOTS
         for i in range(slots_to_fill):
             agent.inventory.add_item(wood_item, 1)
@@ -91,7 +101,9 @@ class TestWoodHarvesting(ActionTestBase):
             assert "inventory" in response.message.lower()
 
     @pytest.mark.asyncio
-    async def test_harvest_wood_cooldown(self, action_processor, mock_server, agent_near_forest):
+    async def test_harvest_wood_cooldown(
+        self, action_processor, mock_server, agent_near_forest
+    ):
         """Test wood harvesting cooldown prevents rapid harvesting"""
         agent = agent_near_forest
 
@@ -103,7 +115,7 @@ class TestWoodHarvesting(ActionTestBase):
         import asyncio
         from unittest.mock import patch
 
-        with patch('asyncio.sleep', return_value=None) as mock_sleep:
+        with patch("asyncio.sleep", return_value=None) as mock_sleep:
             request1 = self.create_harvest_request("harvester1", 5.0, 5.0)
 
             # First harvest should succeed
@@ -129,7 +141,9 @@ class TestWoodHarvesting(ActionTestBase):
         assert "not found" in response.message.lower()
 
     @pytest.mark.asyncio
-    async def test_harvest_wood_random_amounts(self, action_processor, mock_server, agent_near_forest):
+    async def test_harvest_wood_random_amounts(
+        self, action_processor, mock_server, agent_near_forest
+    ):
         """Test that harvesting produces random amounts of wood (1-3)"""
         agent = agent_near_forest
 
@@ -149,7 +163,7 @@ class TestWoodHarvesting(ActionTestBase):
             mock_server.agent_registry.get_agent.return_value = agent
 
             # Reset cooldowns for this test
-            if hasattr(action_processor, 'action_cooldowns'):
+            if hasattr(action_processor, "action_cooldowns"):
                 action_processor.action_cooldowns.clear()
 
             request = self.create_harvest_request(f"harvester_{i}", 5.0, 5.0)

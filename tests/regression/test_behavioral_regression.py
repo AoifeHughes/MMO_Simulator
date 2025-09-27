@@ -5,20 +5,29 @@ Comprehensive tests for the behavioral regression testing system to ensure
 accurate detection of behavioral changes and proper baseline management.
 """
 
-import pytest
-import time
-import tempfile
 import json
+import tempfile
+import time
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from tests.regression.behavioral_regression import (
-    BehaviorBaseline, BehaviorMeasurer, RegressionAnalyzer, BehaviorRegressionTester,
-    BehaviorSnapshot, RegressionResult, RegressionReport, BehaviorMetric,
-    RegressionSeverity, create_standard_baseline, quick_regression_test
-)
-from tests.flexibility.flexibility_harness import MockFlexibilityAgent
+import pytest
+
 from shared.personality import Personality
+from tests.flexibility.flexibility_harness import MockFlexibilityAgent
+from tests.regression.behavioral_regression import (
+    BehaviorBaseline,
+    BehaviorMeasurer,
+    BehaviorMetric,
+    BehaviorRegressionTester,
+    BehaviorSnapshot,
+    RegressionAnalyzer,
+    RegressionReport,
+    RegressionResult,
+    RegressionSeverity,
+    create_standard_baseline,
+    quick_regression_test,
+)
 
 
 class TestBehaviorSnapshot:
@@ -28,7 +37,7 @@ class TestBehaviorSnapshot:
         """Test creating behavior snapshots"""
         metrics = {
             BehaviorMetric.DECISION_TIME: 1.5,
-            BehaviorMetric.RESOURCE_EFFICIENCY: 0.8
+            BehaviorMetric.RESOURCE_EFFICIENCY: 0.8,
         }
 
         snapshot = BehaviorSnapshot(
@@ -38,7 +47,7 @@ class TestBehaviorSnapshot:
             metrics=metrics,
             execution_trace=["step1", "step2"],
             context={"context": "test"},
-            version_info={"version": "1.0.0"}
+            version_info={"version": "1.0.0"},
         )
 
         assert snapshot.scenario == "test_scenario"
@@ -59,7 +68,7 @@ class TestRegressionResult:
             change_percentage=50.0,
             severity=RegressionSeverity.HIGH,
             significance=0.8,
-            description="Decision time increased significantly"
+            description="Decision time increased significantly",
         )
 
         assert result.metric == BehaviorMetric.DECISION_TIME
@@ -74,8 +83,13 @@ class TestRegressionReport:
         """Test creating regression reports"""
         regressions = [
             RegressionResult(
-                BehaviorMetric.DECISION_TIME, 1.0, 1.5, 50.0,
-                RegressionSeverity.HIGH, 0.8, "Test regression"
+                BehaviorMetric.DECISION_TIME,
+                1.0,
+                1.5,
+                50.0,
+                RegressionSeverity.HIGH,
+                0.8,
+                "Test regression",
             )
         ]
 
@@ -87,7 +101,7 @@ class TestRegressionReport:
             regressions=regressions,
             overall_score=0.7,
             summary="Test summary",
-            recommendations=["Test recommendation"]
+            recommendations=["Test recommendation"],
         )
 
         assert report.scenario == "test_scenario"
@@ -97,25 +111,47 @@ class TestRegressionReport:
     def test_has_critical_regressions(self):
         """Test critical regression detection"""
         critical_regression = RegressionResult(
-            BehaviorMetric.DECISION_TIME, 1.0, 2.0, 100.0,
-            RegressionSeverity.CRITICAL, 0.9, "Critical issue"
+            BehaviorMetric.DECISION_TIME,
+            1.0,
+            2.0,
+            100.0,
+            RegressionSeverity.CRITICAL,
+            0.9,
+            "Critical issue",
         )
 
         high_regression = RegressionResult(
-            BehaviorMetric.RESOURCE_EFFICIENCY, 0.8, 0.6, -25.0,
-            RegressionSeverity.HIGH, 0.7, "High issue"
+            BehaviorMetric.RESOURCE_EFFICIENCY,
+            0.8,
+            0.6,
+            -25.0,
+            RegressionSeverity.HIGH,
+            0.7,
+            "High issue",
         )
 
         # Report with critical regression
         report_critical = RegressionReport(
-            time.time(), time.time(), "test", {}, [critical_regression],
-            0.5, "Critical issues", []
+            time.time(),
+            time.time(),
+            "test",
+            {},
+            [critical_regression],
+            0.5,
+            "Critical issues",
+            [],
         )
 
         # Report without critical regression
         report_non_critical = RegressionReport(
-            time.time(), time.time(), "test", {}, [high_regression],
-            0.7, "High issues", []
+            time.time(),
+            time.time(),
+            "test",
+            {},
+            [high_regression],
+            0.7,
+            "High issues",
+            [],
         )
 
         assert report_critical.has_critical_regressions() is True
@@ -125,22 +161,36 @@ class TestRegressionReport:
         """Test filtering regressions by severity"""
         regressions = [
             RegressionResult(
-                BehaviorMetric.DECISION_TIME, 1.0, 2.0, 100.0,
-                RegressionSeverity.CRITICAL, 0.9, "Critical"
+                BehaviorMetric.DECISION_TIME,
+                1.0,
+                2.0,
+                100.0,
+                RegressionSeverity.CRITICAL,
+                0.9,
+                "Critical",
             ),
             RegressionResult(
-                BehaviorMetric.RESOURCE_EFFICIENCY, 0.8, 0.6, -25.0,
-                RegressionSeverity.HIGH, 0.7, "High"
+                BehaviorMetric.RESOURCE_EFFICIENCY,
+                0.8,
+                0.6,
+                -25.0,
+                RegressionSeverity.HIGH,
+                0.7,
+                "High",
             ),
             RegressionResult(
-                BehaviorMetric.BEHAVIOR_CONSISTENCY, 0.9, 0.8, -11.0,
-                RegressionSeverity.MEDIUM, 0.5, "Medium"
-            )
+                BehaviorMetric.BEHAVIOR_CONSISTENCY,
+                0.9,
+                0.8,
+                -11.0,
+                RegressionSeverity.MEDIUM,
+                0.5,
+                "Medium",
+            ),
         ]
 
         report = RegressionReport(
-            time.time(), time.time(), "test", {}, regressions,
-            0.6, "Mixed issues", []
+            time.time(), time.time(), "test", {}, regressions, 0.6, "Mixed issues", []
         )
 
         critical = report.get_regressions_by_severity(RegressionSeverity.CRITICAL)
@@ -155,8 +205,13 @@ class TestRegressionReport:
     def test_save_to_file(self):
         """Test saving report to file"""
         regression = RegressionResult(
-            BehaviorMetric.DECISION_TIME, 1.0, 1.5, 50.0,
-            RegressionSeverity.HIGH, 0.8, "Test regression"
+            BehaviorMetric.DECISION_TIME,
+            1.0,
+            1.5,
+            50.0,
+            RegressionSeverity.HIGH,
+            0.8,
+            "Test regression",
         )
 
         report = RegressionReport(
@@ -167,18 +222,18 @@ class TestRegressionReport:
             regressions=[regression],
             overall_score=0.7,
             summary="Test summary",
-            recommendations=["Test recommendation"]
+            recommendations=["Test recommendation"],
         )
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             report.save_to_file(f.name)
 
             # Verify file was created and contains valid JSON
-            with open(f.name, 'r') as read_f:
+            with open(f.name, "r") as read_f:
                 data = json.load(read_f)
-                assert data['scenario'] == "test_scenario"
-                assert data['overall_score'] == 0.7
-                assert len(data['regressions']) == 1
+                assert data["scenario"] == "test_scenario"
+                assert data["overall_score"] == 0.7
+                assert len(data["regressions"]) == 1
 
             # Cleanup
             Path(f.name).unlink()
@@ -206,7 +261,7 @@ class TestBehaviorBaseline:
             metrics={BehaviorMetric.DECISION_TIME: 1.0},
             execution_trace=[],
             context={},
-            version_info={}
+            version_info={},
         )
 
         self.baseline.add_snapshot(snapshot, "test_scenario")
@@ -223,11 +278,11 @@ class TestBehaviorBaseline:
             scenario="test",
             metrics={
                 BehaviorMetric.DECISION_TIME: 1.0,
-                BehaviorMetric.RESOURCE_EFFICIENCY: 0.8
+                BehaviorMetric.RESOURCE_EFFICIENCY: 0.8,
             },
             execution_trace=["step1"],
             context={"test": True},
-            version_info={"version": "1.0.0"}
+            version_info={"version": "1.0.0"},
         )
 
         # Add and save
@@ -261,11 +316,11 @@ class TestBehaviorBaseline:
                 scenario="test",
                 metrics={
                     BehaviorMetric.DECISION_TIME: 1.0 + i * 0.1,
-                    BehaviorMetric.RESOURCE_EFFICIENCY: 0.8 + i * 0.02
+                    BehaviorMetric.RESOURCE_EFFICIENCY: 0.8 + i * 0.02,
                 },
                 execution_trace=[],
                 context={},
-                version_info={}
+                version_info={},
             )
             self.baseline.add_snapshot(snapshot, "test_scenario")
 
@@ -387,12 +442,7 @@ class TestRegressionAnalyzer:
 
     def test_compare_behaviors_no_change(self):
         """Test comparison with no behavioral change"""
-        baseline_stats = {
-            BehaviorMetric.DECISION_TIME: {
-                "mean": 1.0,
-                "stdev": 0.1
-            }
-        }
+        baseline_stats = {BehaviorMetric.DECISION_TIME: {"mean": 1.0, "stdev": 0.1}}
 
         snapshot = BehaviorSnapshot(
             timestamp=time.time(),
@@ -401,7 +451,7 @@ class TestRegressionAnalyzer:
             metrics={BehaviorMetric.DECISION_TIME: 1.0},  # Same as baseline
             execution_trace=[],
             context={},
-            version_info={}
+            version_info={},
         )
 
         regressions = self.analyzer.compare_behaviors(baseline_stats, snapshot)
@@ -410,12 +460,7 @@ class TestRegressionAnalyzer:
 
     def test_compare_behaviors_with_change(self):
         """Test comparison with behavioral changes"""
-        baseline_stats = {
-            BehaviorMetric.DECISION_TIME: {
-                "mean": 1.0,
-                "stdev": 0.1
-            }
-        }
+        baseline_stats = {BehaviorMetric.DECISION_TIME: {"mean": 1.0, "stdev": 0.1}}
 
         snapshot = BehaviorSnapshot(
             timestamp=time.time(),
@@ -424,7 +469,7 @@ class TestRegressionAnalyzer:
             metrics={BehaviorMetric.DECISION_TIME: 1.5},  # 50% increase
             execution_trace=[],
             context={},
-            version_info={}
+            version_info={},
         )
 
         regressions = self.analyzer.compare_behaviors(baseline_stats, snapshot)
@@ -487,7 +532,7 @@ class TestRegressionAnalyzer:
         """Test report generation"""
         baseline_stats = {
             BehaviorMetric.DECISION_TIME: {"mean": 1.0, "stdev": 0.1},
-            BehaviorMetric.RESOURCE_EFFICIENCY: {"mean": 0.8, "stdev": 0.05}
+            BehaviorMetric.RESOURCE_EFFICIENCY: {"mean": 0.8, "stdev": 0.05},
         }
 
         snapshot = BehaviorSnapshot(
@@ -496,11 +541,11 @@ class TestRegressionAnalyzer:
             scenario="test_scenario",
             metrics={
                 BehaviorMetric.DECISION_TIME: 1.8,  # 80% increase - critical
-                BehaviorMetric.RESOURCE_EFFICIENCY: 0.7  # 12.5% decrease - medium
+                BehaviorMetric.RESOURCE_EFFICIENCY: 0.7,  # 12.5% decrease - medium
             },
             execution_trace=[],
             context={},
-            version_info={}
+            version_info={},
         )
 
         report = self.analyzer.generate_report(
@@ -516,13 +561,23 @@ class TestRegressionAnalyzer:
         """Test recommendation generation"""
         regressions = [
             RegressionResult(
-                BehaviorMetric.DECISION_TIME, 1.0, 2.0, 100.0,
-                RegressionSeverity.CRITICAL, 0.9, "Critical performance issue"
+                BehaviorMetric.DECISION_TIME,
+                1.0,
+                2.0,
+                100.0,
+                RegressionSeverity.CRITICAL,
+                0.9,
+                "Critical performance issue",
             ),
             RegressionResult(
-                BehaviorMetric.RESOURCE_EFFICIENCY, 0.8, 0.6, -25.0,
-                RegressionSeverity.HIGH, 0.7, "Efficiency degradation"
-            )
+                BehaviorMetric.RESOURCE_EFFICIENCY,
+                0.8,
+                0.6,
+                -25.0,
+                RegressionSeverity.HIGH,
+                0.7,
+                "Efficiency degradation",
+            ),
         ]
 
         recommendations = self.analyzer._generate_recommendations(regressions)
@@ -546,7 +601,7 @@ class TestBehaviorRegressionTester:
             "agent_id": "test_agent",
             "personality": {"combat": 7.0, "exploration": 3.0, "social": 8.0},
             "resources": {"wood": 15, "stone": 8},
-            "health": 85.0
+            "health": 85.0,
         }
 
         agent = self.tester._create_agent_from_config(config)
@@ -564,16 +619,18 @@ class TestBehaviorRegressionTester:
         agent_configs = [
             {
                 "agent_id": "agent1",
-                "personality": {"combat": 5.0, "exploration": 5.0, "social": 5.0}
+                "personality": {"combat": 5.0, "exploration": 5.0, "social": 5.0},
             },
             {
                 "agent_id": "agent2",
-                "personality": {"combat": 7.0, "exploration": 3.0, "social": 6.0}
-            }
+                "personality": {"combat": 7.0, "exploration": 3.0, "social": 6.0},
+            },
         ]
 
         context = {"scenario_type": "test", "difficulty": "easy"}
-        result = self.tester.create_baseline("test_scenario", "1.0.0", agent_configs, context)
+        result = self.tester.create_baseline(
+            "test_scenario", "1.0.0", agent_configs, context
+        )
 
         assert result is True
         # Check that baseline file was created
@@ -597,7 +654,9 @@ class TestBehaviorRegressionTester:
 
         # Then test regression
         agent_config = {"agent_id": "current_agent"}
-        report = self.tester.test_regression("test_scenario", "1.0.0", agent_config, context)
+        report = self.tester.test_regression(
+            "test_scenario", "1.0.0", agent_config, context
+        )
 
         assert isinstance(report, RegressionReport)
         assert report.scenario == "test_scenario"
@@ -612,7 +671,9 @@ class TestBehaviorRegressionTester:
         # Run regression suite
         scenarios = ["scenario1", "scenario2"]
         contexts = {"scenario1": {}, "scenario2": {}}
-        reports = self.tester.run_regression_suite(scenarios, "1.0.0", agent_configs, contexts)
+        reports = self.tester.run_regression_suite(
+            scenarios, "1.0.0", agent_configs, contexts
+        )
 
         assert len(reports) == 2  # One report per scenario
         assert all(isinstance(r, RegressionReport) for r in reports)
@@ -624,7 +685,9 @@ class TestBehaviorRegressionTester:
         agent_configs = [{"agent_id": "error_agent"}]
         contexts = {"nonexistent": {}}
 
-        reports = self.tester.run_regression_suite(scenarios, "1.0.0", agent_configs, contexts)
+        reports = self.tester.run_regression_suite(
+            scenarios, "1.0.0", agent_configs, contexts
+        )
 
         assert len(reports) == 1
         assert "ERROR" in reports[0].summary
@@ -633,7 +696,7 @@ class TestBehaviorRegressionTester:
 class TestConvenienceFunctions:
     """Test convenience functions"""
 
-    @patch('tests.regression.behavioral_regression.BehaviorRegressionTester')
+    @patch("tests.regression.behavioral_regression.BehaviorRegressionTester")
     def test_create_standard_baseline(self, mock_tester_class):
         """Test creating standard baseline"""
         mock_tester = Mock()
@@ -646,7 +709,7 @@ class TestConvenienceFunctions:
         # Should have called create_baseline for each standard scenario
         assert mock_tester.create_baseline.call_count == 4
 
-    @patch('tests.regression.behavioral_regression.BehaviorRegressionTester')
+    @patch("tests.regression.behavioral_regression.BehaviorRegressionTester")
     def test_quick_regression_test(self, mock_tester_class):
         """Test quick regression test"""
         mock_tester = Mock()
@@ -677,20 +740,26 @@ class TestIntegration:
                 "agent_id": "baseline_agent",
                 "personality": {"combat": 5.0, "exploration": 5.0, "social": 5.0},
                 "resources": {"wood": 10, "food": 20},
-                "health": 100.0
+                "health": 100.0,
             }
         ]
 
         context = {"scenario_type": "integration_test"}
-        baseline_created = tester.create_baseline("integration", "1.0.0", baseline_configs, context)
+        baseline_created = tester.create_baseline(
+            "integration", "1.0.0", baseline_configs, context
+        )
         assert baseline_created
 
         # Test with slightly different agent (should show some differences)
         test_config = {
             "agent_id": "test_agent",
-            "personality": {"combat": 6.0, "exploration": 4.0, "social": 5.0},  # Different personality
+            "personality": {
+                "combat": 6.0,
+                "exploration": 4.0,
+                "social": 5.0,
+            },  # Different personality
             "resources": {"wood": 8, "food": 22},  # Different resources
-            "health": 95.0  # Different health
+            "health": 95.0,  # Different health
         }
 
         report = tester.test_regression("integration", "1.0.0", test_config, context)
@@ -710,7 +779,9 @@ class TestIntegration:
 
         # Use second tester instance to load baseline
         tester2 = BehaviorRegressionTester(self.temp_dir)
-        report = tester2.test_regression("persist_scenario", "1.0.0", agent_configs[0], context)
+        report = tester2.test_regression(
+            "persist_scenario", "1.0.0", agent_configs[0], context
+        )
 
         assert isinstance(report, RegressionReport)
         assert report.scenario == "persist_scenario"
@@ -727,8 +798,12 @@ class TestIntegration:
         tester.create_baseline("version_scenario", "2.0.0", agent_configs, context)
 
         # Test against both versions
-        report1 = tester.test_regression("version_scenario", "1.0.0", agent_configs[0], context)
-        report2 = tester.test_regression("version_scenario", "2.0.0", agent_configs[0], context)
+        report1 = tester.test_regression(
+            "version_scenario", "1.0.0", agent_configs[0], context
+        )
+        report2 = tester.test_regression(
+            "version_scenario", "2.0.0", agent_configs[0], context
+        )
 
         # Baseline timestamps should be different (or at least files should be different)
         assert report1.scenario == "version_scenario"
@@ -743,7 +818,7 @@ class TestIntegration:
             "agent_id": "conservative_agent",
             "personality": {"combat": 2.0, "exploration": 3.0, "social": 8.0},
             "resources": {"wood": 20, "food": 30},
-            "health": 100.0
+            "health": 100.0,
         }
 
         context = {"scenario_type": "behavioral_diff_test"}
@@ -754,10 +829,12 @@ class TestIntegration:
             "agent_id": "aggressive_agent",
             "personality": {"combat": 9.0, "exploration": 8.0, "social": 2.0},
             "resources": {"wood": 5, "food": 10},
-            "health": 80.0
+            "health": 80.0,
         }
 
-        report = tester.test_regression("behavioral_diff", "1.0.0", aggressive_config, context)
+        report = tester.test_regression(
+            "behavioral_diff", "1.0.0", aggressive_config, context
+        )
 
         # Should detect some behavioral differences
         assert len(report.regressions) > 0

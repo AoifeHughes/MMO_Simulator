@@ -10,8 +10,8 @@ This module enables agents to:
 """
 
 import logging
-import time
 import pickle
+import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from enum import Enum
@@ -24,16 +24,18 @@ logger = logging.getLogger(__name__)
 
 class InterruptPriority(Enum):
     """Priority levels for interrupts"""
-    EMERGENCY = 100     # Life-threatening situations (health < 10%)
-    CRITICAL = 80       # Immediate threats (under attack)
-    URGENT = 60         # Important opportunities (rare resources)
-    HIGH = 40           # Significant events (trade opportunities)
-    NORMAL = 20         # Regular interrupts (social interactions)
-    LOW = 10           # Minor distractions (exploration opportunities)
+
+    EMERGENCY = 100  # Life-threatening situations (health < 10%)
+    CRITICAL = 80  # Immediate threats (under attack)
+    URGENT = 60  # Important opportunities (rare resources)
+    HIGH = 40  # Significant events (trade opportunities)
+    NORMAL = 20  # Regular interrupts (social interactions)
+    LOW = 10  # Minor distractions (exploration opportunities)
 
 
 class InterruptReason(Enum):
     """Reasons for behavior interruption"""
+
     HEALTH_CRITICAL = "health_critical"
     UNDER_ATTACK = "under_attack"
     BETTER_OPPORTUNITY = "better_opportunity"
@@ -47,17 +49,19 @@ class InterruptReason(Enum):
 
 class ResumptionStrategy(Enum):
     """Strategies for resuming interrupted behaviors"""
-    RESUME_IMMEDIATELY = "resume_immediately"     # Resume as soon as interrupt clears
-    RESUME_WITH_DELAY = "resume_with_delay"       # Wait a bit before resuming
-    RESUME_WHEN_OPTIMAL = "resume_when_optimal"   # Wait for good conditions
-    REEVALUATE_NECESSITY = "reevaluate_necessity" # Check if still needed
-    ABANDON_GRACEFULLY = "abandon_gracefully"     # Don't resume, clean up
-    RESTART_FROM_BEGINNING = "restart_from_beginning" # Start over completely
+
+    RESUME_IMMEDIATELY = "resume_immediately"  # Resume as soon as interrupt clears
+    RESUME_WITH_DELAY = "resume_with_delay"  # Wait a bit before resuming
+    RESUME_WHEN_OPTIMAL = "resume_when_optimal"  # Wait for good conditions
+    REEVALUATE_NECESSITY = "reevaluate_necessity"  # Check if still needed
+    ABANDON_GRACEFULLY = "abandon_gracefully"  # Don't resume, clean up
+    RESTART_FROM_BEGINNING = "restart_from_beginning"  # Start over completely
 
 
 @dataclass
 class BehaviorState:
     """Represents the state of a behavior that can be preserved during interruption"""
+
     behavior_id: str
     behavior_type: str
     state_data: Dict[str, Any]
@@ -100,13 +104,16 @@ class BehaviorState:
             self.state_data = pickle.loads(bytes.fromhex(serialized_data))
             return True
         except:
-            logger.warning(f"Failed to deserialize state for behavior {self.behavior_id}")
+            logger.warning(
+                f"Failed to deserialize state for behavior {self.behavior_id}"
+            )
             return False
 
 
 @dataclass
 class InterruptEvent:
     """Represents an interruption event"""
+
     interrupt_id: str
     priority: InterruptPriority
     reason: InterruptReason
@@ -125,7 +132,9 @@ class InterruptEvent:
         end_time = self.resolution_time if self.resolved else current_time
         return end_time - self.interrupt_time
 
-    def resolve(self, strategy: ResumptionStrategy = ResumptionStrategy.RESUME_IMMEDIATELY):
+    def resolve(
+        self, strategy: ResumptionStrategy = ResumptionStrategy.RESUME_IMMEDIATELY
+    ):
         """Mark interrupt as resolved"""
         self.resolved = True
         self.resolution_time = time.time()
@@ -135,7 +144,9 @@ class InterruptEvent:
 class InterruptManager:
     """Manages behavior interruptions and resumptions"""
 
-    def __init__(self, max_preserved_behaviors: int = 10, cleanup_interval: float = 300.0):
+    def __init__(
+        self, max_preserved_behaviors: int = 10, cleanup_interval: float = 300.0
+    ):
         self.max_preserved_behaviors = max_preserved_behaviors
         self.cleanup_interval = cleanup_interval
         self.last_cleanup = time.time()
@@ -151,12 +162,12 @@ class InterruptManager:
 
         # Configuration
         self.interrupt_thresholds = {
-            InterruptPriority.EMERGENCY: 0.95,   # Almost always interrupt
+            InterruptPriority.EMERGENCY: 0.95,  # Almost always interrupt
             InterruptPriority.CRITICAL: 0.85,
             InterruptPriority.URGENT: 0.70,
             InterruptPriority.HIGH: 0.55,
             InterruptPriority.NORMAL: 0.40,
-            InterruptPriority.LOW: 0.25          # Rarely interrupt
+            InterruptPriority.LOW: 0.25,  # Rarely interrupt
         }
 
         # Statistics
@@ -165,11 +176,16 @@ class InterruptManager:
             "successful_resumptions": 0,
             "abandoned_behaviors": 0,
             "interrupt_reasons": defaultdict(int),
-            "average_interrupt_duration": 0.0
+            "average_interrupt_duration": 0.0,
         }
 
-    def should_interrupt(self, current_behavior_id: str, interrupt_priority: InterruptPriority,
-                        reason: InterruptReason, context: Dict[str, Any]) -> bool:
+    def should_interrupt(
+        self,
+        current_behavior_id: str,
+        interrupt_priority: InterruptPriority,
+        reason: InterruptReason,
+        context: Dict[str, Any],
+    ) -> bool:
         """Determine if current behavior should be interrupted"""
 
         # Always allow emergency interrupts
@@ -188,37 +204,55 @@ class InterruptManager:
         progress_factor = 1.0 - (current_behavior.progress * 0.4)
 
         # Factor 2: Current behavior age (longer running = more invested)
-        age_factor = max(0.6, 1.0 - (current_behavior.get_age() / 3600.0))  # Reduce over 1 hour
+        age_factor = max(
+            0.6, 1.0 - (current_behavior.get_age() / 3600.0)
+        )  # Reduce over 1 hour
 
         # Factor 3: Success probability of current behavior
         success_factor = 2.0 - current_behavior.success_probability
 
         # Factor 4: Recent interrupt frequency (avoid thrashing)
-        recent_interrupts = len([i for i in self.interrupt_history
-                               if time.time() - i.interrupt_time < 60.0])
+        recent_interrupts = len(
+            [i for i in self.interrupt_history if time.time() - i.interrupt_time < 60.0]
+        )
         frequency_factor = max(0.5, 1.0 - (recent_interrupts * 0.1))
 
         # Factor 5: Context-specific factors
-        context_factor = self._calculate_context_factor(reason, context, current_behavior)
+        context_factor = self._calculate_context_factor(
+            reason, context, current_behavior
+        )
 
         # Combine all factors
-        final_probability = (base_probability * progress_factor * age_factor *
-                           success_factor * frequency_factor * context_factor)
+        final_probability = (
+            base_probability
+            * progress_factor
+            * age_factor
+            * success_factor
+            * frequency_factor
+            * context_factor
+        )
 
         # Add some randomness to avoid predictable behavior
         import random
+
         random_factor = random.uniform(0.8, 1.2)
         final_probability *= random_factor
 
         decision = random.random() < final_probability
 
-        logger.debug(f"Interrupt decision for {current_behavior_id}: {decision} "
-                    f"(prob={final_probability:.3f}, priority={interrupt_priority.name})")
+        logger.debug(
+            f"Interrupt decision for {current_behavior_id}: {decision} "
+            f"(prob={final_probability:.3f}, priority={interrupt_priority.name})"
+        )
 
         return decision
 
-    def _calculate_context_factor(self, reason: InterruptReason, context: Dict[str, Any],
-                                current_behavior: BehaviorState) -> float:
+    def _calculate_context_factor(
+        self,
+        reason: InterruptReason,
+        context: Dict[str, Any],
+        current_behavior: BehaviorState,
+    ) -> float:
         """Calculate context-specific interrupt factor"""
         factor = 1.0
 
@@ -248,9 +282,14 @@ class InterruptManager:
 
         return max(0.1, min(3.0, factor))
 
-    def interrupt_behavior(self, behavior_id: str, priority: InterruptPriority,
-                          reason: InterruptReason, interrupting_behavior_id: Optional[str] = None,
-                          context: Optional[Dict[str, Any]] = None) -> InterruptEvent:
+    def interrupt_behavior(
+        self,
+        behavior_id: str,
+        priority: InterruptPriority,
+        reason: InterruptReason,
+        interrupting_behavior_id: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> InterruptEvent:
         """Interrupt a behavior and preserve its state"""
 
         context = context or {}
@@ -264,14 +303,16 @@ class InterruptManager:
             source_behavior_id=interrupting_behavior_id,
             interrupted_behavior_id=behavior_id,
             interrupt_time=time.time(),
-            context=context
+            context=context,
         )
 
         # Preserve current behavior state if it exists
         if behavior_id in self.preserved_behaviors:
             behavior_state = self.preserved_behaviors[behavior_id]
-            logger.info(f"Interrupting behavior {behavior_id} (progress: {behavior_state.progress:.2f}) "
-                       f"due to {reason.value} with priority {priority.name}")
+            logger.info(
+                f"Interrupting behavior {behavior_id} (progress: {behavior_state.progress:.2f}) "
+                f"due to {reason.value} with priority {priority.name}"
+            )
         else:
             logger.info(f"Interrupting behavior {behavior_id} due to {reason.value}")
 
@@ -286,10 +327,15 @@ class InterruptManager:
 
         return interrupt_event
 
-    def preserve_behavior_state(self, behavior_id: str, behavior_type: str,
-                               state_data: Dict[str, Any], progress: float = 0.0,
-                               context: Optional[Dict[str, Any]] = None,
-                               success_probability: float = 1.0) -> BehaviorState:
+    def preserve_behavior_state(
+        self,
+        behavior_id: str,
+        behavior_type: str,
+        state_data: Dict[str, Any],
+        progress: float = 0.0,
+        context: Optional[Dict[str, Any]] = None,
+        success_probability: float = 1.0,
+    ) -> BehaviorState:
         """Preserve the state of a behavior for later resumption"""
 
         context = context or {}
@@ -312,7 +358,7 @@ class InterruptManager:
             context=context,
             start_time=current_time,
             last_update_time=current_time,
-            success_probability=success_probability
+            success_probability=success_probability,
         )
 
         # Store the preserved state
@@ -322,10 +368,14 @@ class InterruptManager:
         if len(self.preserved_behaviors) > self.max_preserved_behaviors:
             self._cleanup_old_behaviors()
 
-        logger.debug(f"Preserved behavior state for {behavior_id} with progress {progress:.2f}")
+        logger.debug(
+            f"Preserved behavior state for {behavior_id} with progress {progress:.2f}"
+        )
         return behavior_state
 
-    def can_resume_behavior(self, behavior_id: str, current_context: Dict[str, Any]) -> Tuple[bool, str]:
+    def can_resume_behavior(
+        self, behavior_id: str, current_context: Dict[str, Any]
+    ) -> Tuple[bool, str]:
         """Check if a behavior can be resumed given current context"""
 
         if behavior_id not in self.preserved_behaviors:
@@ -347,20 +397,26 @@ class InterruptManager:
         required_resources = behavior_state.context.get("required_resources", [])
         for resource in required_resources:
             # Check both "has_resource" and direct resource name
-            has_resource = (current_context.get(f"has_{resource}", False) or
-                          current_context.get(resource, False))
+            has_resource = current_context.get(
+                f"has_{resource}", False
+            ) or current_context.get(resource, False)
             if not has_resource:
                 return False, f"Required resource {resource} no longer available"
 
         # Check if there are blocking interrupts
-        blocking_interrupts = [i for i in self.active_interrupts.values()
-                             if i.priority.value >= InterruptPriority.CRITICAL.value and not i.resolved]
+        blocking_interrupts = [
+            i
+            for i in self.active_interrupts.values()
+            if i.priority.value >= InterruptPriority.CRITICAL.value and not i.resolved
+        ]
         if blocking_interrupts:
             return False, "Critical interrupts still active"
 
         return True, "Can resume"
 
-    def get_resumption_strategy(self, behavior_id: str, interrupt_event: InterruptEvent) -> ResumptionStrategy:
+    def get_resumption_strategy(
+        self, behavior_id: str, interrupt_event: InterruptEvent
+    ) -> ResumptionStrategy:
         """Determine the best strategy for resuming a behavior"""
 
         if behavior_id not in self.preserved_behaviors:
@@ -372,7 +428,9 @@ class InterruptManager:
         # Emergency interrupts: usually resume immediately
         if interrupt_event.priority == InterruptPriority.EMERGENCY:
             if interrupt_event.reason == InterruptReason.HEALTH_CRITICAL:
-                return ResumptionStrategy.RESUME_WITH_DELAY  # Wait for health to stabilize
+                return (
+                    ResumptionStrategy.RESUME_WITH_DELAY
+                )  # Wait for health to stabilize
             return ResumptionStrategy.RESUME_IMMEDIATELY
 
         # Critical interrupts: depend on reason
@@ -380,7 +438,9 @@ class InterruptManager:
             if interrupt_event.reason == InterruptReason.UNDER_ATTACK:
                 return ResumptionStrategy.RESUME_WHEN_OPTIMAL  # Wait for safety
             elif interrupt_event.reason == InterruptReason.BETTER_OPPORTUNITY:
-                return ResumptionStrategy.REEVALUATE_NECESSITY  # Check if still worthwhile
+                return (
+                    ResumptionStrategy.REEVALUATE_NECESSITY
+                )  # Check if still worthwhile
 
         # Resource-based interrupts: usually abandon or reevaluate
         if interrupt_event.reason == InterruptReason.RESOURCE_DEPLETED:
@@ -402,14 +462,18 @@ class InterruptManager:
         # Consider historical success rate
         behavior_type = behavior_state.behavior_type
         if behavior_type in self.behavior_resumption_success:
-            success_rate = sum(self.behavior_resumption_success[behavior_type]) / len(self.behavior_resumption_success[behavior_type])
+            success_rate = sum(self.behavior_resumption_success[behavior_type]) / len(
+                self.behavior_resumption_success[behavior_type]
+            )
             if success_rate < 0.5:
                 return ResumptionStrategy.REEVALUATE_NECESSITY
 
         # Default strategy
         return ResumptionStrategy.RESUME_WHEN_OPTIMAL
 
-    def resume_behavior(self, behavior_id: str, force_strategy: Optional[ResumptionStrategy] = None) -> Tuple[bool, Optional[BehaviorState], str]:
+    def resume_behavior(
+        self, behavior_id: str, force_strategy: Optional[ResumptionStrategy] = None
+    ) -> Tuple[bool, Optional[BehaviorState], str]:
         """Attempt to resume a preserved behavior"""
 
         if behavior_id not in self.preserved_behaviors:
@@ -432,11 +496,13 @@ class InterruptManager:
                 priority=InterruptPriority.NORMAL,
                 reason=InterruptReason.EXTERNAL_REQUEST,
                 interrupted_behavior_id=behavior_id,
-                interrupt_time=time.time() - 1.0
+                interrupt_time=time.time() - 1.0,
             )
 
         # Determine resumption strategy
-        strategy = force_strategy or self.get_resumption_strategy(behavior_id, interrupt_event)
+        strategy = force_strategy or self.get_resumption_strategy(
+            behavior_id, interrupt_event
+        )
 
         # Execute strategy
         if strategy == ResumptionStrategy.ABANDON_GRACEFULLY:
@@ -452,14 +518,20 @@ class InterruptManager:
 
         elif strategy == ResumptionStrategy.REEVALUATE_NECESSITY:
             # This requires external evaluation - return state for caller to decide
-            logger.info(f"Behavior {behavior_id} requires reevaluation before resumption")
+            logger.info(
+                f"Behavior {behavior_id} requires reevaluation before resumption"
+            )
             return True, behavior_state, "Requires reevaluation"
 
         elif strategy == ResumptionStrategy.RESUME_WITH_DELAY:
             # Check if enough time has passed
             time_since_interrupt = time.time() - interrupt_event.interrupt_time
             if time_since_interrupt < 30.0:  # 30 second delay
-                return False, behavior_state, f"Delaying resumption ({30 - time_since_interrupt:.1f}s remaining)"
+                return (
+                    False,
+                    behavior_state,
+                    f"Delaying resumption ({30 - time_since_interrupt:.1f}s remaining)",
+                )
 
         # Mark interrupt as resolved
         if interrupt_event and not interrupt_event.resolved:
@@ -470,8 +542,10 @@ class InterruptManager:
         # Update statistics
         self.stats["successful_resumptions"] += 1
 
-        logger.info(f"Resuming behavior {behavior_id} with strategy {strategy.value} "
-                   f"(progress: {behavior_state.progress:.2f})")
+        logger.info(
+            f"Resuming behavior {behavior_id} with strategy {strategy.value} "
+            f"(progress: {behavior_state.progress:.2f})"
+        )
 
         return True, behavior_state, "Resumed successfully"
 
@@ -491,7 +565,9 @@ class InterruptManager:
             # Remove from preserved behaviors
             del self.preserved_behaviors[behavior_id]
 
-    def get_next_behavior_to_resume(self, current_context: Dict[str, Any]) -> Optional[Tuple[str, BehaviorState]]:
+    def get_next_behavior_to_resume(
+        self, current_context: Dict[str, Any]
+    ) -> Optional[Tuple[str, BehaviorState]]:
         """Get the next behavior that should be resumed based on priority and context"""
 
         candidates = []
@@ -500,7 +576,9 @@ class InterruptManager:
             can_resume, reason = self.can_resume_behavior(behavior_id, current_context)
             if can_resume:
                 # Calculate resumption priority
-                priority_score = self._calculate_resumption_priority(behavior_state, current_context)
+                priority_score = self._calculate_resumption_priority(
+                    behavior_state, current_context
+                )
                 candidates.append((behavior_id, behavior_state, priority_score))
 
         if not candidates:
@@ -511,7 +589,9 @@ class InterruptManager:
 
         return candidates[0][0], candidates[0][1]
 
-    def _calculate_resumption_priority(self, behavior_state: BehaviorState, context: Dict[str, Any]) -> float:
+    def _calculate_resumption_priority(
+        self, behavior_state: BehaviorState, context: Dict[str, Any]
+    ) -> float:
         """Calculate priority score for resuming a behavior"""
 
         score = 0.0
@@ -534,7 +614,7 @@ class InterruptManager:
             "trading": 20.0,
             "exploration": 15.0,
             "social": 10.0,
-            "crafting": 30.0
+            "crafting": 30.0,
         }
         score += type_importance.get(behavior_state.behavior_type, 10.0)
 
@@ -546,7 +626,11 @@ class InterruptManager:
 
         return score
 
-    def resolve_interrupt(self, interrupt_id: str, strategy: ResumptionStrategy = ResumptionStrategy.RESUME_IMMEDIATELY) -> bool:
+    def resolve_interrupt(
+        self,
+        interrupt_id: str,
+        strategy: ResumptionStrategy = ResumptionStrategy.RESUME_IMMEDIATELY,
+    ) -> bool:
         """Manually resolve an interrupt"""
 
         if interrupt_id not in self.active_interrupts:
@@ -559,11 +643,15 @@ class InterruptManager:
         duration = interrupt_event.get_duration()
         current_avg = self.stats["average_interrupt_duration"]
         total_interrupts = self.stats["total_interrupts"]
-        self.stats["average_interrupt_duration"] = ((current_avg * (total_interrupts - 1)) + duration) / total_interrupts
+        self.stats["average_interrupt_duration"] = (
+            (current_avg * (total_interrupts - 1)) + duration
+        ) / total_interrupts
 
         del self.active_interrupts[interrupt_id]
 
-        logger.debug(f"Resolved interrupt {interrupt_id} with strategy {strategy.value}")
+        logger.debug(
+            f"Resolved interrupt {interrupt_id} with strategy {strategy.value}"
+        )
         return True
 
     def get_active_interrupts(self) -> List[InterruptEvent]:
@@ -585,7 +673,11 @@ class InterruptManager:
         self._cleanup_old_behaviors()
 
         # Clean up resolved interrupts from active list
-        resolved_interrupts = [iid for iid, interrupt in self.active_interrupts.items() if interrupt.resolved]
+        resolved_interrupts = [
+            iid
+            for iid, interrupt in self.active_interrupts.items()
+            if interrupt.resolved
+        ]
         for interrupt_id in resolved_interrupts:
             del self.active_interrupts[interrupt_id]
 
@@ -593,8 +685,10 @@ class InterruptManager:
         self.interrupt_stack = self.interrupt_stack[:50]
 
         self.last_cleanup = current_time
-        logger.debug(f"Interrupt manager cleanup: {len(self.preserved_behaviors)} behaviors, "
-                    f"{len(self.active_interrupts)} active interrupts")
+        logger.debug(
+            f"Interrupt manager cleanup: {len(self.preserved_behaviors)} behaviors, "
+            f"{len(self.active_interrupts)} active interrupts"
+        )
 
     def _cleanup_old_behaviors(self):
         """Clean up old or low-priority preserved behaviors"""
@@ -605,9 +699,9 @@ class InterruptManager:
         for behavior_id, behavior_state in self.preserved_behaviors.items():
             age = behavior_state.get_age(current_time)
             priority_score = (
-                behavior_state.progress * 50.0 +
-                behavior_state.success_probability * 30.0 +
-                max(0.0, 20.0 - age / 60.0)  # Recency bonus
+                behavior_state.progress * 50.0
+                + behavior_state.success_probability * 30.0
+                + max(0.0, 20.0 - age / 60.0)  # Recency bonus
             )
             behavior_priorities.append((behavior_id, priority_score))
 
@@ -628,8 +722,11 @@ class InterruptManager:
         preserved_behavior_count = len(self.preserved_behaviors)
 
         # Recent interrupt frequency (last hour)
-        recent_interrupts = [i for i in self.interrupt_history
-                           if current_time - i.interrupt_time < 3600.0]
+        recent_interrupts = [
+            i
+            for i in self.interrupt_history
+            if current_time - i.interrupt_time < 3600.0
+        ]
 
         # Success rates by behavior type
         success_rates = {}
@@ -643,7 +740,7 @@ class InterruptManager:
             "preserved_behaviors": preserved_behavior_count,
             "recent_interrupts_per_hour": len(recent_interrupts),
             "resumption_success_rates": success_rates,
-            "interrupt_stack_size": len(self.interrupt_stack)
+            "interrupt_stack_size": len(self.interrupt_stack),
         }
 
     def get_behavior_state_summary(self, behavior_id: str) -> Optional[Dict[str, Any]]:
@@ -655,8 +752,11 @@ class InterruptManager:
         current_time = time.time()
 
         # Find related interrupts
-        related_interrupts = [i for i in self.interrupt_history
-                            if i.interrupted_behavior_id == behavior_id]
+        related_interrupts = [
+            i
+            for i in self.interrupt_history
+            if i.interrupted_behavior_id == behavior_id
+        ]
 
         return {
             "behavior_id": behavior_id,
@@ -666,6 +766,8 @@ class InterruptManager:
             "execution_count": behavior_state.execution_count,
             "success_probability": behavior_state.success_probability,
             "interrupt_count": len(related_interrupts),
-            "last_interrupt_reason": related_interrupts[0].reason.value if related_interrupts else None,
-            "can_resume": self.can_resume_behavior(behavior_id, {})[0]
+            "last_interrupt_reason": related_interrupts[0].reason.value
+            if related_interrupts
+            else None,
+            "can_resume": self.can_resume_behavior(behavior_id, {})[0],
         }

@@ -5,17 +5,21 @@ Tests the new market-maker functionality including trade advertisements,
 automatic matching, multi-item bartering, and trade negotiations.
 """
 
-import pytest
-import time
 import asyncio
-from unittest.mock import Mock, MagicMock
+import time
+from unittest.mock import MagicMock, Mock
+
+import pytest
 
 from server.action_processor import ActionProcessor
 from shared.actions import (
-    ActionRequest, ActionType,
-    create_advertise_trade_action, create_search_trades_action,
-    create_negotiate_trade_action, create_cancel_trade_ad_action,
-    create_trade_request_action
+    ActionRequest,
+    ActionType,
+    create_advertise_trade_action,
+    create_cancel_trade_ad_action,
+    create_negotiate_trade_action,
+    create_search_trades_action,
+    create_trade_request_action,
 )
 from shared.items import Item
 
@@ -75,7 +79,9 @@ class TestEnhancedTradingSystem:
         self.agent_registry = MockAgentRegistry()
         self.attack_system = Mock()
 
-        self.processor = ActionProcessor(self.world, self.agent_registry, self.attack_system)
+        self.processor = ActionProcessor(
+            self.world, self.agent_registry, self.attack_system
+        )
 
         # Create test agents
         self.agent1 = MockAgent("agent1", 10.0, 10.0)
@@ -101,7 +107,7 @@ class TestEnhancedTradingSystem:
             offering_items=[{"item_id": "wood_1", "quantity": 3}],
             requesting_items=[{"item_type": "fish", "quantity": 2}],
             duration=300.0,
-            max_distance=50.0
+            max_distance=50.0,
         )
         action.agent_id = "agent1"
 
@@ -122,7 +128,7 @@ class TestEnhancedTradingSystem:
         # Try to advertise more items than available
         action = create_advertise_trade_action(
             offering_items=[{"item_id": "wood_1", "quantity": 10}],  # Agent only has 5
-            requesting_items=[{"item_type": "fish", "quantity": 2}]
+            requesting_items=[{"item_type": "fish", "quantity": 2}],
         )
         action.agent_id = "agent1"
 
@@ -142,20 +148,20 @@ class TestEnhancedTradingSystem:
         await self._create_test_advertisement(
             "agent1",
             [{"item_id": "wood_1", "quantity": 3}],
-            [{"item_type": "fish", "quantity": 2}]
+            [{"item_type": "fish", "quantity": 2}],
         )
 
         await self._create_test_advertisement(
             "agent3",
             [{"item_id": "gold_1", "quantity": 1}],
-            [{"item_type": "wood", "quantity": 5}]
+            [{"item_type": "wood", "quantity": 5}],
         )
 
         # Agent2 searches for trades (has fish, wants wood)
         action = create_search_trades_action(
             desired_items=[{"item_type": "wood"}],
             available_items=[{"item_type": "fish"}],
-            max_distance=50.0
+            max_distance=50.0,
         )
         action.agent_id = "agent2"
 
@@ -180,14 +186,14 @@ class TestEnhancedTradingSystem:
         await self._create_test_advertisement(
             "agent1",
             [{"item_type": "stone"}],  # Offering stone
-            [{"item_type": "iron"}]    # Wanting iron
+            [{"item_type": "iron"}],  # Wanting iron
         )
 
         # Agent2 searches for trades - no overlap with agent1's ad
         action = create_search_trades_action(
-            desired_items=[{"item_type": "gold"}],   # Want gold (agent1 not offering)
-            available_items=[{"item_type": "fish"}], # Have fish (agent1 not wanting)
-            max_distance=50.0
+            desired_items=[{"item_type": "gold"}],  # Want gold (agent1 not offering)
+            available_items=[{"item_type": "fish"}],  # Have fish (agent1 not wanting)
+            max_distance=50.0,
         )
         action.agent_id = "agent2"
 
@@ -209,7 +215,7 @@ class TestEnhancedTradingSystem:
         # Agent2 makes a counter-offer
         counter_offer = {
             "offering_items": [{"item_id": "fish_1", "quantity": 4}],
-            "requesting_items": [{"item_id": "wood_1", "quantity": 2}]
+            "requesting_items": [{"item_id": "wood_1", "quantity": 2}],
         }
 
         action = create_negotiate_trade_action(trade_id, counter_offer)
@@ -234,7 +240,7 @@ class TestEnhancedTradingSystem:
         # Agent2 tries to offer more fish than they have
         counter_offer = {
             "offering_items": [{"item_id": "fish_1", "quantity": 20}],  # Only has 8
-            "requesting_items": [{"item_id": "wood_1", "quantity": 2}]
+            "requesting_items": [{"item_id": "wood_1", "quantity": 2}],
         }
 
         action = create_negotiate_trade_action(trade_id, counter_offer)
@@ -257,7 +263,7 @@ class TestEnhancedTradingSystem:
         # Agent3 tries to negotiate (not part of trade)
         counter_offer = {
             "offering_items": [{"item_id": "gold_1", "quantity": 1}],
-            "requesting_items": [{"item_id": "wood_1", "quantity": 2}]
+            "requesting_items": [{"item_id": "wood_1", "quantity": 2}],
         }
 
         action = create_negotiate_trade_action(trade_id, counter_offer)
@@ -278,7 +284,7 @@ class TestEnhancedTradingSystem:
         ad_id = await self._create_test_advertisement(
             "agent1",
             [{"item_id": "wood_1", "quantity": 3}],
-            [{"item_type": "fish", "quantity": 2}]
+            [{"item_type": "fish", "quantity": 2}],
         )
 
         # Cancel advertisement
@@ -301,7 +307,7 @@ class TestEnhancedTradingSystem:
         ad_id = await self._create_test_advertisement(
             "agent1",
             [{"item_id": "wood_1", "quantity": 3}],
-            [{"item_type": "fish", "quantity": 2}]
+            [{"item_type": "fish", "quantity": 2}],
         )
 
         # Agent2 tries to cancel agent1's advertisement
@@ -329,7 +335,7 @@ class TestEnhancedTradingSystem:
             "expires_time": current_time - 50,  # Expired 50 seconds ago
             "location": (10.0, 10.0),
             "max_distance": 50.0,
-            "status": "active"
+            "status": "active",
         }
 
         self.processor.trade_advertisements["test_ad"] = ad_data
@@ -351,7 +357,7 @@ class TestEnhancedTradingSystem:
             "ad_id": "active_ad",
             "advertiser": "agent1",
             "expires_time": current_time + 300,
-            "status": "active"
+            "status": "active",
         }
 
         # Create expired advertisement
@@ -359,7 +365,7 @@ class TestEnhancedTradingSystem:
             "ad_id": "expired_ad",
             "advertiser": "agent1",
             "expires_time": current_time - 300,
-            "status": "active"
+            "status": "active",
         }
 
         self.processor.trade_advertisements["active_ad"] = active_ad
@@ -383,20 +389,20 @@ class TestEnhancedTradingSystem:
                 "status": "active",
                 "expires_time": current_time + 300,
                 "offering_items": [{"item": "wood"}],
-                "requesting_items": [{"item": "fish"}]
+                "requesting_items": [{"item": "fish"}],
             },
             "expired_ad": {
                 "status": "expired",
                 "expires_time": current_time - 300,
                 "offering_items": [],
-                "requesting_items": []
+                "requesting_items": [],
             },
             "cancelled_ad": {
                 "status": "cancelled",
                 "expires_time": current_time + 300,
                 "offering_items": [],
-                "requesting_items": []
-            }
+                "requesting_items": [],
+            },
         }
 
         self.processor.trade_advertisements.update(ads)
@@ -427,7 +433,9 @@ class TestEnhancedTradingSystem:
         # and that negotiation history is tracked correctly
         pass
 
-    async def _create_test_advertisement(self, agent_id: str, offering_items: list, requesting_items: list) -> str:
+    async def _create_test_advertisement(
+        self, agent_id: str, offering_items: list, requesting_items: list
+    ) -> str:
         """Helper to create a test trade advertisement"""
         action = create_advertise_trade_action(offering_items, requesting_items)
         action.agent_id = agent_id
@@ -446,7 +454,7 @@ class TestEnhancedTradingSystem:
         action = create_trade_request_action(
             target_id,
             [{"item_id": "wood_1", "quantity": 2}],
-            [{"item_id": "fish_1", "quantity": 3}]
+            [{"item_id": "fish_1", "quantity": 3}],
         )
         action.agent_id = initiator_id
 

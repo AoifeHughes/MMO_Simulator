@@ -11,7 +11,7 @@ import math
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
-from shared.actions import ActionType, ActionResult
+from shared.actions import ActionResult, ActionType
 from world.tiles import TileType
 
 from .base import ActionNode, ConditionNode, NodeStatus
@@ -34,14 +34,18 @@ class MMOFishingAction(ActionNode):
         # Find nearby water
         water_pos = self._find_nearby_water(agent)
         if not water_pos:
-            logger.debug(f"No water found within {self.max_distance} units for agent {agent.id[:8]}")
+            logger.debug(
+                f"No water found within {self.max_distance} units for agent {agent.id[:8]}"
+            )
             return False
 
         self.target_water_pos = water_pos
         self.is_fishing = True
         self.fishing_start_time = time.time()
 
-        logger.info(f"🎣 MMO Fishing: Agent {agent.id[:8]} starting to fish at water tile {water_pos}")
+        logger.info(
+            f"🎣 MMO Fishing: Agent {agent.id[:8]} starting to fish at water tile {water_pos}"
+        )
         return True
 
     def update_action(self, agent, dt: float) -> NodeStatus:
@@ -51,18 +55,22 @@ class MMOFishingAction(ActionNode):
 
         # Check if we're still close enough to the water
         if not self._is_in_fishing_range(agent, self.target_water_pos):
-            logger.warning(f"Agent {agent.id[:8]} moved too far from water during fishing")
+            logger.warning(
+                f"Agent {agent.id[:8]} moved too far from water during fishing"
+            )
             return NodeStatus.FAILURE
 
         # Execute fishing action through MMO client
-        if hasattr(agent, 'mmo_client') and agent.mmo_client:
+        if hasattr(agent, "mmo_client") and agent.mmo_client:
             # Use MMO client for fishing
             water_center_x = self.target_water_pos[0] + 0.5
             water_center_y = self.target_water_pos[1] + 0.5
 
             try:
                 # Request fishing action
-                future = asyncio.create_task(agent.fish_at_location(water_center_x, water_center_y))
+                future = asyncio.create_task(
+                    agent.fish_at_location(water_center_x, water_center_y)
+                )
 
                 # For behavior tree compatibility, we need to handle this synchronously
                 # In a real implementation, you might want to track this differently
@@ -72,7 +80,9 @@ class MMOFishingAction(ActionNode):
                         logger.info(f"🎣 Fishing successful for agent {agent.id[:8]}")
                         return NodeStatus.SUCCESS
                     else:
-                        logger.warning(f"🎣 Fishing failed for agent {agent.id[:8]}: {result.message if result else 'Unknown error'}")
+                        logger.warning(
+                            f"🎣 Fishing failed for agent {agent.id[:8]}: {result.message if result else 'Unknown error'}"
+                        )
                         return NodeStatus.FAILURE
 
                 return NodeStatus.RUNNING
@@ -82,14 +92,16 @@ class MMOFishingAction(ActionNode):
                 return NodeStatus.FAILURE
 
         # Fallback for legacy action manager
-        elif hasattr(agent, 'action_manager') and agent.action_manager:
+        elif hasattr(agent, "action_manager") and agent.action_manager:
             water_center_x = self.target_water_pos[0] + 0.5
             water_center_y = self.target_water_pos[1] + 0.5
 
-            asyncio.create_task(agent.action_manager.request_action(
-                ActionType.FISH,
-                {"target_x": water_center_x, "target_y": water_center_y}
-            ))
+            asyncio.create_task(
+                agent.action_manager.request_action(
+                    ActionType.FISH,
+                    {"target_x": water_center_x, "target_y": water_center_y},
+                )
+            )
 
             # Assume success for now (server will validate)
             logger.info(f"🎣 Sent fishing request for agent {agent.id[:8]}")
@@ -105,7 +117,7 @@ class MMOFishingAction(ActionNode):
 
     def _find_nearby_water(self, agent) -> Optional[Tuple[int, int]]:
         """Find nearby water tiles"""
-        if not hasattr(agent, 'agent_map') or not agent.agent_map:
+        if not hasattr(agent, "agent_map") or not agent.agent_map:
             return None
 
         agent_x, agent_y = agent.x, agent.y
@@ -122,7 +134,10 @@ class MMOFishingAction(ActionNode):
                     if tile_type == TileType.WATER:
                         water_center_x = check_x + 0.5
                         water_center_y = check_y + 0.5
-                        real_distance = ((water_center_x - agent_x) ** 2 + (water_center_y - agent_y) ** 2) ** 0.5
+                        real_distance = (
+                            (water_center_x - agent_x) ** 2
+                            + (water_center_y - agent_y) ** 2
+                        ) ** 0.5
 
                         if real_distance <= self.max_distance:
                             water_tiles.append((check_x, check_y, real_distance))
@@ -140,7 +155,9 @@ class MMOFishingAction(ActionNode):
         water_center_x = water_x + 0.5
         water_center_y = water_y + 0.5
 
-        distance = ((water_center_x - agent.x) ** 2 + (water_center_y - agent.y) ** 2) ** 0.5
+        distance = (
+            (water_center_x - agent.x) ** 2 + (water_center_y - agent.y) ** 2
+        ) ** 0.5
         return distance <= 1.2  # MMO fishing range
 
     def reset(self):
@@ -166,14 +183,18 @@ class MMOHarvestWoodAction(ActionNode):
         # Find nearby wood
         wood_pos = self._find_nearby_wood(agent)
         if not wood_pos:
-            logger.debug(f"No wood found within {self.max_distance} units for agent {agent.id[:8]}")
+            logger.debug(
+                f"No wood found within {self.max_distance} units for agent {agent.id[:8]}"
+            )
             return False
 
         self.target_wood_pos = wood_pos
         self.is_harvesting = True
         self.harvest_start_time = time.time()
 
-        logger.info(f"🌲 MMO Wood Harvesting: Agent {agent.id[:8]} starting to harvest at wood tile {wood_pos}")
+        logger.info(
+            f"🌲 MMO Wood Harvesting: Agent {agent.id[:8]} starting to harvest at wood tile {wood_pos}"
+        )
         return True
 
     def update_action(self, agent, dt: float) -> NodeStatus:
@@ -183,24 +204,32 @@ class MMOHarvestWoodAction(ActionNode):
 
         # Check if we're still close enough to the wood
         if not self._is_in_harvest_range(agent, self.target_wood_pos):
-            logger.warning(f"Agent {agent.id[:8]} moved too far from wood during harvesting")
+            logger.warning(
+                f"Agent {agent.id[:8]} moved too far from wood during harvesting"
+            )
             return NodeStatus.FAILURE
 
         # Execute harvesting action through MMO client
-        if hasattr(agent, 'mmo_client') and agent.mmo_client:
+        if hasattr(agent, "mmo_client") and agent.mmo_client:
             wood_center_x = self.target_wood_pos[0] + 0.5
             wood_center_y = self.target_wood_pos[1] + 0.5
 
             try:
-                future = asyncio.create_task(agent.harvest_wood_at_location(wood_center_x, wood_center_y))
+                future = asyncio.create_task(
+                    agent.harvest_wood_at_location(wood_center_x, wood_center_y)
+                )
 
                 if future.done():
                     result = future.result()
                     if result and result.result == ActionResult.APPROVED:
-                        logger.info(f"🌲 Wood harvesting successful for agent {agent.id[:8]}")
+                        logger.info(
+                            f"🌲 Wood harvesting successful for agent {agent.id[:8]}"
+                        )
                         return NodeStatus.SUCCESS
                     else:
-                        logger.warning(f"🌲 Wood harvesting failed for agent {agent.id[:8]}: {result.message if result else 'Unknown error'}")
+                        logger.warning(
+                            f"🌲 Wood harvesting failed for agent {agent.id[:8]}: {result.message if result else 'Unknown error'}"
+                        )
                         return NodeStatus.FAILURE
 
                 return NodeStatus.RUNNING
@@ -210,14 +239,16 @@ class MMOHarvestWoodAction(ActionNode):
                 return NodeStatus.FAILURE
 
         # Fallback for legacy action manager
-        elif hasattr(agent, 'action_manager') and agent.action_manager:
+        elif hasattr(agent, "action_manager") and agent.action_manager:
             wood_center_x = self.target_wood_pos[0] + 0.5
             wood_center_y = self.target_wood_pos[1] + 0.5
 
-            asyncio.create_task(agent.action_manager.request_action(
-                ActionType.HARVEST_WOOD,
-                {"target_x": wood_center_x, "target_y": wood_center_y}
-            ))
+            asyncio.create_task(
+                agent.action_manager.request_action(
+                    ActionType.HARVEST_WOOD,
+                    {"target_x": wood_center_x, "target_y": wood_center_y},
+                )
+            )
 
             logger.info(f"🌲 Sent wood harvesting request for agent {agent.id[:8]}")
             return NodeStatus.SUCCESS
@@ -232,7 +263,7 @@ class MMOHarvestWoodAction(ActionNode):
 
     def _find_nearby_wood(self, agent) -> Optional[Tuple[int, int]]:
         """Find nearby wood tiles"""
-        if not hasattr(agent, 'agent_map') or not agent.agent_map:
+        if not hasattr(agent, "agent_map") or not agent.agent_map:
             return None
 
         agent_x, agent_y = agent.x, agent.y
@@ -249,7 +280,10 @@ class MMOHarvestWoodAction(ActionNode):
                     if tile_type == TileType.WOOD:
                         wood_center_x = check_x + 0.5
                         wood_center_y = check_y + 0.5
-                        real_distance = ((wood_center_x - agent_x) ** 2 + (wood_center_y - agent_y) ** 2) ** 0.5
+                        real_distance = (
+                            (wood_center_x - agent_x) ** 2
+                            + (wood_center_y - agent_y) ** 2
+                        ) ** 0.5
 
                         if real_distance <= self.max_distance:
                             wood_tiles.append((check_x, check_y, real_distance))
@@ -267,7 +301,9 @@ class MMOHarvestWoodAction(ActionNode):
         wood_center_x = wood_x + 0.5
         wood_center_y = wood_y + 0.5
 
-        distance = ((wood_center_x - agent.x) ** 2 + (wood_center_y - agent.y) ** 2) ** 0.5
+        distance = (
+            (wood_center_x - agent.x) ** 2 + (wood_center_y - agent.y) ** 2
+        ) ** 0.5
         return distance <= 1.2  # MMO harvesting range
 
     def reset(self):
@@ -281,7 +317,13 @@ class MMOHarvestWoodAction(ActionNode):
 class MMOMoveToPosition(ActionNode):
     """MMO-compatible movement action"""
 
-    def __init__(self, target_x: float, target_y: float, speed: float = 1.0, threshold: float = 0.5):
+    def __init__(
+        self,
+        target_x: float,
+        target_y: float,
+        speed: float = 1.0,
+        threshold: float = 0.5,
+    ):
         super().__init__("MMOMoveToPosition")
         self.target_x = target_x
         self.target_y = target_y
@@ -292,19 +334,27 @@ class MMOMoveToPosition(ActionNode):
     def start_action(self, agent) -> bool:
         """Start movement"""
         # Check if already at target
-        distance = ((self.target_x - agent.x) ** 2 + (self.target_y - agent.y) ** 2) ** 0.5
+        distance = (
+            (self.target_x - agent.x) ** 2 + (self.target_y - agent.y) ** 2
+        ) ** 0.5
         if distance <= self.threshold:
             return True  # Already there
 
         # Request movement through MMO client
-        if hasattr(agent, 'mmo_client') and agent.mmo_client:
-            asyncio.create_task(agent.mmo_client.move_to(self.target_x, self.target_y, self.speed))
+        if hasattr(agent, "mmo_client") and agent.mmo_client:
+            asyncio.create_task(
+                agent.mmo_client.move_to(self.target_x, self.target_y, self.speed)
+            )
             self.moving = True
-            logger.debug(f"Requested MMO movement to ({self.target_x:.2f}, {self.target_y:.2f}) for agent {agent.id[:8]}")
+            logger.debug(
+                f"Requested MMO movement to ({self.target_x:.2f}, {self.target_y:.2f}) for agent {agent.id[:8]}"
+            )
             return True
 
-        elif hasattr(agent, 'action_manager') and agent.action_manager:
-            asyncio.create_task(agent.action_manager.move_to(self.target_x, self.target_y, self.speed))
+        elif hasattr(agent, "action_manager") and agent.action_manager:
+            asyncio.create_task(
+                agent.action_manager.move_to(self.target_x, self.target_y, self.speed)
+            )
             self.moving = True
             return True
 
@@ -316,10 +366,14 @@ class MMOMoveToPosition(ActionNode):
             return NodeStatus.FAILURE
 
         # Check if we've reached the target
-        distance = ((self.target_x - agent.x) ** 2 + (self.target_y - agent.y) ** 2) ** 0.5
+        distance = (
+            (self.target_x - agent.x) ** 2 + (self.target_y - agent.y) ** 2
+        ) ** 0.5
 
         if distance <= self.threshold:
-            logger.debug(f"Agent {agent.id[:8]} reached target ({self.target_x:.2f}, {self.target_y:.2f})")
+            logger.debug(
+                f"Agent {agent.id[:8]} reached target ({self.target_x:.2f}, {self.target_y:.2f})"
+            )
             return NodeStatus.SUCCESS
 
         return NodeStatus.RUNNING
@@ -349,7 +403,7 @@ class MMOWaterNearby(ConditionNode):
 
     def check_condition(self, agent) -> bool:
         """Check if water is nearby"""
-        if not hasattr(agent, 'agent_map') or not agent.agent_map:
+        if not hasattr(agent, "agent_map") or not agent.agent_map:
             return False
 
         agent_x, agent_y = agent.x, agent.y
@@ -365,7 +419,10 @@ class MMOWaterNearby(ConditionNode):
                     if tile_type == TileType.WATER:
                         water_center_x = check_x + 0.5
                         water_center_y = check_y + 0.5
-                        real_distance = ((water_center_x - agent_x) ** 2 + (water_center_y - agent_y) ** 2) ** 0.5
+                        real_distance = (
+                            (water_center_x - agent_x) ** 2
+                            + (water_center_y - agent_y) ** 2
+                        ) ** 0.5
 
                         if real_distance <= self.max_distance:
                             return True
@@ -382,7 +439,7 @@ class MMOWoodNearby(ConditionNode):
 
     def check_condition(self, agent) -> bool:
         """Check if wood is nearby"""
-        if not hasattr(agent, 'agent_map') or not agent.agent_map:
+        if not hasattr(agent, "agent_map") or not agent.agent_map:
             return False
 
         agent_x, agent_y = agent.x, agent.y
@@ -398,7 +455,10 @@ class MMOWoodNearby(ConditionNode):
                     if tile_type == TileType.WOOD:
                         wood_center_x = check_x + 0.5
                         wood_center_y = check_y + 0.5
-                        real_distance = ((wood_center_x - agent_x) ** 2 + (wood_center_y - agent_y) ** 2) ** 0.5
+                        real_distance = (
+                            (wood_center_x - agent_x) ** 2
+                            + (wood_center_y - agent_y) ** 2
+                        ) ** 0.5
 
                         if real_distance <= self.max_distance:
                             return True

@@ -11,17 +11,18 @@ Classes:
 
 import logging
 import random
-from typing import Dict, Any, Set
+from typing import Any, Dict, Set
 
+from shared.action_constants import DISTANCES
 from shared.actions import ActionType
 from world.tiles import TileType
+
+from .base import ConditionNode, NodeStatus
 from .resource_action_base import (
     ResourceActionBase,
     ResourceConditionBase,
-    ResourceType
+    ResourceType,
 )
-from .base import ConditionNode, NodeStatus
-from shared.action_constants import DISTANCES
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ class WoodHarvestingAction(ResourceActionBase):
             max_action_distance=max_distance,
             required_tool="axe",
             action_duration_range=(2.0, 4.0),
-            success_rate=0.9
+            success_rate=0.9,
         )
 
     def get_action_type(self) -> ActionType:
@@ -61,17 +62,17 @@ class WoodHarvestingAction(ResourceActionBase):
 
     def get_additional_parameters(self) -> Dict[str, Any]:
         """Get additional parameters for wood harvesting action"""
-        return {
-            'action_name': 'wood_harvesting',
-            'tool_type': 'woodcutting'
-        }
+        return {"action_name": "wood_harvesting", "tool_type": "woodcutting"}
 
     def check_required_tools(self, agent, tool_type: str) -> bool:
         """Check if agent has required tools for wood harvesting"""
         if tool_type == "woodcutting":
             # Check for hatchet in agent's inventory
-            hatchets = [item for item in agent.inventory.get_items_by_type("tool")
-                        if hasattr(item, 'tool_type') and item.tool_type == "woodcutting"]
+            hatchets = [
+                item
+                for item in agent.inventory.get_items_by_type("tool")
+                if hasattr(item, "tool_type") and item.tool_type == "woodcutting"
+            ]
             return len(hatchets) > 0
         return super().check_required_tools(agent, tool_type)
 
@@ -83,10 +84,14 @@ class WoodHarvestingAction(ResourceActionBase):
         success = await super().start_action(agent)
 
         if success:
-            logger.info(f"🌲 Agent {agent.id[:8]} started harvesting wood at {self.current_target['position']}")
+            logger.info(
+                f"🌲 Agent {agent.id[:8]} started harvesting wood at {self.current_target['position']}"
+            )
             print(f"🌲 Agent {agent.id[:8]} chopping down trees...")
         else:
-            logger.warning(f"🌲 Failed to start wood harvesting for agent {agent.id[:8]}")
+            logger.warning(
+                f"🌲 Failed to start wood harvesting for agent {agent.id[:8]}"
+            )
 
         return success
 
@@ -96,11 +101,16 @@ class WoodHarvestingAction(ResourceActionBase):
             return NodeStatus.FAILURE
 
         import time
+
         elapsed_time = time.time() - self.action_start_time
 
         # Log harvesting progress occasionally
-        if elapsed_time > 1.0 and int(elapsed_time) % 2 == 0:  # Every 2 seconds after first second
-            logger.debug(f"🌲 Agent {agent.id[:8]} harvesting wood... ({elapsed_time:.1f}s elapsed)")
+        if (
+            elapsed_time > 1.0 and int(elapsed_time) % 2 == 0
+        ):  # Every 2 seconds after first second
+            logger.debug(
+                f"🌲 Agent {agent.id[:8]} harvesting wood... ({elapsed_time:.1f}s elapsed)"
+            )
 
         return super().update_action(agent, dt)
 
@@ -126,7 +136,7 @@ class WoodNearbyCondition(ResourceConditionBase):
         super().__init__(
             name="WoodNearbyCondition",
             resource_type=ResourceType.WOOD,
-            max_distance=max_distance
+            max_distance=max_distance,
         )
 
     def check_condition(self, agent) -> bool:
@@ -137,9 +147,13 @@ class WoodNearbyCondition(ResourceConditionBase):
 
             # Enhanced logging for wood harvesting
             if result:
-                logger.info(f"🌲 Wood detected within {self.max_distance} units for agent {agent.id[:8]}")
+                logger.info(
+                    f"🌲 Wood detected within {self.max_distance} units for agent {agent.id[:8]}"
+                )
             else:
-                logger.info(f"🌲 No wood found within {self.max_distance} units for agent {agent.id[:8]}")
+                logger.info(
+                    f"🌲 No wood found within {self.max_distance} units for agent {agent.id[:8]}"
+                )
 
             return result
 
@@ -150,7 +164,7 @@ class WoodNearbyCondition(ResourceConditionBase):
 
     def _fallback_wood_check(self, agent) -> bool:
         """Fallback wood detection using local agent map"""
-        if not hasattr(agent, 'agent_map') or not agent.agent_map:
+        if not hasattr(agent, "agent_map") or not agent.agent_map:
             logger.debug(f"WoodNearby fallback: Agent {agent.id[:8]} has no agent_map")
             return False
 
@@ -158,7 +172,7 @@ class WoodNearbyCondition(ResourceConditionBase):
         search_radius = int(self.max_distance) + 1
 
         wood_found = False
-        closest_distance = float('inf')
+        closest_distance = float("inf")
 
         for dy in range(-search_radius, search_radius + 1):
             for dx in range(-search_radius, search_radius + 1):
@@ -171,27 +185,35 @@ class WoodNearbyCondition(ResourceConditionBase):
                         # Calculate real distance to wood tile center
                         wood_center_x = check_x + 0.5
                         wood_center_y = check_y + 0.5
-                        real_distance = ((wood_center_x - agent_x) ** 2 + (wood_center_y - agent_y) ** 2) ** 0.5
+                        real_distance = (
+                            (wood_center_x - agent_x) ** 2
+                            + (wood_center_y - agent_y) ** 2
+                        ) ** 0.5
 
                         if real_distance <= self.max_distance:
                             wood_found = True
                             if real_distance < closest_distance:
                                 closest_distance = real_distance
 
-        logger.info(f"🌲 WoodNearby fallback: Agent {agent.id[:8]} at ({agent_x:.2f}, {agent_y:.2f}) wood within {self.max_distance}: {wood_found} (closest: {closest_distance:.2f})")
+        logger.info(
+            f"🌲 WoodNearby fallback: Agent {agent.id[:8]} at ({agent_x:.2f}, {agent_y:.2f}) wood within {self.max_distance}: {wood_found} (closest: {closest_distance:.2f})"
+        )
         return wood_found
 
 
 # For backward compatibility, provide aliases to the old names
 # This allows existing behavior trees to work without modification
 
+
 class WoodNearby(WoodNearbyCondition):
     """Backward compatibility alias"""
+
     pass
 
 
 class HarvestWood(WoodHarvestingAction):
     """Backward compatibility alias"""
+
     pass
 
 
@@ -207,14 +229,13 @@ def create_wood_harvesting_behavior_nodes(max_distance: float = None):
         max_distance = DISTANCES.WOOD_HARVESTING_RANGE
 
     return {
-        'wood_harvesting_action': WoodHarvestingAction(max_distance),
-        'wood_nearby_check': WoodNearbyCondition(max_distance),
-        'hatchet_check': HatchetRequirement(),
-
+        "wood_harvesting_action": WoodHarvestingAction(max_distance),
+        "wood_nearby_check": WoodNearbyCondition(max_distance),
+        "hatchet_check": HatchetRequirement(),
         # Backward compatibility
-        'harvest_wood': HarvestWood(max_distance),
-        'wood_nearby': WoodNearby(max_distance),
-        'axe_check': AxeRequirement(),
+        "harvest_wood": HarvestWood(max_distance),
+        "wood_nearby": WoodNearby(max_distance),
+        "axe_check": AxeRequirement(),
     }
 
 
@@ -236,18 +257,26 @@ class ToolRequirement(ConditionNode):
         """Check if agent has the required tool"""
         # Check for the specific tool in agent's inventory
         if self.tool_type == "woodcutting":
-            tools = [item for item in agent.inventory.get_items_by_type("tool")
-                    if hasattr(item, 'tool_type') and item.tool_type == "woodcutting"]
+            tools = [
+                item
+                for item in agent.inventory.get_items_by_type("tool")
+                if hasattr(item, "tool_type") and item.tool_type == "woodcutting"
+            ]
             has_tool = len(tools) > 0
         elif self.tool_type == "fishing":
-            tools = [item for item in agent.inventory.get_items_by_type("tool")
-                    if hasattr(item, 'tool_type') and item.tool_type == "fishing"]
+            tools = [
+                item
+                for item in agent.inventory.get_items_by_type("tool")
+                if hasattr(item, "tool_type") and item.tool_type == "fishing"
+            ]
             has_tool = len(tools) > 0
         else:
             # For now, assume explorer agents have all other tools
             has_tool = agent.agent_type == "explorer"
 
-        logger.info(f"🔧 Tool check: Agent {agent.id[:8]} type '{agent.agent_type}' has {self.tool_type}: {has_tool}")
+        logger.info(
+            f"🔧 Tool check: Agent {agent.id[:8]} type '{agent.agent_type}' has {self.tool_type}: {has_tool}"
+        )
 
         return has_tool
 

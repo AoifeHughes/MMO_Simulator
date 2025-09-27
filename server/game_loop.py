@@ -88,9 +88,7 @@ class GameLoop:
 
         if action_type == "damage":
             # Process AI-generated attack
-            await self.server.process_damage_action(
-                action.get("attacker_id"), action
-            )
+            await self.server.process_damage_action(action.get("attacker_id"), action)
 
         elif action_type == "move":
             # Process AI-generated movement

@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 class CombatSimpleScenario(BaseScenario):
     def __init__(self):
         from world.terrain_generator import TerrainType
+
         super().__init__(
             name="Test Combat Simple",
             description="Minimal combat test with agents spawning in attack range",
@@ -42,7 +43,7 @@ class CombatSimpleScenario(BaseScenario):
             agent_type="player",  # Still use legacy type for server compatibility
             x=10,
             y=10,
-            rotation=0
+            rotation=0,
         )
 
         # Register the warrior agent with personality
@@ -55,13 +56,15 @@ class CombatSimpleScenario(BaseScenario):
                 warrior_id, "player", warrior_agent.x, warrior_agent.y
             )
 
-        agent_configs.append({
-            "id": warrior_id,
-            "type": "player",
-            "personality": warrior_personality,
-            "archetype": "warrior",
-            "behavior": "personality_driven"
-        })
+        agent_configs.append(
+            {
+                "id": warrior_id,
+                "type": "player",
+                "personality": warrior_personality,
+                "archetype": "warrior",
+                "behavior": "personality_driven",
+            }
+        )
 
         # Create aggressive enemy personality (very high combat, low cooperativeness)
         enemy_personality = PersonalityArchetype.warrior()
@@ -73,10 +76,7 @@ class CombatSimpleScenario(BaseScenario):
 
         # Spawn enemy at (10, 13) - exactly 3 units away
         enemy_id = server.world.spawn_agent(
-            agent_type="enemy",
-            x=10,
-            y=13,
-            rotation=180
+            agent_type="enemy", x=10, y=13, rotation=180
         )
 
         # Register the enemy agent with personality
@@ -89,17 +89,21 @@ class CombatSimpleScenario(BaseScenario):
                 enemy_id, "enemy", enemy_agent.x, enemy_agent.y
             )
 
-        agent_configs.append({
-            "id": enemy_id,
-            "type": "enemy",
-            "personality": enemy_personality,
-            "archetype": "aggressive_enemy",
-            "behavior": "personality_driven"
-        })
+        agent_configs.append(
+            {
+                "id": enemy_id,
+                "type": "enemy",
+                "personality": enemy_personality,
+                "archetype": "aggressive_enemy",
+                "behavior": "personality_driven",
+            }
+        )
 
         logger.info(f"Simple combat test scenario setup complete:")
         logger.info(f"  Warrior (combat:{warrior_personality.combat:.1f}) at (10, 10)")
-        logger.info(f"  Aggressive Enemy (combat:{enemy_personality.combat:.1f}) at (10, 13)")
+        logger.info(
+            f"  Aggressive Enemy (combat:{enemy_personality.combat:.1f}) at (10, 13)"
+        )
         logger.info(f"  Distance: 3 units apart (within attack range)")
         logger.info(f"  Expected behavior: Immediate combat engagement")
 
@@ -116,7 +120,9 @@ class CombatSimpleScenario(BaseScenario):
         """Implementation of abstract method - agents already spawned in setup"""
         return []
 
-    def get_custom_behavior_tree(self, agent_type: str, agent_x: float, agent_y: float) -> Optional[Any]:
+    def get_custom_behavior_tree(
+        self, agent_type: str, agent_x: float, agent_y: float
+    ) -> Optional[Any]:
         """
         Personality agents use the personality tree builder instead of custom trees.
         This method returns None to indicate they should use their built-in personality-driven behavior.

@@ -8,12 +8,13 @@ and can be detected by agents within their vision range.
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 
 class WorldObjectType(Enum):
     """Types of world objects"""
+
     FIRE = "fire"
     CAMPFIRE = "campfire"
     CRAFTING_STATION = "crafting_station"
@@ -22,6 +23,7 @@ class WorldObjectType(Enum):
 @dataclass
 class WorldObject:
     """Represents a temporary object in the world"""
+
     object_id: str = field(default_factory=lambda: str(uuid.uuid4())[:8])
     object_type: WorldObjectType = WorldObjectType.FIRE
     position: Tuple[float, float] = (0.0, 0.0)
@@ -51,7 +53,7 @@ class WorldObject:
             "duration": self.duration,
             "time_remaining": self.time_remaining(),
             "created_by": self.created_by,
-            "properties": self.properties.copy()
+            "properties": self.properties.copy(),
         }
 
 
@@ -63,24 +65,28 @@ class WorldObjectManager:
         self.last_cleanup = time.time()
         self.cleanup_interval = 10.0  # Cleanup every 10 seconds
 
-    def create_fire(self, x: float, y: float, created_by: Optional[str] = None, duration: float = 300.0) -> WorldObject:
+    def create_fire(
+        self,
+        x: float,
+        y: float,
+        created_by: Optional[str] = None,
+        duration: float = 300.0,
+    ) -> WorldObject:
         """Create a fire object that expires after duration seconds"""
         fire = WorldObject(
             object_type=WorldObjectType.FIRE,
             position=(x, y),
             duration=duration,
             created_by=created_by,
-            properties={
-                "heat_radius": 3.0,
-                "light_radius": 5.0,
-                "can_cook": True
-            }
+            properties={"heat_radius": 3.0, "light_radius": 5.0, "can_cook": True},
         )
 
         self.objects[fire.object_id] = fire
         return fire
 
-    def create_campfire(self, x: float, y: float, created_by: Optional[str] = None) -> WorldObject:
+    def create_campfire(
+        self, x: float, y: float, created_by: Optional[str] = None
+    ) -> WorldObject:
         """Create a longer-lasting campfire"""
         campfire = WorldObject(
             object_type=WorldObjectType.CAMPFIRE,
@@ -91,8 +97,8 @@ class WorldObjectManager:
                 "heat_radius": 5.0,
                 "light_radius": 8.0,
                 "can_cook": True,
-                "upgraded_fire": True
-            }
+                "upgraded_fire": True,
+            },
         )
 
         self.objects[campfire.object_id] = campfire
@@ -160,7 +166,7 @@ class WorldObjectManager:
         """Convert all objects to dictionary for client transmission"""
         return {
             "objects": [obj.to_dict() for obj in self.objects.values()],
-            "total_objects": len(self.objects)
+            "total_objects": len(self.objects),
         }
 
 
@@ -168,6 +174,7 @@ class WorldObjectManager:
 @dataclass
 class CraftingRecipe:
     """Defines what ingredients are needed to craft an item"""
+
     recipe_name: str
     required_items: Dict[str, int]  # item_name -> quantity
     result_object: WorldObjectType
@@ -198,15 +205,15 @@ CRAFTING_RECIPES = {
         required_items={"wood": 2},
         result_object=WorldObjectType.FIRE,
         result_duration=300.0,  # 5 minutes
-        craft_time=3.0
+        craft_time=3.0,
     ),
     "campfire": CraftingRecipe(
         recipe_name="campfire",
         required_items={"wood": 5},
         result_object=WorldObjectType.CAMPFIRE,
         result_duration=900.0,  # 15 minutes
-        craft_time=5.0
-    )
+        craft_time=5.0,
+    ),
 }
 
 

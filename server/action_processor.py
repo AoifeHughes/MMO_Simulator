@@ -19,6 +19,9 @@ from abc import ABC, abstractmethod
 from collections import defaultdict, deque
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from debug_tracker import track_agent_action, track_agent_position
+from server.world_objects import get_recipe
+from shared.action_constants import DISTANCES, THRESHOLDS, position_tracker
 from shared.actions import (
     ActionBatch,
     ActionPriority,
@@ -27,14 +30,18 @@ from shared.actions import (
     ActionResult,
     ActionType,
 )
-from shared.items import create_item, EquipmentSlot
-from world.tiles import TileType
-from server.world_objects import get_recipe
-from debug_tracker import track_agent_action, track_agent_position
-from shared.position_sync import get_position_sync, validate_action_position, update_agent_position
-from shared.action_constants import DISTANCES, THRESHOLDS, position_tracker
+from shared.items import EquipmentSlot, create_item
 from shared.position_authority import server_position_authority
-from shared.position_stats import record_position_discrepancy, record_action_distance_attempt
+from shared.position_stats import (
+    record_action_distance_attempt,
+    record_position_discrepancy,
+)
+from shared.position_sync import (
+    get_position_sync,
+    update_agent_position,
+    validate_action_position,
+)
+from world.tiles import TileType
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +50,9 @@ class ActionValidator(ABC):
     """Abstract base class for action validators"""
 
     @abstractmethod
-    def validate(self, request: ActionRequest, context: "ActionContext") -> Tuple[bool, str]:
+    def validate(
+        self, request: ActionRequest, context: "ActionContext"
+    ) -> Tuple[bool, str]:
         """
         Validate an action request.
 
@@ -67,17 +76,21 @@ class ResourceGatheringValidator(ActionValidator):
     centralized and extensible.
     """
 
-    def __init__(self,
-                 resource_name: str,
-                 required_tile_type: TileType,
-                 max_distance: float,
-                 required_tool: Optional[str] = None):
+    def __init__(
+        self,
+        resource_name: str,
+        required_tile_type: TileType,
+        max_distance: float,
+        required_tool: Optional[str] = None,
+    ):
         self.resource_name = resource_name
         self.required_tile_type = required_tile_type
         self.max_distance = max_distance
         self.required_tool = required_tool
 
-    def validate(self, request: ActionRequest, context: "ActionContext") -> Tuple[bool, str]:
+    def validate(
+        self, request: ActionRequest, context: "ActionContext"
+    ) -> Tuple[bool, str]:
         """
         Template method implementing common resource gathering validation flow.
         """
@@ -109,7 +122,10 @@ class ResourceGatheringValidator(ActionValidator):
 
         tile_type = world_map.get_tile(tile_x, tile_y)
         if tile_type != self.required_tile_type:
-            return False, f"Can only {self.resource_name} at {self.required_tile_type.value} locations"
+            return (
+                False,
+                f"Can only {self.resource_name} at {self.required_tile_type.value} locations",
+            )
 
         # 6. Distance validation with server position authority
         update_agent_position(agent.agent_id, agent.position[0], agent.position[1])
@@ -126,20 +142,39 @@ class ResourceGatheringValidator(ActionValidator):
         actual_distance = (dx * dx + dy * dy) ** 0.5
 
         is_valid = actual_distance <= self.max_distance
-        record_action_distance_attempt(self.resource_name, agent_pos, target_pos, self.max_distance, is_valid)
+        record_action_distance_attempt(
+            self.resource_name, agent_pos, target_pos, self.max_distance, is_valid
+        )
 
         if not is_valid:
             # Create readable tile type name for error message
-            tile_name = "water" if self.required_tile_type == TileType.WATER else self.required_tile_type.value
+            tile_name = (
+                "water"
+                if self.required_tile_type == TileType.WATER
+                else self.required_tile_type.value
+            )
             error_msg = f"{self.resource_name.capitalize()} failed: distance {actual_distance:.2f} > max {self.max_distance:.2f}. Move closer to the {tile_name}."
-            logger.info(f"🚫 {self.resource_name.capitalize()} rejected for {agent.agent_id[:8]}: {error_msg}")
+            logger.info(
+                f"🚫 {self.resource_name.capitalize()} rejected for {agent.agent_id[:8]}: {error_msg}"
+            )
 
-            record_position_discrepancy(agent.agent_id, agent_pos, agent_pos, f"{self.resource_name}_validation")
-            track_agent_action(agent.agent_id, self.resource_name, target_pos, agent_pos, False, error_msg)
+            record_position_discrepancy(
+                agent.agent_id, agent_pos, agent_pos, f"{self.resource_name}_validation"
+            )
+            track_agent_action(
+                agent.agent_id,
+                self.resource_name,
+                target_pos,
+                agent_pos,
+                False,
+                error_msg,
+            )
             return False, error_msg
 
         # 7. Resource-specific validation (hook for subclasses)
-        specific_valid, specific_error = self.validate_additional_requirements(agent, target_pos, context)
+        specific_valid, specific_error = self.validate_additional_requirements(
+            agent, target_pos, context
+        )
         if not specific_valid:
             return False, specific_error
 
@@ -155,7 +190,9 @@ class ResourceGatheringValidator(ActionValidator):
         """Check if agent has required tools for this resource action"""
         pass
 
-    def validate_additional_requirements(self, agent, target_pos: Tuple[float, float], context: "ActionContext") -> Tuple[bool, str]:
+    def validate_additional_requirements(
+        self, agent, target_pos: Tuple[float, float], context: "ActionContext"
+    ) -> Tuple[bool, str]:
         """Hook method for resource-specific validation. Override in subclasses if needed."""
         return True, ""
 
@@ -182,9 +219,13 @@ class RateLimitValidator(ActionValidator):
         self.actions_per_second = actions_per_second
         self.burst_size = burst_size
         # agent_id -> deque of timestamps
-        self.action_history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=burst_size))
+        self.action_history: Dict[str, deque] = defaultdict(
+            lambda: deque(maxlen=burst_size)
+        )
 
-    def validate(self, request: ActionRequest, context: ActionContext) -> Tuple[bool, str]:
+    def validate(
+        self, request: ActionRequest, context: ActionContext
+    ) -> Tuple[bool, str]:
         now = time.time()
         agent_history = self.action_history[request.agent_id]
 
@@ -195,7 +236,10 @@ class RateLimitValidator(ActionValidator):
 
         # Check if we're within limits
         if len(agent_history) >= self.burst_size:
-            return False, f"Rate limit exceeded: {len(agent_history)}/{self.burst_size} actions in {time_window:.1f}s"
+            return (
+                False,
+                f"Rate limit exceeded: {len(agent_history)}/{self.burst_size} actions in {time_window:.1f}s",
+            )
 
         # Record this action
         agent_history.append(now)
@@ -231,7 +275,9 @@ class CooldownValidator(ActionValidator):
         # (agent_id, action_type) -> last_use_timestamp
         self.last_use: Dict[Tuple[str, ActionType], float] = {}
 
-    def validate(self, request: ActionRequest, context: ActionContext) -> Tuple[bool, str]:
+    def validate(
+        self, request: ActionRequest, context: ActionContext
+    ) -> Tuple[bool, str]:
         if request.action_type not in self.cooldowns:
             return True, ""  # No cooldown for this action
 
@@ -255,7 +301,9 @@ class CooldownValidator(ActionValidator):
 class MovementValidator(ActionValidator):
     """Validates movement actions against terrain and collision"""
 
-    def validate(self, request: ActionRequest, context: ActionContext) -> Tuple[bool, str]:
+    def validate(
+        self, request: ActionRequest, context: ActionContext
+    ) -> Tuple[bool, str]:
         if request.action_type != ActionType.MOVE_TO:
             return True, ""
 
@@ -283,9 +331,14 @@ class MovementValidator(ActionValidator):
         # Check if target is walkable
         if not context.world.world_map.is_walkable(int(target_x), int(target_y)):
             # Try to find nearby walkable position
-            safe_x, safe_y = context.world.find_nearest_walkable_position(target_x, target_y)
+            safe_x, safe_y = context.world.find_nearest_walkable_position(
+                target_x, target_y
+            )
             if abs(safe_x - target_x) > 5.0 or abs(safe_y - target_y) > 5.0:
-                return False, f"Target ({target_x}, {target_y}) is not walkable and no nearby alternative found"
+                return (
+                    False,
+                    f"Target ({target_x}, {target_y}) is not walkable and no nearby alternative found",
+                )
 
             # Modify the request to use safe position
             request.parameters["target_x"] = safe_x
@@ -300,7 +353,9 @@ class MovementValidator(ActionValidator):
 class CombatValidator(ActionValidator):
     """Validates combat actions using the attack system"""
 
-    def validate(self, request: ActionRequest, context: ActionContext) -> Tuple[bool, str]:
+    def validate(
+        self, request: ActionRequest, context: ActionContext
+    ) -> Tuple[bool, str]:
         if request.action_type != ActionType.ATTACK_TARGET:
             return True, ""
 
@@ -343,7 +398,9 @@ class CombatValidator(ActionValidator):
 class InventoryValidator(ActionValidator):
     """Validates inventory-related actions"""
 
-    def validate(self, request: ActionRequest, context: ActionContext) -> Tuple[bool, str]:
+    def validate(
+        self, request: ActionRequest, context: ActionContext
+    ) -> Tuple[bool, str]:
         agent = context.agent_registry.get_agent(request.agent_id)
         if not agent or not agent.is_alive:
             return False, "Agent not found or dead"
@@ -411,7 +468,7 @@ class FishingValidator(ResourceGatheringValidator):
             resource_name="fishing",
             required_tile_type=TileType.WATER,
             max_distance=DISTANCES.FISHING_RANGE,
-            required_tool="fishing_rod"
+            required_tool="fishing_rod",
         )
 
     def get_supported_action_type(self) -> ActionType:
@@ -420,13 +477,18 @@ class FishingValidator(ResourceGatheringValidator):
 
     def check_tool_requirement(self, agent) -> Tuple[bool, str]:
         """Check if agent has fishing rod in inventory"""
-        fishing_rods = [item for item in agent.inventory.get_items_by_type("tool")
-                       if hasattr(item, 'tool_type') and item.tool_type == "fishing"]
+        fishing_rods = [
+            item
+            for item in agent.inventory.get_items_by_type("tool")
+            if hasattr(item, "tool_type") and item.tool_type == "fishing"
+        ]
         if not fishing_rods:
             return False, "No fishing rod in inventory"
         return True, ""
 
-    def validate_additional_requirements(self, agent, target_pos: Tuple[float, float], context: "ActionContext") -> Tuple[bool, str]:
+    def validate_additional_requirements(
+        self, agent, target_pos: Tuple[float, float], context: "ActionContext"
+    ) -> Tuple[bool, str]:
         """Additional fishing-specific validation if needed"""
         # DEBUG: Log server's view of agent position for fishing (keeping existing debug behavior)
         server_pos = server_position_authority.get_agent_position(agent.agent_id)
@@ -435,8 +497,12 @@ class FishingValidator(ResourceGatheringValidator):
         else:
             agent_pos = (agent.position[0], agent.position[1])
 
-        logger.info(f"🔍 FISHING SERVER position for {agent.agent_id[:8]}: ({agent_pos[0]:.3f}, {agent_pos[1]:.3f})")
-        logger.info(f"🔍 FISHING SERVER calculating distance to target ({target_pos[0]:.3f}, {target_pos[1]:.3f})")
+        logger.info(
+            f"🔍 FISHING SERVER position for {agent.agent_id[:8]}: ({agent_pos[0]:.3f}, {agent_pos[1]:.3f})"
+        )
+        logger.info(
+            f"🔍 FISHING SERVER calculating distance to target ({target_pos[0]:.3f}, {target_pos[1]:.3f})"
+        )
 
         return True, ""
 
@@ -449,7 +515,7 @@ class WoodHarvestingValidator(ResourceGatheringValidator):
             resource_name="wood_harvesting",
             required_tile_type=TileType.WOOD,
             max_distance=DISTANCES.WOOD_HARVESTING_RANGE,
-            required_tool="hatchet"  # Hatchet required for wood harvesting
+            required_tool="hatchet",  # Hatchet required for wood harvesting
         )
 
     def get_supported_action_type(self) -> ActionType:
@@ -459,15 +525,20 @@ class WoodHarvestingValidator(ResourceGatheringValidator):
     def check_tool_requirement(self, agent) -> Tuple[bool, str]:
         """Check if agent has tools for wood harvesting (hatchet required)"""
         # Check for hatchet in agent's inventory
-        hatchets = [item for item in agent.inventory.get_items_by_type("tool")
-                    if hasattr(item, 'tool_type') and item.tool_type == "woodcutting"]
+        hatchets = [
+            item
+            for item in agent.inventory.get_items_by_type("tool")
+            if hasattr(item, "tool_type") and item.tool_type == "woodcutting"
+        ]
 
         if not hatchets:
             return False, "Hatchet required for wood harvesting"
 
         return True, ""
 
-    def validate_additional_requirements(self, agent, target_pos: Tuple[float, float], context: "ActionContext") -> Tuple[bool, str]:
+    def validate_additional_requirements(
+        self, agent, target_pos: Tuple[float, float], context: "ActionContext"
+    ) -> Tuple[bool, str]:
         """Additional wood harvesting-specific validation if needed"""
         # Could add checks for:
         # - Forest density (some trees might be too thick to harvest without better tools)
@@ -481,7 +552,9 @@ class WoodHarvestingValidator(ResourceGatheringValidator):
 class TradeRequestValidator(ActionValidator):
     """Validates trade request actions"""
 
-    def validate(self, request: ActionRequest, context: ActionContext) -> Tuple[bool, str]:
+    def validate(
+        self, request: ActionRequest, context: ActionContext
+    ) -> Tuple[bool, str]:
         if request.action_type != ActionType.TRADE_REQUEST:
             return True, ""
 
@@ -501,7 +574,9 @@ class TradeRequestValidator(ActionValidator):
         agent_pos = context.world.get_agent(request.agent_id)
         target_pos = context.world.get_agent(target_agent_id)
         if agent_pos and target_pos:
-            distance = ((target_pos.x - agent_pos.x) ** 2 + (target_pos.y - agent_pos.y) ** 2) ** 0.5
+            distance = (
+                (target_pos.x - agent_pos.x) ** 2 + (target_pos.y - agent_pos.y) ** 2
+            ) ** 0.5
             if distance > 5.0:
                 return False, "Target agent too far for trading"
 
@@ -513,7 +588,10 @@ class TradeRequestValidator(ActionValidator):
             if item_name:
                 current_qty = agent.inventory.get_item_quantity(item_name)
                 if current_qty < quantity:
-                    return False, f"Insufficient {item_name} (have {current_qty}, need {quantity})"
+                    return (
+                        False,
+                        f"Insufficient {item_name} (have {current_qty}, need {quantity})",
+                    )
 
         return True, ""
 
@@ -524,7 +602,9 @@ class TradeRequestValidator(ActionValidator):
 class TradeAcceptValidator(ActionValidator):
     """Validates trade accept actions"""
 
-    def validate(self, request: ActionRequest, context: ActionContext) -> Tuple[bool, str]:
+    def validate(
+        self, request: ActionRequest, context: ActionContext
+    ) -> Tuple[bool, str]:
         if request.action_type != ActionType.TRADE_ACCEPT:
             return True, ""
 
@@ -559,7 +639,9 @@ class TradeAcceptValidator(ActionValidator):
 class TradeDeclineValidator(ActionValidator):
     """Validates trade decline actions"""
 
-    def validate(self, request: ActionRequest, context: ActionContext) -> Tuple[bool, str]:
+    def validate(
+        self, request: ActionRequest, context: ActionContext
+    ) -> Tuple[bool, str]:
         if request.action_type != ActionType.TRADE_DECLINE:
             return True, ""
 
@@ -603,8 +685,12 @@ class ActionProcessor:
 
         # Market-maker functionality
         self.trade_advertisements: Dict[str, Dict[str, Any]] = {}  # ad_id -> ad_data
-        self.agent_advertisements: Dict[str, List[str]] = defaultdict(list)  # agent_id -> [ad_ids]
-        self.trade_negotiations: Dict[str, Dict[str, Any]] = {}  # trade_id -> negotiation_data
+        self.agent_advertisements: Dict[str, List[str]] = defaultdict(
+            list
+        )  # agent_id -> [ad_ids]
+        self.trade_negotiations: Dict[
+            str, Dict[str, Any]
+        ] = {}  # trade_id -> negotiation_data
 
         # Validation pipeline
         self.validators: List[ActionValidator] = [
@@ -710,7 +796,9 @@ class ActionProcessor:
             tasks = [self.submit_action(action) for action in batch.actions]
             return await asyncio.gather(*tasks, return_exceptions=True)
 
-    def _validate_action(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    def _validate_action(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Run action through validation pipeline"""
 
         for validator in self.validators:
@@ -719,7 +807,9 @@ class ActionProcessor:
 
             is_valid, error_message = validator.validate(request, context)
             if not is_valid:
-                logger.debug(f"Action {request.action_id} rejected by {validator.__class__.__name__}: {error_message}")
+                logger.debug(
+                    f"Action {request.action_id} rejected by {validator.__class__.__name__}: {error_message}"
+                )
                 return ActionResponse(
                     action_id=request.action_id,
                     agent_id=request.agent_id,
@@ -736,7 +826,9 @@ class ActionProcessor:
             message="Action validated successfully",
         )
 
-    async def _execute_action(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_action(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Execute a validated action"""
 
         try:
@@ -795,7 +887,9 @@ class ActionProcessor:
                 message=f"Execution error: {e}",
             )
 
-    async def _execute_move_to(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_move_to(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Execute MOVE_TO action with gradual movement to prevent position jumps"""
         params = request.parameters
         target_x = params["target_x"]
@@ -820,11 +914,15 @@ class ActionProcessor:
         client_y = params.get("current_y", current_y)
 
         # Check for position desync between client and server
-        position_diff = ((client_x - current_x) ** 2 + (client_y - current_y) ** 2) ** 0.5
+        position_diff = (
+            (client_x - current_x) ** 2 + (client_y - current_y) ** 2
+        ) ** 0.5
         if position_diff > 2.0:  # Significant desync
-            logger.warning(f"Position desync detected for agent {request.agent_id[:8]}: "
-                         f"client ({client_x:.2f}, {client_y:.2f}) vs server ({current_x:.2f}, {current_y:.2f}) "
-                         f"- diff: {position_diff:.2f}")
+            logger.warning(
+                f"Position desync detected for agent {request.agent_id[:8]}: "
+                f"client ({client_x:.2f}, {client_y:.2f}) vs server ({current_x:.2f}, {current_y:.2f}) "
+                f"- diff: {position_diff:.2f}"
+            )
             # Use server position as authoritative
             start_x, start_y = current_x, current_y
         else:
@@ -852,16 +950,17 @@ class ActionProcessor:
         rotation = 0.0
         if distance > 0.01:  # Avoid division by zero
             import math
+
             rotation = math.atan2(dy, dx)
 
         # Move the agent to the calculated position
-        success = context.world.move_agent(
-            request.agent_id, new_x, new_y, rotation
-        )
+        success = context.world.move_agent(request.agent_id, new_x, new_y, rotation)
 
         if success:
             # Check if we reached the target
-            remaining_distance = ((target_x - new_x) ** 2 + (target_y - new_y) ** 2) ** 0.5
+            remaining_distance = (
+                (target_x - new_x) ** 2 + (target_y - new_y) ** 2
+            ) ** 0.5
             reached_target = remaining_distance < 0.1
 
             return ActionResponse(
@@ -869,20 +968,25 @@ class ActionProcessor:
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.APPROVED,
-                message="Movement successful" if reached_target else "Moving towards target",
+                message="Movement successful"
+                if reached_target
+                else "Moving towards target",
                 approved_parameters={
                     "current_x": new_x,
                     "current_y": new_y,
                     "target_x": target_x,
                     "target_y": target_y,
                     "reached_target": reached_target,
-                    "remaining_distance": remaining_distance
+                    "remaining_distance": remaining_distance,
                 },
             )
         else:
             # Get current agent position for rejection response
             agent = context.agent_registry.get_agent(request.agent_id)
-            current_x, current_y = agent.position[0], agent.position[1] if agent else (0, 0)
+            current_x, current_y = agent.position[0], agent.position[1] if agent else (
+                0,
+                0,
+            )
 
             return ActionResponse(
                 action_id=request.action_id,
@@ -898,7 +1002,9 @@ class ActionProcessor:
                 },
             )
 
-    async def _execute_attack_target(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_attack_target(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Execute ATTACK_TARGET action"""
         params = request.parameters
         target_id = params["target_id"]
@@ -912,7 +1018,9 @@ class ActionProcessor:
         }
 
         # This will handle the attack and send appropriate messages
-        await context.processor._legacy_handle_attack_action(request.agent_id, action_data)
+        await context.processor._legacy_handle_attack_action(
+            request.agent_id, action_data
+        )
 
         return ActionResponse(
             action_id=request.action_id,
@@ -923,7 +1031,9 @@ class ActionProcessor:
             approved_parameters=params,
         )
 
-    async def _execute_stop_movement(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_stop_movement(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Execute STOP_MOVEMENT action"""
         agent = context.world.get_agent(request.agent_id)
         if agent:
@@ -938,7 +1048,9 @@ class ActionProcessor:
             message="Movement stopped",
         )
 
-    async def _legacy_handle_attack_action(self, attacker_id: str, action_data: Dict[str, Any]):
+    async def _legacy_handle_attack_action(
+        self, attacker_id: str, action_data: Dict[str, Any]
+    ):
         """Temporary bridge to existing attack system"""
         # This is a temporary method to bridge the new action system with the existing attack handling
         # It should be replaced once the server is fully migrated
@@ -985,7 +1097,8 @@ class ActionProcessor:
                         action_type=action.action_type,
                         result=ActionResult.REJECTED,
                         message=f"Batch rejected due to action {result.action_id}: {result.message}",
-                    ) for action in batch.actions
+                    )
+                    for action in batch.actions
                 ]
 
         # All actions validated, now execute them
@@ -999,7 +1112,9 @@ class ActionProcessor:
 
         return execution_results
 
-    async def _execute_query_inventory(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_query_inventory(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Execute QUERY_INVENTORY action"""
         agent = context.agent_registry.get_agent(request.agent_id)
 
@@ -1012,7 +1127,9 @@ class ActionProcessor:
             approved_parameters={"inventory": agent.inventory.to_dict()},
         )
 
-    async def _execute_equip_item(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_equip_item(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Execute EQUIP_ITEM action"""
         agent = context.agent_registry.get_agent(request.agent_id)
         item_id = request.parameters["item_id"]
@@ -1037,7 +1154,9 @@ class ActionProcessor:
                 message="Failed to equip item",
             )
 
-    async def _execute_unequip_item(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_unequip_item(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Execute UNEQUIP_ITEM action"""
         agent = context.agent_registry.get_agent(request.agent_id)
         slot = EquipmentSlot(request.parameters["slot"])
@@ -1062,7 +1181,9 @@ class ActionProcessor:
                 message="Failed to unequip item",
             )
 
-    async def _execute_use_item(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_use_item(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Execute USE_ITEM action"""
         agent = context.agent_registry.get_agent(request.agent_id)
         item_id = request.parameters["item_id"]
@@ -1107,7 +1228,9 @@ class ActionProcessor:
                 message=use_result.get("message", "Failed to use item"),
             )
 
-    async def _execute_fish(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_fish(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Execute FISH action"""
         agent = context.agent_registry.get_agent(request.agent_id)
 
@@ -1121,7 +1244,9 @@ class ActionProcessor:
         # Random chance to catch a fish (80% success rate)
         if random.random() < 0.8:
             fish = create_item("fish")
-            logger.debug(f"Created fish item: {fish}, name: {fish.name if fish else 'None'}")
+            logger.debug(
+                f"Created fish item: {fish}, name: {fish.name if fish else 'None'}"
+            )
 
             if fish and agent.inventory.has_space_for_item(fish, 1):
                 # Add item to inventory - with better error handling
@@ -1134,7 +1259,9 @@ class ActionProcessor:
                         if slot.is_empty():
                             slot.set_item(fish, 1)
                             added_count = 1
-                            logger.info(f"🎣 Manually added fish to empty slot for agent {agent.agent_id[:8]}")
+                            logger.info(
+                                f"🎣 Manually added fish to empty slot for agent {agent.agent_id[:8]}"
+                            )
                             break
 
                 logger.info(f"🎣 Agent {agent.agent_id[:8]} caught a fish!")
@@ -1149,12 +1276,16 @@ class ActionProcessor:
                     approved_parameters={
                         "caught_item": fish.to_dict(),
                         "fishing_time": fishing_time,
-                        "success": True
+                        "success": True,
                     },
                 )
             else:
-                logger.warning(f"🎣 Agent {agent.agent_id[:8]} caught a fish but inventory is full!")
-                print(f"🎣 Agent {agent.agent_id[:8]} caught a fish but inventory is full!")
+                logger.warning(
+                    f"🎣 Agent {agent.agent_id[:8]} caught a fish but inventory is full!"
+                )
+                print(
+                    f"🎣 Agent {agent.agent_id[:8]} caught a fish but inventory is full!"
+                )
 
                 return ActionResponse(
                     action_id=request.action_id,
@@ -1164,7 +1295,9 @@ class ActionProcessor:
                     message=f"Caught a fish but inventory is full (took {fishing_time:.1f} seconds)",
                 )
         else:
-            logger.info(f"🎣 Agent {agent.agent_id[:8]} fishing unsuccessful (no catch).")
+            logger.info(
+                f"🎣 Agent {agent.agent_id[:8]} fishing unsuccessful (no catch)."
+            )
             print(f"🎣 Agent {agent.agent_id[:8]} fishing unsuccessful (no catch).")
 
             return ActionResponse(
@@ -1173,13 +1306,12 @@ class ActionProcessor:
                 action_type=request.action_type,
                 result=ActionResult.APPROVED,
                 message=f"Fishing unsuccessful (took {fishing_time:.1f} seconds)",
-                approved_parameters={
-                    "fishing_time": fishing_time,
-                    "success": False
-                },
+                approved_parameters={"fishing_time": fishing_time, "success": False},
             )
 
-    async def _execute_harvest_wood(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_harvest_wood(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Execute HARVEST_WOOD action - validation already done by WoodHarvestingValidator"""
         agent = context.agent_registry.get_agent(request.agent_id)
         target_x = request.parameters.get("target_x", agent.position[0])
@@ -1210,13 +1342,17 @@ class ActionProcessor:
                         slot.set_item(wood_item, remaining)
                         added_count += remaining
                         remaining = 0
-                        logger.info(f"🌲 Manually added {remaining} wood to empty slot for agent {agent.agent_id[:8]}")
+                        logger.info(
+                            f"🌲 Manually added {remaining} wood to empty slot for agent {agent.agent_id[:8]}"
+                        )
                         break
 
         if wood_item and added_count > 0:
             # Calculate tile coordinates from target position
             tile_x, tile_y = int(target_x), int(target_y)
-            logger.info(f"🌲 Agent {agent.agent_id[:8]} harvested {added_count} wood at ({tile_x}, {tile_y})")
+            logger.info(
+                f"🌲 Agent {agent.agent_id[:8]} harvested {added_count} wood at ({tile_x}, {tile_y})"
+            )
 
             return ActionResponse(
                 action_id=request.action_id,
@@ -1228,8 +1364,8 @@ class ActionProcessor:
                     "harvested_item": wood_item.to_dict(),
                     "harvested_amount": added_count,
                     "harvest_time": harvest_time,
-                    "location": (tile_x, tile_y)
-                }
+                    "location": (tile_x, tile_y),
+                },
             )
         else:
             return ActionResponse(
@@ -1237,10 +1373,12 @@ class ActionProcessor:
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message="Could not harvest wood - inventory may be full"
+                message="Could not harvest wood - inventory may be full",
             )
 
-    async def _execute_craft_item(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_craft_item(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Execute CRAFT_ITEM action"""
         agent = context.agent_registry.get_agent(request.agent_id)
         recipe_name = request.parameters.get("recipe_name")
@@ -1255,7 +1393,7 @@ class ActionProcessor:
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message=f"Unknown recipe: {recipe_name}"
+                message=f"Unknown recipe: {recipe_name}",
             )
 
         # Check if agent is close to target location
@@ -1267,7 +1405,7 @@ class ActionProcessor:
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message="Too far from crafting location"
+                message="Too far from crafting location",
             )
 
         # Check if target tile is suitable (not water)
@@ -1279,7 +1417,7 @@ class ActionProcessor:
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message="Cannot craft on water tiles"
+                message="Cannot craft on water tiles",
             )
 
         # Check if agent has required items
@@ -1287,21 +1425,25 @@ class ActionProcessor:
         for slot in agent.inventory.slots:
             if not slot.is_empty():
                 item_name = slot.item.name
-                inventory_items[item_name] = inventory_items.get(item_name, 0) + slot.quantity
+                inventory_items[item_name] = (
+                    inventory_items.get(item_name, 0) + slot.quantity
+                )
 
         if not recipe.can_craft(inventory_items):
             missing_items = []
             for item_name, required_qty in recipe.required_items.items():
                 current_qty = inventory_items.get(item_name, 0)
                 if current_qty < required_qty:
-                    missing_items.append(f"{item_name} (need {required_qty}, have {current_qty})")
+                    missing_items.append(
+                        f"{item_name} (need {required_qty}, have {current_qty})"
+                    )
 
             return ActionResponse(
                 action_id=request.action_id,
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message=f"Missing required items: {', '.join(missing_items)}"
+                message=f"Missing required items: {', '.join(missing_items)}",
             )
 
         # Crafting takes time
@@ -1326,15 +1468,26 @@ class ActionProcessor:
             )
 
         # Record craft in database if available
-        if hasattr(context.world, 'server') and hasattr(context.world.server, 'database_manager'):
-            ingredients_list = [{"item_name": name, "quantity": qty} for name, qty in recipe.required_items.items()]
+        if hasattr(context.world, "server") and hasattr(
+            context.world.server, "database_manager"
+        ):
+            ingredients_list = [
+                {"item_name": name, "quantity": qty}
+                for name, qty in recipe.required_items.items()
+            ]
             await context.world.server.database_manager.record_craft(
-                agent.agent_id, recipe_name, ingredients_list,
-                created_object.object_type.value, (target_x, target_y),
-                recipe.result_duration, True
+                agent.agent_id,
+                recipe_name,
+                ingredients_list,
+                created_object.object_type.value,
+                (target_x, target_y),
+                recipe.result_duration,
+                True,
             )
 
-        logger.info(f"🔥 Agent {agent.agent_id[:8]} crafted {recipe_name} at ({target_x:.1f}, {target_y:.1f})")
+        logger.info(
+            f"🔥 Agent {agent.agent_id[:8]} crafted {recipe_name} at ({target_x:.1f}, {target_y:.1f})"
+        )
 
         return ActionResponse(
             action_id=request.action_id,
@@ -1346,11 +1499,13 @@ class ActionProcessor:
                 "recipe_name": recipe_name,
                 "created_object": created_object.to_dict(),
                 "craft_time": recipe.craft_time,
-                "location": (target_x, target_y)
-            }
+                "location": (target_x, target_y),
+            },
         )
 
-    async def _execute_trade_request(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_trade_request(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Execute TRADE_REQUEST action - initiate a trade with another agent"""
         agent = context.agent_registry.get_agent(request.agent_id)
         target_agent_id = request.parameters.get("target_agent_id")
@@ -1365,7 +1520,7 @@ class ActionProcessor:
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message="Target agent not found"
+                message="Target agent not found",
             )
 
         # Check if agents are within trading distance
@@ -1378,17 +1533,20 @@ class ActionProcessor:
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message="Target agent too far for trading"
+                message="Target agent too far for trading",
             )
 
         # Check if either agent is already in a trade
-        if request.agent_id in self.agent_trades or target_agent_id in self.agent_trades:
+        if (
+            request.agent_id in self.agent_trades
+            or target_agent_id in self.agent_trades
+        ):
             return ActionResponse(
                 action_id=request.action_id,
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message="One of the agents is already in a trade"
+                message="One of the agents is already in a trade",
             )
 
         # Validate offered items exist in agent's inventory
@@ -1406,7 +1564,7 @@ class ActionProcessor:
                         agent_id=request.agent_id,
                         action_type=request.action_type,
                         result=ActionResult.REJECTED,
-                        message=f"Offered item {item_id} not found in inventory"
+                        message=f"Offered item {item_id} not found in inventory",
                     )
             elif item_name:
                 current_qty = agent.inventory.get_item_quantity(item_name)
@@ -1416,7 +1574,7 @@ class ActionProcessor:
                         agent_id=request.agent_id,
                         action_type=request.action_type,
                         result=ActionResult.REJECTED,
-                        message=f"Insufficient {item_name} (have {current_qty}, need {quantity})"
+                        message=f"Insufficient {item_name} (have {current_qty}, need {quantity})",
                     )
 
         # Create trade session
@@ -1429,14 +1587,16 @@ class ActionProcessor:
             "requested_items": requested_items,
             "status": "pending",
             "created_time": time.time(),
-            "location": ((agent_x + target_x) / 2, (agent_y + target_y) / 2)
+            "location": ((agent_x + target_x) / 2, (agent_y + target_y) / 2),
         }
 
         self.active_trades[trade_id] = trade_data
         self.agent_trades[request.agent_id] = trade_id
         self.agent_trades[target_agent_id] = trade_id
 
-        logger.info(f"💱 Trade {trade_id} initiated between {request.agent_id[:8]} and {target_agent_id[:8]}")
+        logger.info(
+            f"💱 Trade {trade_id} initiated between {request.agent_id[:8]} and {target_agent_id[:8]}"
+        )
 
         return ActionResponse(
             action_id=request.action_id,
@@ -1448,11 +1608,13 @@ class ActionProcessor:
                 "trade_id": trade_id,
                 "target_agent_id": target_agent_id,
                 "offered_items": offered_items,
-                "requested_items": requested_items
-            }
+                "requested_items": requested_items,
+            },
         )
 
-    async def _execute_trade_accept(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_trade_accept(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Execute TRADE_ACCEPT action - accept a pending trade"""
         agent = context.agent_registry.get_agent(request.agent_id)
         trade_id = request.parameters.get("trade_id")
@@ -1464,7 +1626,7 @@ class ActionProcessor:
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message="Trade not found"
+                message="Trade not found",
             )
 
         trade_data = self.active_trades[trade_id]
@@ -1477,7 +1639,7 @@ class ActionProcessor:
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message="You are not the target of this trade"
+                message="You are not the target of this trade",
             )
 
         # Check if trade is still pending
@@ -1488,7 +1650,7 @@ class ActionProcessor:
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message=f"Trade is no longer pending (status: {status})"
+                message=f"Trade is no longer pending (status: {status})",
             )
 
         # Get both agents
@@ -1504,12 +1666,16 @@ class ActionProcessor:
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message="One of the trading agents is no longer available"
+                message="One of the trading agents is no longer available",
             )
 
         # Execute the trade - transfer items
-        offered_items = trade_data.get("offered_items", trade_data.get("initiator_items", []))
-        requested_items = trade_data.get("requested_items", trade_data.get("target_items", []))
+        offered_items = trade_data.get(
+            "offered_items", trade_data.get("initiator_items", [])
+        )
+        requested_items = trade_data.get(
+            "requested_items", trade_data.get("target_items", [])
+        )
 
         # Remove offered items from initiator
         for offered_item in offered_items:
@@ -1563,18 +1729,27 @@ class ActionProcessor:
 
         # Record trade in database if available
         try:
-            if hasattr(context.world, 'server') and hasattr(context.world.server, 'database_manager'):
+            if hasattr(context.world, "server") and hasattr(
+                context.world.server, "database_manager"
+            ):
                 initiator_items = []
                 for item in offered_items:
                     item_name = item.get("item_name")
                     if not item_name and item.get("item_id"):
                         # Try to get name from item_id
                         try:
-                            found_item = initiator_agent.inventory.get_item_by_id(item["item_id"])
+                            found_item = initiator_agent.inventory.get_item_by_id(
+                                item["item_id"]
+                            )
                             item_name = found_item.name if found_item else "unknown"
                         except:
                             item_name = "unknown"
-                    initiator_items.append({"item_name": item_name or "unknown", "quantity": item.get("quantity", 1)})
+                    initiator_items.append(
+                        {
+                            "item_name": item_name or "unknown",
+                            "quantity": item.get("quantity", 1),
+                        }
+                    )
 
                 target_items = []
                 for item in requested_items:
@@ -1582,15 +1757,25 @@ class ActionProcessor:
                     if not item_name and item.get("item_id"):
                         # Try to get name from item_id
                         try:
-                            found_item = target_agent.inventory.get_item_by_id(item["item_id"])
+                            found_item = target_agent.inventory.get_item_by_id(
+                                item["item_id"]
+                            )
                             item_name = found_item.name if found_item else "unknown"
                         except:
                             item_name = "unknown"
-                    target_items.append({"item_name": item_name or "unknown", "quantity": item.get("quantity", 1)})
+                    target_items.append(
+                        {
+                            "item_name": item_name or "unknown",
+                            "quantity": item.get("quantity", 1),
+                        }
+                    )
 
                 await context.world.server.database_manager.record_trade(
-                    initiator_id, target_id,
-                    initiator_items, target_items, trade_data.get("location", (0, 0))
+                    initiator_id,
+                    target_id,
+                    initiator_items,
+                    target_items,
+                    trade_data.get("location", (0, 0)),
                 )
         except Exception as e:
             # Database recording failed, but don't fail the trade
@@ -1600,7 +1785,9 @@ class ActionProcessor:
         trade_data["status"] = "completed"
         self._cleanup_trade(trade_id)
 
-        logger.info(f"💱 Trade {trade_id} completed between {initiator_id[:8]} and {target_id[:8]}")
+        logger.info(
+            f"💱 Trade {trade_id} completed between {initiator_id[:8]} and {target_id[:8]}"
+        )
 
         return ActionResponse(
             action_id=request.action_id,
@@ -1608,13 +1795,12 @@ class ActionProcessor:
             action_type=request.action_type,
             result=ActionResult.APPROVED,
             message="Trade completed successfully",
-            approved_parameters={
-                "trade_id": trade_id,
-                "completed": True
-            }
+            approved_parameters={"trade_id": trade_id, "completed": True},
         )
 
-    async def _execute_trade_decline(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_trade_decline(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Execute TRADE_DECLINE action - decline a pending trade"""
         agent = context.agent_registry.get_agent(request.agent_id)
         trade_id = request.parameters.get("trade_id")
@@ -1626,7 +1812,7 @@ class ActionProcessor:
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message="Trade not found"
+                message="Trade not found",
             )
 
         trade_data = self.active_trades[trade_id]
@@ -1640,7 +1826,7 @@ class ActionProcessor:
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message="You are not involved in this trade"
+                message="You are not involved in this trade",
             )
 
         # Mark trade as declined and cleanup
@@ -1655,13 +1841,12 @@ class ActionProcessor:
             action_type=request.action_type,
             result=ActionResult.APPROVED,
             message="Trade declined",
-            approved_parameters={
-                "trade_id": trade_id,
-                "declined": True
-            }
+            approved_parameters={"trade_id": trade_id, "declined": True},
         )
 
-    async def _execute_exploration_report(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_exploration_report(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Handle agent exploration reports"""
         parameters = request.parameters or {}
 
@@ -1685,8 +1870,8 @@ class ActionProcessor:
             approved_parameters={
                 "explored_tiles": explored_tiles,
                 "total_tiles": total_tiles,
-                "exploration_percent": exploration_percent
-            }
+                "exploration_percent": exploration_percent,
+            },
         )
 
     def _cleanup_trade(self, trade_id: str):
@@ -1705,7 +1890,9 @@ class ActionProcessor:
             # Remove trade
             del self.active_trades[trade_id]
 
-    async def _execute_advertise_trade(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_advertise_trade(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Execute ADVERTISE_TRADE action - create a public trade advertisement"""
         agent = context.agent_registry.get_agent(request.agent_id)
         offering_items = request.parameters.get("offering_items", [])
@@ -1728,7 +1915,7 @@ class ActionProcessor:
                         agent_id=request.agent_id,
                         action_type=request.action_type,
                         result=ActionResult.REJECTED,
-                        message=f"Insufficient quantity of item {item_id} for advertisement"
+                        message=f"Insufficient quantity of item {item_id} for advertisement",
                     )
             # For item_type only, we assume the agent will have items when the trade happens
 
@@ -1745,7 +1932,7 @@ class ActionProcessor:
             "expires_time": time.time() + duration,
             "location": (agent_x, agent_y),
             "max_distance": max_distance,
-            "status": "active"
+            "status": "active",
         }
 
         self.trade_advertisements[ad_id] = ad_data
@@ -1763,11 +1950,13 @@ class ActionProcessor:
                 "ad_id": ad_id,
                 "offering_items": offering_items,
                 "requesting_items": requesting_items,
-                "expires_in": duration
-            }
+                "expires_in": duration,
+            },
         )
 
-    async def _execute_search_trades(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_search_trades(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Execute SEARCH_TRADES action - search for matching trade advertisements"""
         agent = context.agent_registry.get_agent(request.agent_id)
         desired_items = request.parameters.get("desired_items", [])
@@ -1780,9 +1969,11 @@ class ActionProcessor:
 
         for ad_id, ad_data in self.trade_advertisements.items():
             # Skip expired or own advertisements
-            if (ad_data["expires_time"] < current_time or
-                ad_data["advertiser"] == request.agent_id or
-                ad_data["status"] != "active"):
+            if (
+                ad_data["expires_time"] < current_time
+                or ad_data["advertiser"] == request.agent_id
+                or ad_data["status"] != "active"
+            ):
                 continue
 
             # Check distance
@@ -1818,27 +2009,35 @@ class ActionProcessor:
                     requested_id = requested.get("item_id")
 
                     # Match by type (both must be non-None and equal)
-                    if available_type and requested_type and available_type == requested_type:
+                    if (
+                        available_type
+                        and requested_type
+                        and available_type == requested_type
+                    ):
                         match_score += 10
                     # Match by ID (both must be non-None and equal)
                     elif available_id and requested_id and available_id == requested_id:
                         match_score += 10
 
             if match_score > 0:
-                matching_ads.append({
-                    "ad_id": ad_id,
-                    "advertiser": ad_data["advertiser"],
-                    "offering_items": ad_data["offering_items"],
-                    "requesting_items": ad_data["requesting_items"],
-                    "distance": distance,
-                    "match_score": match_score,
-                    "expires_in": ad_data["expires_time"] - current_time
-                })
+                matching_ads.append(
+                    {
+                        "ad_id": ad_id,
+                        "advertiser": ad_data["advertiser"],
+                        "offering_items": ad_data["offering_items"],
+                        "requesting_items": ad_data["requesting_items"],
+                        "distance": distance,
+                        "match_score": match_score,
+                        "expires_in": ad_data["expires_time"] - current_time,
+                    }
+                )
 
         # Sort by match score and distance
         matching_ads.sort(key=lambda x: (-x["match_score"], x["distance"]))
 
-        logger.info(f"🔍 Agent {request.agent_id[:8]} found {len(matching_ads)} matching trade advertisements")
+        logger.info(
+            f"🔍 Agent {request.agent_id[:8]} found {len(matching_ads)} matching trade advertisements"
+        )
 
         return ActionResponse(
             action_id=request.action_id,
@@ -1848,11 +2047,13 @@ class ActionProcessor:
             message=f"Found {len(matching_ads)} matching trade advertisements",
             approved_parameters={
                 "matching_ads": matching_ads[:10],  # Limit to top 10 matches
-                "total_matches": len(matching_ads)
-            }
+                "total_matches": len(matching_ads),
+            },
         )
 
-    async def _execute_negotiate_trade(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_negotiate_trade(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Execute NEGOTIATE_TRADE action - make a counter-offer in trade negotiation"""
         agent = context.agent_registry.get_agent(request.agent_id)
         trade_id = request.parameters.get("trade_id")
@@ -1865,7 +2066,7 @@ class ActionProcessor:
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message="Trade not found"
+                message="Trade not found",
             )
 
         trade_data = self.active_trades[trade_id]
@@ -1877,7 +2078,7 @@ class ActionProcessor:
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message="You are not part of this trade"
+                message="You are not part of this trade",
             )
 
         # Validate counter-offer items if agent is offering them
@@ -1893,7 +2094,7 @@ class ActionProcessor:
                     agent_id=request.agent_id,
                     action_type=request.action_type,
                     result=ActionResult.REJECTED,
-                    message=f"Insufficient quantity of item {item_id} for negotiation"
+                    message=f"Insufficient quantity of item {item_id} for negotiation",
                 )
 
         # Store negotiation data
@@ -1903,7 +2104,7 @@ class ActionProcessor:
         negotiation_data = {
             "agent_id": request.agent_id,
             "timestamp": time.time(),
-            "counter_offer": counter_offer
+            "counter_offer": counter_offer,
         }
 
         self.trade_negotiations[trade_id]["offers"].append(negotiation_data)
@@ -1912,7 +2113,9 @@ class ActionProcessor:
         trade_data["status"] = "negotiating"
         trade_data["last_negotiation"] = time.time()
 
-        logger.info(f"💬 Trade {trade_id} - Agent {request.agent_id[:8]} made counter-offer")
+        logger.info(
+            f"💬 Trade {trade_id} - Agent {request.agent_id[:8]} made counter-offer"
+        )
 
         return ActionResponse(
             action_id=request.action_id,
@@ -1923,11 +2126,13 @@ class ActionProcessor:
             approved_parameters={
                 "trade_id": trade_id,
                 "counter_offer": counter_offer,
-                "negotiation_round": len(self.trade_negotiations[trade_id]["offers"])
-            }
+                "negotiation_round": len(self.trade_negotiations[trade_id]["offers"]),
+            },
         )
 
-    async def _execute_cancel_trade_ad(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+    async def _execute_cancel_trade_ad(
+        self, request: ActionRequest, context: ActionContext
+    ) -> ActionResponse:
         """Execute CANCEL_TRADE_AD action - cancel a trade advertisement"""
         agent = context.agent_registry.get_agent(request.agent_id)
         ad_id = request.parameters.get("ad_id")
@@ -1939,7 +2144,7 @@ class ActionProcessor:
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message="Trade advertisement not found"
+                message="Trade advertisement not found",
             )
 
         ad_data = self.trade_advertisements[ad_id]
@@ -1951,7 +2156,7 @@ class ActionProcessor:
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message="You can only cancel your own trade advertisements"
+                message="You can only cancel your own trade advertisements",
             )
 
         # Cancel the advertisement
@@ -1963,7 +2168,9 @@ class ActionProcessor:
             if ad_id in agent_ads:
                 agent_ads.remove(ad_id)
 
-        logger.info(f"❌ Trade advertisement {ad_id} cancelled by {request.agent_id[:8]}")
+        logger.info(
+            f"❌ Trade advertisement {ad_id} cancelled by {request.agent_id[:8]}"
+        )
 
         return ActionResponse(
             action_id=request.action_id,
@@ -1971,10 +2178,7 @@ class ActionProcessor:
             action_type=request.action_type,
             result=ActionResult.APPROVED,
             message=f"Trade advertisement {ad_id} cancelled successfully",
-            approved_parameters={
-                "ad_id": ad_id,
-                "cancelled": True
-            }
+            approved_parameters={"ad_id": ad_id, "cancelled": True},
         )
 
     def _cleanup_expired_trade_ads(self):
@@ -2026,8 +2230,10 @@ class ActionProcessor:
             for ad_id in self.agent_advertisements[agent_id]:
                 if ad_id in self.trade_advertisements:
                     ad_data = self.trade_advertisements[ad_id]
-                    if (ad_data["status"] == "active" and
-                        ad_data["expires_time"] > current_time):
+                    if (
+                        ad_data["status"] == "active"
+                        and ad_data["expires_time"] > current_time
+                    ):
                         active_ads.append(ad_data)
 
         return active_ads
@@ -2044,7 +2250,9 @@ class ActionProcessor:
             if ad_data["status"] == "active" and ad_data["expires_time"] > current_time:
                 active_ads += 1
                 # Simple value calculation based on item counts
-                total_value += len(ad_data["offering_items"]) + len(ad_data["requesting_items"])
+                total_value += len(ad_data["offering_items"]) + len(
+                    ad_data["requesting_items"]
+                )
             elif ad_data["status"] == "expired":
                 expired_ads += 1
             elif ad_data["status"] == "cancelled":
@@ -2056,14 +2264,16 @@ class ActionProcessor:
             "cancelled_advertisements": cancelled_ads,
             "total_advertisements": len(self.trade_advertisements),
             "estimated_market_value": total_value,
-            "active_negotiations": len(self.trade_negotiations)
+            "active_negotiations": len(self.trade_negotiations),
         }
 
     def get_stats(self) -> Dict[str, Any]:
         """Get processing statistics"""
         avg_processing_time = (
-            sum(self.stats["processing_time_ms"]) / len(self.stats["processing_time_ms"])
-            if self.stats["processing_time_ms"] else 0
+            sum(self.stats["processing_time_ms"])
+            / len(self.stats["processing_time_ms"])
+            if self.stats["processing_time_ms"]
+            else 0
         )
 
         return {

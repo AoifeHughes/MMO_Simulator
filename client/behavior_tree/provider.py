@@ -23,7 +23,9 @@ class BehaviorTreeProvider(Protocol):
     This includes scenarios with custom trees and the TreeFactory for default behavior.
     """
 
-    def get_behavior_tree(self, agent_type: str, agent_x: float, agent_y: float, **kwargs) -> Optional[BehaviorTree]:
+    def get_behavior_tree(
+        self, agent_type: str, agent_x: float, agent_y: float, **kwargs
+    ) -> Optional[BehaviorTree]:
         """
         Get behavior tree for the specified agent type and position.
 
@@ -59,7 +61,9 @@ class BehaviorTreeInjector:
         self.scenario_provider = scenario_provider
         self.tree_selections = {}  # Track which trees were selected for logging
 
-    def get_behavior_tree(self, agent_type: str, agent_x: float, agent_y: float, **kwargs) -> Optional[BehaviorTree]:
+    def get_behavior_tree(
+        self, agent_type: str, agent_x: float, agent_y: float, **kwargs
+    ) -> Optional[BehaviorTree]:
         """
         Get behavior tree using priority-based selection.
 
@@ -78,20 +82,31 @@ class BehaviorTreeInjector:
         # Try scenario custom tree first
         if self.scenario_provider:
             try:
-                tree = self.scenario_provider.get_behavior_tree(agent_type, agent_x, agent_y, **kwargs)
+                tree = self.scenario_provider.get_behavior_tree(
+                    agent_type, agent_x, agent_y, **kwargs
+                )
                 if tree:
                     selection_source = "scenario"
-                    logger.info(f"Using custom behavior tree from scenario for {agent_type}")
+                    logger.info(
+                        f"Using custom behavior tree from scenario for {agent_type}"
+                    )
             except Exception as e:
-                logger.warning(f"Failed to get custom tree from scenario for {agent_type}: {e}")
+                logger.warning(
+                    f"Failed to get custom tree from scenario for {agent_type}: {e}"
+                )
 
         # Fall back to TreeFactory default
         if tree is None:
             from .tree_configs import TreeFactory
-            tree = TreeFactory.create_tree_for_agent_type(agent_type, agent_x, agent_y, **kwargs)
+
+            tree = TreeFactory.create_tree_for_agent_type(
+                agent_type, agent_x, agent_y, **kwargs
+            )
             if tree:
                 selection_source = "factory"
-                logger.debug(f"Using default TreeFactory behavior tree for {agent_type}")
+                logger.debug(
+                    f"Using default TreeFactory behavior tree for {agent_type}"
+                )
 
         # Record selection for debugging
         self.tree_selections[agent_type] = selection_source
@@ -123,18 +138,28 @@ class BehaviorTreeInjector:
     def log_tree_usage_summary(self):
         """Log a summary of all behavior tree selections made."""
         if not self.tree_selections:
-            logger.info("[TREE SELECTION SUMMARY] No behavior trees have been requested yet")
+            logger.info(
+                "[TREE SELECTION SUMMARY] No behavior trees have been requested yet"
+            )
             return
 
         logger.info("[TREE SELECTION SUMMARY] Behavior tree usage:")
         for agent_type, source in self.tree_selections.items():
             logger.info(f"  - {agent_type}: {source}")
 
-        scenario_count = sum(1 for source in self.tree_selections.values() if source == "scenario")
-        factory_count = sum(1 for source in self.tree_selections.values() if source == "factory")
-        failed_count = sum(1 for source in self.tree_selections.values() if source == "none")
+        scenario_count = sum(
+            1 for source in self.tree_selections.values() if source == "scenario"
+        )
+        factory_count = sum(
+            1 for source in self.tree_selections.values() if source == "factory"
+        )
+        failed_count = sum(
+            1 for source in self.tree_selections.values() if source == "none"
+        )
 
-        logger.info(f"[TREE SELECTION SUMMARY] Total: {len(self.tree_selections)} agents")
+        logger.info(
+            f"[TREE SELECTION SUMMARY] Total: {len(self.tree_selections)} agents"
+        )
         logger.info(f"[TREE SELECTION SUMMARY] Scenario custom: {scenario_count}")
         logger.info(f"[TREE SELECTION SUMMARY] TreeFactory default: {factory_count}")
         logger.info(f"[TREE SELECTION SUMMARY] Failed: {failed_count}")
@@ -148,10 +173,15 @@ class DefaultTreeFactoryProvider:
     while maintaining backward compatibility.
     """
 
-    def get_behavior_tree(self, agent_type: str, agent_x: float, agent_y: float, **kwargs) -> Optional[BehaviorTree]:
+    def get_behavior_tree(
+        self, agent_type: str, agent_x: float, agent_y: float, **kwargs
+    ) -> Optional[BehaviorTree]:
         """Get behavior tree from TreeFactory."""
         from .tree_configs import TreeFactory
-        return TreeFactory.create_tree_for_agent_type(agent_type, agent_x, agent_y, **kwargs)
+
+        return TreeFactory.create_tree_for_agent_type(
+            agent_type, agent_x, agent_y, **kwargs
+        )
 
 
 class ScenarioTreeProvider:
@@ -171,8 +201,10 @@ class ScenarioTreeProvider:
         """
         self.scenario = scenario
 
-    def get_behavior_tree(self, agent_type: str, agent_x: float, agent_y: float, **kwargs) -> Optional[BehaviorTree]:
+    def get_behavior_tree(
+        self, agent_type: str, agent_x: float, agent_y: float, **kwargs
+    ) -> Optional[BehaviorTree]:
         """Get behavior tree from scenario."""
-        if hasattr(self.scenario, 'get_custom_behavior_tree'):
+        if hasattr(self.scenario, "get_custom_behavior_tree"):
             return self.scenario.get_custom_behavior_tree(agent_type, agent_x, agent_y)
         return None

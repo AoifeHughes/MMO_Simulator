@@ -44,14 +44,16 @@ class SimpleGameClient:
             "messages_received": 0,
             "messages_sent": 0,
             "updates_received": 0,
-            "last_update_time": 0
+            "last_update_time": 0,
         }
 
     async def connect(self, host: str = "127.0.0.1", agent_type: str = "player"):
         """Connect to server and spawn agent"""
         try:
             # Establish TCP connection
-            self.tcp_reader, self.tcp_writer = await asyncio.open_connection(host, SERVER_PORT)
+            self.tcp_reader, self.tcp_writer = await asyncio.open_connection(
+                host, SERVER_PORT
+            )
 
             # Send connection request
             connect_msg = Message(
@@ -75,11 +77,13 @@ class SimpleGameClient:
                     "rotation": response.payload.get("rotation", 0),
                     "agent_type": agent_type,
                     "health": 100.0,
-                    "is_alive": True
+                    "is_alive": True,
                 }
 
                 self.connected = True
-                logger.info(f"[SIMPLE CLIENT] Connected as {agent_type} agent {self.agent_id[:8]}")
+                logger.info(
+                    f"[SIMPLE CLIENT] Connected as {agent_type} agent {self.agent_id[:8]}"
+                )
                 return True
 
         except Exception as e:
@@ -92,9 +96,7 @@ class SimpleGameClient:
         """Disconnect from server"""
         if self.connected:
             disconnect_msg = Message(
-                type=MessageType.DISCONNECT,
-                payload={},
-                timestamp=time.time()
+                type=MessageType.DISCONNECT, payload={}, timestamp=time.time()
             )
             await self._send_message(disconnect_msg)
 
@@ -130,13 +132,17 @@ class SimpleGameClient:
             self._update_agent_from_world_state()
             self.stats["updates_received"] += 1
             self.stats["last_update_time"] = time.time()
-            logger.debug(f"[SIMPLE CLIENT] Received world state with {len(self.world_state.get('agents', []))} agents")
+            logger.debug(
+                f"[SIMPLE CLIENT] Received world state with {len(self.world_state.get('agents', []))} agents"
+            )
 
         elif message.type == MessageType.VISIBLE_ENTITIES_UPDATE:
             # Visible entities update (subset of world state)
             self.world_state["visible_entities"] = message.payload.get("entities", [])
             self.world_state["terrain"] = message.payload.get("terrain", {})
-            logger.debug(f"[SIMPLE CLIENT] Received {len(self.world_state.get('visible_entities', []))} visible entities")
+            logger.debug(
+                f"[SIMPLE CLIENT] Received {len(self.world_state.get('visible_entities', []))} visible entities"
+            )
 
         elif message.type == MessageType.AGENT_DEATH:
             # Handle agent death
@@ -163,7 +169,9 @@ class SimpleGameClient:
                 new_health = message.payload.get("new_health", 0)
                 self.agent_data["health"] = new_health
                 damage = message.payload.get("damage", 0)
-                logger.info(f"[SIMPLE CLIENT] Agent {self.agent_id[:8]} took {damage} damage, health now {new_health}")
+                logger.info(
+                    f"[SIMPLE CLIENT] Agent {self.agent_id[:8]} took {damage} damage, health now {new_health}"
+                )
 
     def _update_agent_from_world_state(self):
         """Update our agent data from world state"""
@@ -174,15 +182,23 @@ class SimpleGameClient:
         for agent_data in self.world_state["agents"]:
             if agent_data.get("id") == self.agent_id:
                 # Update our agent data with server's authoritative data
-                self.agent_data.update({
-                    "x": agent_data.get("x", self.agent_data.get("x", 0)),
-                    "y": agent_data.get("y", self.agent_data.get("y", 0)),
-                    "rotation": agent_data.get("rotation", self.agent_data.get("rotation", 0)),
-                    "health": agent_data.get("health", self.agent_data.get("health", 100)),
-                    "is_alive": agent_data.get("is_alive", self.agent_data.get("is_alive", True)),
-                    "velocity_x": agent_data.get("velocity_x", 0),
-                    "velocity_y": agent_data.get("velocity_y", 0)
-                })
+                self.agent_data.update(
+                    {
+                        "x": agent_data.get("x", self.agent_data.get("x", 0)),
+                        "y": agent_data.get("y", self.agent_data.get("y", 0)),
+                        "rotation": agent_data.get(
+                            "rotation", self.agent_data.get("rotation", 0)
+                        ),
+                        "health": agent_data.get(
+                            "health", self.agent_data.get("health", 100)
+                        ),
+                        "is_alive": agent_data.get(
+                            "is_alive", self.agent_data.get("is_alive", True)
+                        ),
+                        "velocity_x": agent_data.get("velocity_x", 0),
+                        "velocity_y": agent_data.get("velocity_y", 0),
+                    }
+                )
                 break
 
     async def _send_pending_inputs(self):
@@ -190,9 +206,7 @@ class SimpleGameClient:
         while self.pending_inputs:
             input_data = self.pending_inputs.pop(0)
             message = Message(
-                type=MessageType.AGENT_ACTION,
-                payload=input_data,
-                timestamp=time.time()
+                type=MessageType.AGENT_ACTION, payload=input_data, timestamp=time.time()
             )
             await self._send_message(message)
             self.stats["messages_sent"] += 1
@@ -227,28 +241,20 @@ class SimpleGameClient:
     def move_to(self, x: float, y: float):
         """Queue a move command (for player agents)"""
         if self.agent_data.get("agent_type") == "player":
-            self.pending_inputs.append({
-                "type": "move_to",
-                "target_x": x,
-                "target_y": y
-            })
+            self.pending_inputs.append(
+                {"type": "move_to", "target_x": x, "target_y": y}
+            )
             logger.debug(f"[SIMPLE CLIENT] Queued move to ({x:.1f}, {y:.1f})")
 
     def attack_target(self, target_id: str):
         """Queue an attack command (for player agents)"""
         if self.agent_data.get("agent_type") == "player":
-            self.pending_inputs.append({
-                "type": "attack",
-                "target_id": target_id
-            })
+            self.pending_inputs.append({"type": "attack", "target_id": target_id})
             logger.debug(f"[SIMPLE CLIENT] Queued attack on {target_id[:8]}")
 
     def use_item(self, item_id: str):
         """Queue an item use command"""
-        self.pending_inputs.append({
-            "type": "use_item",
-            "item_id": item_id
-        })
+        self.pending_inputs.append({"type": "use_item", "item_id": item_id})
         logger.debug(f"[SIMPLE CLIENT] Queued use item {item_id}")
 
     # Public interface for display
@@ -266,10 +272,7 @@ class SimpleGameClient:
 
     def get_agent_position(self) -> tuple:
         """Get agent position for camera focus"""
-        return (
-            self.agent_data.get("x", 0),
-            self.agent_data.get("y", 0)
-        )
+        return (self.agent_data.get("x", 0), self.agent_data.get("y", 0))
 
     def is_agent_alive(self) -> bool:
         """Check if agent is alive"""

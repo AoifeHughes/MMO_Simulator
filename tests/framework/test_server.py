@@ -8,23 +8,24 @@ optimized for fast test execution.
 
 import asyncio
 import logging
-from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
-from server.server import GameServer
-from server.world import ServerWorld
+from client.client import GameClient
 from server.action_processor import ActionProcessor
 from server.agent_state import AgentRegistry
 from server.attack_system import AttackSystem
-from client.client import GameClient
+from server.server import GameServer
+from server.world import ServerWorld
+from shared.collision import CollisionDetector
 from world.map import WorldMap
 from world.tiles import TileType
-from shared.collision import CollisionDetector
 
 
 @dataclass
 class ServerConfig:
     """Configuration for test server"""
+
     world_width: int = 20
     world_height: int = 20
     tick_rate: float = 20.0  # Server ticks per second
@@ -70,15 +71,12 @@ class GameServer:
 
         # Create collision detector
         collision_detector = CollisionDetector(
-            self.config.world_width,
-            self.config.world_height
+            self.config.world_width, self.config.world_height
         )
 
         # Create server world
         self.world = ServerWorld(
-            width=world_map.width,
-            height=world_map.height,
-            use_perlin=False
+            width=world_map.width, height=world_map.height, use_perlin=False
         )
         # Replace the generated world_map with our custom one
         self.world.world_map = world_map
@@ -88,13 +86,12 @@ class GameServer:
         self.attack_system = AttackSystem()
 
         # Create action processor
-        self.action_processor = ActionProcessor(self.world, self.agent_registry, self.attack_system)
+        self.action_processor = ActionProcessor(
+            self.world, self.agent_registry, self.attack_system
+        )
 
         # Create and configure server
-        self.server = GameServer(
-            self.config.world_width,
-            self.config.world_height
-        )
+        self.server = GameServer(self.config.world_width, self.config.world_height)
 
         # Override server components with our test versions
         self.server.world = self.world
@@ -130,7 +127,7 @@ class GameServer:
     async def _start_test_server(self):
         """Start server without network components for testing"""
         # Initialize server components without network setup
-        if hasattr(self.server, '_initialize_subsystems'):
+        if hasattr(self.server, "_initialize_subsystems"):
             await self.server._initialize_subsystems()
 
         # Start update loop with accelerated time
@@ -147,7 +144,7 @@ class GameServer:
                 if self.world:
                     # Update agent positions and behaviors
                     for agent in self.world.get_all_agents():
-                        if hasattr(agent, 'update'):
+                        if hasattr(agent, "update"):
                             agent.update(accelerated_dt)
 
                 # Process any pending actions
@@ -161,11 +158,13 @@ class GameServer:
                 logging.error(f"Test server update error: {e}")
                 break
 
-    def create_test_client(self, agent_type: str = "player") -> 'GameClient':
+    def create_test_client(self, agent_type: str = "player") -> "GameClient":
         """Create a test client connected to this server"""
         return GameClient(self, agent_type)
 
-    def spawn_agent(self, agent_type: str, x: float, y: float, agent_id: str = None) -> str:
+    def spawn_agent(
+        self, agent_type: str, x: float, y: float, agent_id: str = None
+    ) -> str:
         """Spawn agent directly in the server world"""
         if not self.world:
             raise RuntimeError("Server not started")
@@ -242,9 +241,9 @@ class GameClient:
 
     def _create_client_agent(self, x: float, y: float):
         """Create client-side agent instance"""
-        from client.agent_types.player import PlayerAgent
-        from client.agent_types.explorer import ExplorerAgent
         from client.agent_types.enemy import EnemyAgent
+        from client.agent_types.explorer import ExplorerAgent
+        from client.agent_types.player import PlayerAgent
 
         if self.agent_type == "player":
             self.agent = PlayerAgent(self.agent_id, x, y)
@@ -257,20 +256,17 @@ class GameClient:
 
         # Set up agent for test environment
         self.agent.set_world_bounds(
-            self.test_server.config.world_width,
-            self.test_server.config.world_height
+            self.test_server.config.world_width, self.test_server.config.world_height
         )
         self.agent.has_initial_map_data = True
         self.agent.use_behavior_tree = True
 
         # Create action manager that communicates with test server
-        self.agent.action_manager = ClientActionManager(
-            self.test_server, self.agent_id
-        )
+        self.agent.action_manager = ClientActionManager(self.test_server, self.agent_id)
 
         # Initialize behavior tree
-        if hasattr(self.agent, '_initialize_behavior_tree'):
-            if not getattr(self.agent, 'behavior_tree_initialized', True):
+        if hasattr(self.agent, "_initialize_behavior_tree"):
+            if not getattr(self.agent, "behavior_tree_initialized", True):
                 self.agent._initialize_behavior_tree()
 
     async def disconnect(self):
@@ -297,11 +293,17 @@ class ClientActionManager:
         self.agent_id = agent_id
         self.callbacks = {}
 
-    async def request_action(self, action_type, parameters: Dict[str, Any],
-                           priority=None, predict: bool = True) -> str:
+    async def request_action(
+        self,
+        action_type,
+        parameters: Dict[str, Any],
+        priority=None,
+        predict: bool = True,
+    ) -> str:
         """Send action request to test server"""
-        from shared.actions import ActionRequest
         import uuid
+
+        from shared.actions import ActionRequest
 
         action_id = str(uuid.uuid4())
 
@@ -309,7 +311,7 @@ class ClientActionManager:
             action_id=action_id,
             agent_id=self.agent_id,
             action_type=action_type,
-            parameters=parameters
+            parameters=parameters,
         )
 
         # Process action on server
@@ -328,14 +330,18 @@ class ClientActionManager:
 
 # Convenience functions for integration testing
 
-async def create_test_environment(config: ServerConfig = None,
-                                world_builder=None) -> GameServer:
+
+async def create_test_environment(
+    config: ServerConfig = None, world_builder=None
+) -> GameServer:
     """Create complete test environment with server and world"""
     server = GameServer(config)
 
     if world_builder:
         # Use custom world from builder (no terrain generation)
-        world_map = WorldMap(world_builder.width, world_builder.height, use_perlin=False)
+        world_map = WorldMap(
+            world_builder.width, world_builder.height, use_perlin=False
+        )
         for (x, y), tile_type in world_builder.terrain.items():
             world_map.set_tile(x, y, tile_type)
         await server.start(world_map)
@@ -349,8 +355,9 @@ async def create_test_environment(config: ServerConfig = None,
     return server
 
 
-async def create_client_server_test(agent_types: List[str],
-                                   world_builder=None) -> tuple[GameServer, List[GameClient]]:
+async def create_client_server_test(
+    agent_types: List[str], world_builder=None
+) -> tuple[GameServer, List[GameClient]]:
     """Create server with multiple test clients"""
     server = await create_test_environment(world_builder=world_builder)
 
@@ -388,7 +395,9 @@ class IntegrationTestContext:
         if self.server:
             await self.server.stop()
 
-    async def add_client(self, agent_type: str, x: float = 10.0, y: float = 10.0) -> GameClient:
+    async def add_client(
+        self, agent_type: str, x: float = 10.0, y: float = 10.0
+    ) -> GameClient:
         """Add client to test environment"""
         if not self.server:
             raise RuntimeError("Server not started")

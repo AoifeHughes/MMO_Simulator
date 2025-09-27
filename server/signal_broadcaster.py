@@ -7,10 +7,10 @@ ensuring proper range checking, filtering, and delivery of agent communications.
 
 import logging
 import time
-from typing import Any, Dict, List, Optional, Set
 from collections import defaultdict
+from typing import Any, Dict, List, Optional, Set
 
-from shared.signals import Signal, SignalType, SignalPriority
+from shared.signals import Signal, SignalPriority, SignalType
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,9 @@ class SignalBroadcaster:
 
         # Check rate limiting
         if not self._check_rate_limit(signal.sender_id):
-            logger.warning(f"Signal from {signal.sender_id} rejected due to rate limiting")
+            logger.warning(
+                f"Signal from {signal.sender_id} rejected due to rate limiting"
+            )
             return False
 
         # Store signal
@@ -65,7 +67,7 @@ class SignalBroadcaster:
 
         # Trim history if needed
         if len(self.signal_history) > self.max_history_size:
-            self.signal_history = self.signal_history[-self.max_history_size:]
+            self.signal_history = self.signal_history[-self.max_history_size :]
 
         # Find and notify recipients
         recipients = self._find_recipients(signal)
@@ -79,7 +81,9 @@ class SignalBroadcaster:
         self.signals_sent += 1
         self.signals_delivered += delivered_count
 
-        logger.debug(f"Signal {signal.signal_id} broadcast to {delivered_count} recipients")
+        logger.debug(
+            f"Signal {signal.signal_id} broadcast to {delivered_count} recipients"
+        )
         return True
 
     def process_signals(self):
@@ -92,7 +96,9 @@ class SignalBroadcaster:
             self._cleanup_rate_limiting()
             self.last_cleanup_time = current_time
 
-    def get_signals_for_agent(self, agent_id: str, agent_position: tuple) -> List[Signal]:
+    def get_signals_for_agent(
+        self, agent_id: str, agent_position: tuple
+    ) -> List[Signal]:
         """Get all signals visible to a specific agent"""
         visible_signals = []
         agent_x, agent_y = agent_position
@@ -103,8 +109,7 @@ class SignalBroadcaster:
 
         # Sort by priority and recency
         visible_signals.sort(
-            key=lambda s: (s.priority.value, -s.timestamp),
-            reverse=True
+            key=lambda s: (s.priority.value, -s.timestamp), reverse=True
         )
 
         return visible_signals
@@ -124,7 +129,7 @@ class SignalBroadcaster:
             "signals_delivered": self.signals_delivered,
             "delivery_rate": self.signals_delivered / max(1, self.signals_sent),
             "signal_types": self._get_signal_type_counts(),
-            "top_senders": self._get_top_senders()
+            "top_senders": self._get_top_senders(),
         }
 
     def _validate_signal(self, signal: Signal) -> bool:
@@ -154,8 +159,7 @@ class SignalBroadcaster:
         # Remove old signals (outside the minute window)
         cutoff_time = current_time - 60.0
         self.agent_signal_counts[agent_id] = [
-            timestamp for timestamp in agent_signals
-            if timestamp > cutoff_time
+            timestamp for timestamp in agent_signals if timestamp > cutoff_time
         ]
 
         # Check if under limit
@@ -184,8 +188,9 @@ class SignalBroadcaster:
 
         return recipients
 
-    def _can_agent_receive_signal(self, agent_id: str, signal: Signal,
-                                agent_x: float, agent_y: float) -> bool:
+    def _can_agent_receive_signal(
+        self, agent_id: str, signal: Signal, agent_x: float, agent_y: float
+    ) -> bool:
         """Check if an agent can receive a specific signal"""
         # Check if signal is targeted appropriately
         if not signal.is_targeted_to(agent_id):
@@ -210,10 +215,10 @@ class SignalBroadcaster:
                 return False
 
             # Check if agent has signal processing capability
-            if hasattr(agent, 'receive_signal'):
+            if hasattr(agent, "receive_signal"):
                 agent.receive_signal(signal)
                 return True
-            elif hasattr(agent, 'signal_queue'):
+            elif hasattr(agent, "signal_queue"):
                 # Alternative: add to signal queue
                 agent.signal_queue.append(signal)
                 return True
@@ -248,8 +253,7 @@ class SignalBroadcaster:
         for agent_id in list(self.agent_signal_counts.keys()):
             agent_signals = self.agent_signal_counts[agent_id]
             recent_signals = [
-                timestamp for timestamp in agent_signals
-                if timestamp > cutoff_time
+                timestamp for timestamp in agent_signals if timestamp > cutoff_time
             ]
 
             if recent_signals:
@@ -260,9 +264,11 @@ class SignalBroadcaster:
     def _agent_exists(self, agent_id: str) -> bool:
         """Check if an agent exists on the server"""
         try:
-            if hasattr(self.server, 'world') and hasattr(self.server.world, 'get_agent'):
+            if hasattr(self.server, "world") and hasattr(
+                self.server.world, "get_agent"
+            ):
                 return self.server.world.get_agent(agent_id) is not None
-            elif hasattr(self.server, 'agent_registry'):
+            elif hasattr(self.server, "agent_registry"):
                 return self.server.agent_registry.has_agent(agent_id)
             else:
                 return True  # Assume exists if we can't check
@@ -274,10 +280,12 @@ class SignalBroadcaster:
         agents = {}
 
         try:
-            if hasattr(self.server, 'world') and hasattr(self.server.world, 'get_all_agents'):
+            if hasattr(self.server, "world") and hasattr(
+                self.server.world, "get_all_agents"
+            ):
                 for agent in self.server.world.get_all_agents():
                     agents[agent.id] = (agent.x, agent.y)
-            elif hasattr(self.server, 'agent_registry'):
+            elif hasattr(self.server, "agent_registry"):
                 for agent_id in self.server.agent_registry.get_all_agent_ids():
                     agent = self.server.agent_registry.get_agent(agent_id)
                     if agent:
@@ -290,9 +298,11 @@ class SignalBroadcaster:
     def _get_agent(self, agent_id: str):
         """Get a specific agent instance"""
         try:
-            if hasattr(self.server, 'world') and hasattr(self.server.world, 'get_agent'):
+            if hasattr(self.server, "world") and hasattr(
+                self.server.world, "get_agent"
+            ):
                 return self.server.world.get_agent(agent_id)
-            elif hasattr(self.server, 'agent_registry'):
+            elif hasattr(self.server, "agent_registry"):
                 return self.server.agent_registry.get_agent(agent_id)
         except Exception as e:
             logger.error(f"Error getting agent {agent_id}: {e}")
@@ -340,8 +350,8 @@ class SignalQueue:
 
         # Trim if too large
         if len(self.signals) > self.max_size:
-            removed = self.signals[self.max_size:]
-            self.signals = self.signals[:self.max_size]
+            removed = self.signals[self.max_size :]
+            self.signals = self.signals[: self.max_size]
 
             # Mark removed signals as processed to avoid re-adding
             for removed_signal in removed:
@@ -361,7 +371,11 @@ class SignalQueue:
 
     def get_signals_by_type(self, signal_type: SignalType) -> List[Signal]:
         """Get all signals of a specific type"""
-        return [s for s in self.signals if s.signal_type == signal_type and not s.is_expired()]
+        return [
+            s
+            for s in self.signals
+            if s.signal_type == signal_type and not s.is_expired()
+        ]
 
     def clear_expired(self):
         """Remove expired signals from queue"""
@@ -369,7 +383,9 @@ class SignalQueue:
         self.signals = [s for s in self.signals if not s.is_expired()]
 
         if len(self.signals) < original_count:
-            logger.debug(f"Agent {self.agent_id} cleared {original_count - len(self.signals)} expired signals")
+            logger.debug(
+                f"Agent {self.agent_id} cleared {original_count - len(self.signals)} expired signals"
+            )
 
     def clear_all(self):
         """Clear all signals from queue"""
@@ -384,7 +400,9 @@ class SignalQueue:
                 for priority in SignalPriority
             },
             "by_type": {
-                signal_type.name: len([s for s in self.signals if s.signal_type == signal_type])
+                signal_type.name: len(
+                    [s for s in self.signals if s.signal_type == signal_type]
+                )
                 for signal_type in SignalType
-            }
+            },
         }

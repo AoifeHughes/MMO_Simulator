@@ -12,29 +12,31 @@ similar to commercial MMO games. It provides:
 """
 
 import asyncio
-import time
 import logging
+import time
 import weakref
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Set, Tuple, Callable
-from enum import Enum
 from collections import defaultdict, deque
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple
 
 logger = logging.getLogger(__name__)
 
 
 class UpdateChannel(Enum):
     """Different update frequencies for different data types"""
-    HIGH_FREQ = "high_freq"      # Position, movement - 60Hz
+
+    HIGH_FREQ = "high_freq"  # Position, movement - 60Hz
     MEDIUM_FREQ = "medium_freq"  # Health, combat - 20Hz
-    LOW_FREQ = "low_freq"        # Inventory, stats - 5Hz
-    EVENT_DRIVEN = "event"       # Actions, chat - immediate
+    LOW_FREQ = "low_freq"  # Inventory, stats - 5Hz
+    EVENT_DRIVEN = "event"  # Actions, chat - immediate
 
 
 @dataclass
 class ServerTick:
     """Represents a single server tick with timing info"""
+
     tick_number: int
     timestamp: float
     delta_time: float
@@ -68,7 +70,9 @@ class GameStateComponent(ABC):
 class PositionComponent(GameStateComponent):
     """Authoritative position component with prediction support"""
 
-    def __init__(self, entity_id: str, x: float = 0.0, y: float = 0.0, rotation: float = 0.0):
+    def __init__(
+        self, entity_id: str, x: float = 0.0, y: float = 0.0, rotation: float = 0.0
+    ):
         super().__init__(entity_id)
         self.x = x
         self.y = y
@@ -81,7 +85,9 @@ class PositionComponent(GameStateComponent):
         self.last_position_update = time.time()
         self.update_channel = UpdateChannel.HIGH_FREQ
 
-    def set_target_position(self, target_x: float, target_y: float, speed: float = None) -> bool:
+    def set_target_position(
+        self, target_x: float, target_y: float, speed: float = None
+    ) -> bool:
         """Set target position for smooth movement"""
         if speed:
             self.move_speed = speed
@@ -161,7 +167,7 @@ class PositionComponent(GameStateComponent):
             "rotation": round(self.rotation, 3),
             "velocity_x": round(self.velocity_x, 3),
             "velocity_y": round(self.velocity_y, 3),
-            "timestamp": self.last_update_time
+            "timestamp": self.last_update_time,
         }
 
     def apply_delta(self, delta: Dict[str, Any]) -> bool:
@@ -191,7 +197,9 @@ class HealthComponent(GameStateComponent):
         self.last_damage_time = 0.0
         self.update_channel = UpdateChannel.MEDIUM_FREQ
 
-    def take_damage(self, damage: float, attacker_id: Optional[str] = None) -> Dict[str, Any]:
+    def take_damage(
+        self, damage: float, attacker_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Apply damage and return event data"""
         if not self.is_alive or damage <= 0:
             return {"damage_applied": 0.0, "died": False}
@@ -211,7 +219,7 @@ class HealthComponent(GameStateComponent):
             "damage_applied": damage,
             "health_after": self.health,
             "died": died,
-            "attacker_id": attacker_id
+            "attacker_id": attacker_id,
         }
 
     def heal(self, amount: float) -> float:
@@ -240,7 +248,7 @@ class HealthComponent(GameStateComponent):
             "health": round(self.health, 1),
             "max_health": self.max_health,
             "is_alive": self.is_alive,
-            "timestamp": self.last_update_time
+            "timestamp": self.last_update_time,
         }
 
     def apply_delta(self, delta: Dict[str, Any]) -> bool:
@@ -313,12 +321,14 @@ class AuthoritativeGameState:
         self.entities[entity_id][component_type] = component
 
         # Add to appropriate update queue
-        if hasattr(component, 'update_channel'):
+        if hasattr(component, "update_channel"):
             self.update_queues[component.update_channel][component_type].add(entity_id)
 
         return True
 
-    def get_component(self, entity_id: str, component_type: str) -> Optional[GameStateComponent]:
+    def get_component(
+        self, entity_id: str, component_type: str
+    ) -> Optional[GameStateComponent]:
         """Get a specific component from an entity"""
         if entity_id not in self.entities:
             return None
@@ -331,14 +341,18 @@ class AuthoritativeGameState:
             return pos_component.x, pos_component.y
         return None
 
-    def set_target_position(self, entity_id: str, x: float, y: float, speed: float = None) -> bool:
+    def set_target_position(
+        self, entity_id: str, x: float, y: float, speed: float = None
+    ) -> bool:
         """Set target position for smooth movement"""
         pos_component = self.get_component(entity_id, "PositionComponent")
         if pos_component:
             return pos_component.set_target_position(x, y, speed)
         return False
 
-    def teleport_entity(self, entity_id: str, x: float, y: float, rotation: float = None) -> bool:
+    def teleport_entity(
+        self, entity_id: str, x: float, y: float, rotation: float = None
+    ) -> bool:
         """Instantly move entity to position"""
         pos_component = self.get_component(entity_id, "PositionComponent")
         if pos_component:
@@ -346,17 +360,18 @@ class AuthoritativeGameState:
             return True
         return False
 
-    def damage_entity(self, entity_id: str, damage: float, attacker_id: Optional[str] = None) -> Dict[str, Any]:
+    def damage_entity(
+        self, entity_id: str, damage: float, attacker_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Apply damage to entity"""
         health_component = self.get_component(entity_id, "HealthComponent")
         if health_component:
             damage_result = health_component.take_damage(damage, attacker_id)
 
             if damage_result["died"]:
-                self.emit_event("entity_died", {
-                    "entity_id": entity_id,
-                    "attacker_id": attacker_id
-                })
+                self.emit_event(
+                    "entity_died", {"entity_id": entity_id, "attacker_id": attacker_id}
+                )
 
             return damage_result
 
@@ -380,12 +395,16 @@ class AuthoritativeGameState:
 
         return state
 
-    def get_entities_by_channel(self, channel: UpdateChannel) -> Dict[str, Dict[str, Any]]:
+    def get_entities_by_channel(
+        self, channel: UpdateChannel
+    ) -> Dict[str, Dict[str, Any]]:
         """Get all entities that have dirty components for this update channel"""
         entities_to_update = {}
 
         for component_type, entity_set in self.update_queues[channel].items():
-            for entity_id in entity_set.copy():  # Copy to avoid modification during iteration
+            for (
+                entity_id
+            ) in entity_set.copy():  # Copy to avoid modification during iteration
                 component = self.get_component(entity_id, component_type)
                 if component and component.dirty:
                     if entity_id not in entities_to_update:
@@ -460,7 +479,7 @@ class ServerTickScheduler:
                 tick_number=self.tick_number,
                 timestamp=tick_start,
                 delta_time=dt,
-                tick_rate=self.target_fps
+                tick_rate=self.target_fps,
             )
 
             # Process all tick subscribers
@@ -483,7 +502,9 @@ class ServerTickScheduler:
 
             # Log performance warnings
             if tick_duration > self.target_dt * 1.5:
-                logger.warning(f"Slow server tick: {tick_duration*1000:.2f}ms (target: {self.target_dt*1000:.2f}ms)")
+                logger.warning(
+                    f"Slow server tick: {tick_duration*1000:.2f}ms (target: {self.target_dt*1000:.2f}ms)"
+                )
 
     def stop(self):
         """Stop the server tick scheduler"""
@@ -500,5 +521,5 @@ class ServerTickScheduler:
             "max_tick_duration_ms": max(durations) * 1000,
             "min_tick_duration_ms": min(durations) * 1000,
             "target_tick_duration_ms": self.target_dt * 1000,
-            "actual_fps": len(durations) / sum(durations) if sum(durations) > 0 else 0
+            "actual_fps": len(durations) / sum(durations) if sum(durations) > 0 else 0,
         }

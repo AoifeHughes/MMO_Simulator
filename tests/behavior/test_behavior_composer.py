@@ -5,13 +5,18 @@ Tests dynamic behavior composition, fragment management, template selection,
 conflict resolution, and runtime behavior adaptation.
 """
 
-import pytest
 import time
-from unittest.mock import Mock, MagicMock
+from unittest.mock import MagicMock, Mock
+
+import pytest
 
 from client.behavior_tree.behavior_composer import (
-    BehaviorComposer, BehaviorFragment, BehaviorTemplate, BehaviorComposition,
-    BehaviorFragmentType, BehaviorPriority
+    BehaviorComposer,
+    BehaviorComposition,
+    BehaviorFragment,
+    BehaviorFragmentType,
+    BehaviorPriority,
+    BehaviorTemplate,
 )
 from client.behavior_tree.nodes.action import ActionNode
 from client.behavior_tree.nodes.base import NodeStatus
@@ -65,7 +70,7 @@ class TestBehaviorFragment:
             node=MockActionNode("test_action"),
             required_context={"enemy_target"},
             personality_weights={"combat": 0.5},
-            cooldown_duration=2.0
+            cooldown_duration=2.0,
         )
 
     def test_fragment_creation(self):
@@ -114,7 +119,7 @@ class TestBehaviorFragment:
             fragment_type=BehaviorFragmentType.SOCIAL,
             priority=BehaviorPriority.NORMAL,
             node=MockActionNode("social_action"),
-            personality_weights={"social": 0.8}  # Requires high social
+            personality_weights={"social": 0.8},  # Requires high social
         )
 
         can_activate, message = social_fragment.can_activate(self.agent, {})
@@ -206,9 +211,10 @@ class TestBehaviorComposer:
     def setup_method(self):
         """Set up test fixtures"""
         self.composer = BehaviorComposer()
-        self.agent = MockAgent("test_agent", Personality(
-            combat=8.0, social=4.0, exploration=6.0, cooperativeness=5.0
-        ))
+        self.agent = MockAgent(
+            "test_agent",
+            Personality(combat=8.0, social=4.0, exploration=6.0, cooperativeness=5.0),
+        )
 
     def test_composer_initialization(self):
         """Test composer initialization"""
@@ -223,7 +229,7 @@ class TestBehaviorComposer:
             fragment_id="custom_fragment",
             fragment_type=BehaviorFragmentType.SURVIVAL,
             priority=BehaviorPriority.URGENT,
-            node=MockActionNode("custom_action")
+            node=MockActionNode("custom_action"),
         )
 
         initial_count = len(self.composer.fragment_library)
@@ -248,7 +254,7 @@ class TestBehaviorComposer:
         context = {
             "target_position": (20.0, 20.0),
             "resource_target": "wood_1",
-            "nearby_allies": ["ally_1"]
+            "nearby_allies": ["ally_1"],
         }
 
         composition = self.composer.compose_behavior(self.agent, context)
@@ -261,12 +267,11 @@ class TestBehaviorComposer:
 
     def test_compose_behavior_with_template(self):
         """Test behavior composition with specific template"""
-        context = {
-            "target_position": (20.0, 20.0),
-            "enemy_target": "enemy_1"
-        }
+        context = {"target_position": (20.0, 20.0), "enemy_target": "enemy_1"}
 
-        composition = self.composer.compose_behavior(self.agent, context, "combat_specialist")
+        composition = self.composer.compose_behavior(
+            self.agent, context, "combat_specialist"
+        )
 
         assert composition.template.template_id == "combat_specialist"
 
@@ -296,7 +301,7 @@ class TestBehaviorComposer:
         context = {
             "target_position": (20.0, 20.0),
             "enemy_target": "enemy_1",
-            "resource_target": "wood_1"
+            "resource_target": "wood_1",
         }
 
         # Should select fragments based on context and personality
@@ -320,7 +325,7 @@ class TestBehaviorComposer:
             fragment_type=BehaviorFragmentType.MOVEMENT,
             priority=BehaviorPriority.HIGH,
             node=MockActionNode("action1"),
-            conflicting_fragments={"frag2"}
+            conflicting_fragments={"frag2"},
         )
 
         fragment2 = BehaviorFragment(
@@ -328,7 +333,7 @@ class TestBehaviorComposer:
             fragment_type=BehaviorFragmentType.MOVEMENT,
             priority=BehaviorPriority.NORMAL,
             node=MockActionNode("action2"),
-            conflicting_fragments={"frag1"}
+            conflicting_fragments={"frag1"},
         )
 
         selected = {"slot1": fragment1, "slot2": fragment2}
@@ -370,7 +375,9 @@ class TestBehaviorComposer:
         composition.creation_time = time.time() - 35.0  # 35 seconds ago
 
         # Should recompose due to age
-        should_recompose = self.composer._should_recompose(composition, self.agent, context)
+        should_recompose = self.composer._should_recompose(
+            composition, self.agent, context
+        )
         assert should_recompose is True
 
     def test_statistics_tracking(self):
@@ -462,7 +469,7 @@ class TestBehaviorComposition:
             agent_id="test_agent",
             template=template,
             fragments=fragments,
-            creation_time=time.time()
+            creation_time=time.time(),
         )
 
     def test_composition_creation(self):
@@ -512,9 +519,9 @@ class TestBehaviorComposerIntegration:
     def test_full_composition_workflow(self):
         """Test complete composition workflow"""
         composer = BehaviorComposer()
-        agent = MockAgent("workflow_agent", Personality(
-            combat=6.0, exploration=8.0, social=4.0
-        ))
+        agent = MockAgent(
+            "workflow_agent", Personality(combat=6.0, exploration=8.0, social=4.0)
+        )
 
         # Full context
         context = {
@@ -522,7 +529,7 @@ class TestBehaviorComposerIntegration:
             "resource_target": "wood_1",
             "enemy_target": "enemy_1",
             "nearby_allies": ["ally_1", "ally_2"],
-            "trade_opportunities": ["trade_1"]
+            "trade_opportunities": ["trade_1"],
         }
 
         # Compose behavior
@@ -554,7 +561,7 @@ class TestBehaviorComposerIntegration:
         # Start with peaceful context
         peaceful_context = {
             "target_position": (15.0, 15.0),
-            "resource_target": "wood_1"
+            "resource_target": "wood_1",
         }
 
         comp1 = composer.compose_behavior(agent, peaceful_context)
@@ -565,7 +572,7 @@ class TestBehaviorComposerIntegration:
             "target_position": (15.0, 15.0),
             "enemy_target": "enemy_1",
             "danger_source": (15.0, 15.0),
-            "emergency": True
+            "emergency": True,
         }
 
         updated = composer.update_composition(agent, dangerous_context)

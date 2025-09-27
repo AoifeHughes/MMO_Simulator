@@ -8,18 +8,22 @@ and provides reliable action execution.
 Run with: pytest tests/test_two_phase_actions.py -v
 """
 
-import pytest
 import time
-from unittest.mock import Mock, MagicMock
 from typing import Tuple
+from unittest.mock import MagicMock, Mock
+
+import pytest
+
+from client.behavior_tree.nodes.base import NodeStatus
+from client.behavior_tree.nodes.fishing_action import FishAtWater
 
 # Import the classes we're testing
 from client.behavior_tree.nodes.two_phase_action import (
-    TwoPhaseActionNode, ResourceActionNode, ActionPhase
+    ActionPhase,
+    ResourceActionNode,
+    TwoPhaseActionNode,
 )
-from client.behavior_tree.nodes.fishing_action import FishAtWater
 from client.behavior_tree.nodes.wood_harvesting_action import HarvestWood
-from client.behavior_tree.nodes.base import NodeStatus
 from world.tiles import TileType
 
 
@@ -38,11 +42,20 @@ class TestTwoPhaseActionBase:
         """Test distance calculation helper"""
 
         class TestAction(TwoPhaseActionNode):
-            def find_action_target(self, agent): return (15.0, 10.0)
-            def calculate_optimal_position(self, agent, target_pos): return (14.0, 10.0)
-            def execute_action(self, agent, target_pos): return True
-            def get_action_name(self): return "test"
-            def get_resource_type(self): return "test"
+            def find_action_target(self, agent):
+                return (15.0, 10.0)
+
+            def calculate_optimal_position(self, agent, target_pos):
+                return (14.0, 10.0)
+
+            def execute_action(self, agent, target_pos):
+                return True
+
+            def get_action_name(self):
+                return "test"
+
+            def get_resource_type(self):
+                return "test"
 
         action = TestAction("TestAction")
 
@@ -57,11 +70,20 @@ class TestTwoPhaseActionBase:
         """Test action position validation"""
 
         class TestAction(TwoPhaseActionNode):
-            def find_action_target(self, agent): return (11.0, 10.0)
-            def calculate_optimal_position(self, agent, target_pos): return (10.5, 10.0)
-            def execute_action(self, agent, target_pos): return True
-            def get_action_name(self): return "test"
-            def get_resource_type(self): return "test"
+            def find_action_target(self, agent):
+                return (11.0, 10.0)
+
+            def calculate_optimal_position(self, agent, target_pos):
+                return (10.5, 10.0)
+
+            def execute_action(self, agent, target_pos):
+                return True
+
+            def get_action_name(self):
+                return "test"
+
+            def get_resource_type(self):
+                return "test"
 
         action = TestAction("TestAction", required_distance=1.2)
         action.target_position = (11.0, 10.0)
@@ -86,10 +108,15 @@ class TestTwoPhaseActionBase:
             def execute_action(self, agent, target_pos):
                 return True
 
-            def get_action_name(self): return "test"
-            def get_resource_type(self): return "test"
+            def get_action_name(self):
+                return "test"
 
-        action = TestAction("TestAction", required_distance=1.5, positioning_tolerance=0.5)
+            def get_resource_type(self):
+                return "test"
+
+        action = TestAction(
+            "TestAction", required_distance=1.5, positioning_tolerance=0.5
+        )
 
         # Mock agent movement
         self.mock_agent.stop_movement = Mock()
@@ -115,10 +142,15 @@ class TestTwoPhaseActionBase:
             def execute_action(self, agent, target_pos):
                 return True
 
-            def get_action_name(self): return "test"
-            def get_resource_type(self): return "test"
+            def get_action_name(self):
+                return "test"
 
-        action = TestAction("TestAction", required_distance=1.0, positioning_tolerance=0.1)
+            def get_resource_type(self):
+                return "test"
+
+        action = TestAction(
+            "TestAction", required_distance=1.0, positioning_tolerance=0.1
+        )
         self.mock_agent.stop_movement = Mock()
 
         # Start action - should skip directly to READY
@@ -157,6 +189,7 @@ class TestResourceActionNode:
         self.mock_agent.agent_map.get_tile_type = mock_get_tile_type
 
         from client.behavior_tree.nodes.fishing_action import FishAtWater
+
         action = FishAtWater(max_distance=10.0)
 
         target = action.find_action_target(self.mock_agent)
@@ -168,6 +201,7 @@ class TestResourceActionNode:
         """Test optimal position calculation for resources"""
 
         from client.behavior_tree.nodes.fishing_action import FishAtWater
+
         action = FishAtWater(max_distance=10.0)
         action.required_distance = 1.0
 
@@ -189,6 +223,7 @@ class TestResourceActionNode:
         """Test that invalid positions trigger alternative positioning"""
 
         from client.behavior_tree.nodes.fishing_action import FishAtWater
+
         action = FishAtWater(max_distance=10.0)
         action.required_distance = 1.0
 
@@ -264,7 +299,9 @@ class TestFishingActionIntegration:
         result = fish_action.execute_action(self.mock_agent, (12.5, 10.5))
 
         assert result is True
-        fish_action._request_fishing.assert_called_once_with(self.mock_agent, 12.5, 10.5)
+        fish_action._request_fishing.assert_called_once_with(
+            self.mock_agent, 12.5, 10.5
+        )
 
 
 class TestWoodHarvestingIntegration:
@@ -283,6 +320,7 @@ class TestWoodHarvestingIntegration:
         # Mock inventory with hatchet for wood harvesting
         self.mock_agent.inventory = Mock()
         from shared.items import create_hatchet
+
         hatchet = create_hatchet()
         self.mock_agent.inventory.get_items_by_type = Mock(return_value=[hatchet])
 
@@ -333,7 +371,9 @@ class TestWoodHarvestingIntegration:
         result = harvest_action.execute_action(self.mock_agent, (13.5, 10.5))
 
         assert result is True
-        harvest_action._request_wood_harvest.assert_called_once_with(self.mock_agent, 13.5, 10.5)
+        harvest_action._request_wood_harvest.assert_called_once_with(
+            self.mock_agent, 13.5, 10.5
+        )
 
 
 def test_integration_eliminates_distance_errors():
@@ -378,12 +418,18 @@ def test_integration_eliminates_distance_errors():
     assert optimal_pos is not None
 
     target_pos = fish_action.target_position
-    distance = ((target_pos[0] - optimal_pos[0]) ** 2 + (target_pos[1] - optimal_pos[1]) ** 2) ** 0.5
+    distance = (
+        (target_pos[0] - optimal_pos[0]) ** 2 + (target_pos[1] - optimal_pos[1]) ** 2
+    ) ** 0.5
 
     # Distance should be approximately the required distance (1.0)
-    assert abs(distance - 1.0) < 0.2  # Allow larger tolerance for floating point precision
+    assert (
+        abs(distance - 1.0) < 0.2
+    )  # Allow larger tolerance for floating point precision
 
-    print(f"✅ Integration test passed: Agent will be positioned at distance {distance:.2f} from target")
+    print(
+        f"✅ Integration test passed: Agent will be positioned at distance {distance:.2f} from target"
+    )
     print(f"   This eliminates the 'distance to target: 4.47 > 1.5 limit' errors!")
 
 

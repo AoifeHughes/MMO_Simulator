@@ -46,14 +46,19 @@ class SimplifiedActionNode(ActionNode):
             return False
 
         # Send action through simplified callback
-        if hasattr(agent, 'simplified_action_callback'):
+        if hasattr(agent, "simplified_action_callback"):
             import asyncio
+
             try:
                 # Create task for async action
-                asyncio.create_task(agent.simplified_action_callback(action_type, parameters))
+                asyncio.create_task(
+                    agent.simplified_action_callback(action_type, parameters)
+                )
                 self.last_action_time = current_time
                 self.action_sent = True
-                logger.debug(f"SimplifiedActionNode: Sent {action_type} action for agent {agent.id[:8]}")
+                logger.debug(
+                    f"SimplifiedActionNode: Sent {action_type} action for agent {agent.id[:8]}"
+                )
                 return True
             except Exception as e:
                 logger.error(f"Error sending simplified action: {e}")
@@ -94,15 +99,12 @@ class SimplifiedMoveToNode(SimplifiedActionNode):
         """Get move action data"""
         if self.target_x is not None and self.target_y is not None:
             target_x, target_y = self.target_x, self.target_y
-        elif hasattr(agent, 'current_target') and agent.current_target:
+        elif hasattr(agent, "current_target") and agent.current_target:
             target_x, target_y = agent.current_target
         else:
             return None, {}
 
-        return SimpleActionType.MOVE_TO, {
-            "target_x": target_x,
-            "target_y": target_y
-        }
+        return SimpleActionType.MOVE_TO, {"target_x": target_x, "target_y": target_y}
 
 
 class SimplifiedFishNode(SimplifiedActionNode):
@@ -206,7 +208,9 @@ class EnemyInRangeCondition(ConditionNode):
         enemies = agent.find_entities_by_type(["enemy", "player"])
         for enemy in enemies:
             if enemy.get("id") != agent.id:  # Don't attack self
-                distance = ((enemy["x"] - agent.x) ** 2 + (enemy["y"] - agent.y) ** 2) ** 0.5
+                distance = (
+                    (enemy["x"] - agent.x) ** 2 + (enemy["y"] - agent.y) ** 2
+                ) ** 0.5
                 if distance <= self.max_distance:
                     return True
         return False
@@ -226,7 +230,7 @@ class HealthLowCondition(ConditionNode):
 
 def create_simple_explorer_tree():
     """Create a simple behavior tree for explorer agents using simplified actions"""
-    from client.behavior_tree.nodes.composite import Sequence, PrioritySelector
+    from client.behavior_tree.nodes.composite import PrioritySelector, Sequence
     from client.behavior_tree.tree import BehaviorTree
 
     # Create behavior tree with simplified actions
@@ -256,7 +260,7 @@ def create_simple_explorer_tree():
 
 def create_simple_combat_tree():
     """Create a simple behavior tree for combat agents using simplified actions"""
-    from client.behavior_tree.nodes.composite import Sequence, PrioritySelector
+    from client.behavior_tree.nodes.composite import PrioritySelector, Sequence
     from client.behavior_tree.tree import BehaviorTree
 
     root = PrioritySelector("CombatRoot")

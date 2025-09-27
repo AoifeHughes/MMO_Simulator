@@ -5,16 +5,17 @@ These tests verify the complete action flow from client request
 through server validation to execution and response.
 """
 
-import pytest
 import asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock
 
-from server.action_processor import ActionProcessor, ActionContext
-from shared.actions import ActionRequest, ActionType, ActionResult, move_to_params
-from tests.fixtures.mock_server import MockWorld, MockAgentRegistry
-from tests.fixtures.test_maps import TestMaps
+import pytest
+
+from server.action_processor import ActionContext, ActionProcessor
 from server.attack_system import AttackSystem
+from shared.actions import ActionRequest, ActionResult, ActionType, move_to_params
+from tests.fixtures.mock_server import MockAgentRegistry, MockWorld
+from tests.fixtures.test_maps import TestMaps
 
 
 class TestActionRequestFlow:
@@ -29,7 +30,7 @@ class TestActionRequestFlow:
         self.processor = ActionProcessor(
             world=self.world,
             agent_registry=self.agent_registry,
-            attack_system=self.attack_system
+            attack_system=self.attack_system,
         )
 
         # Add test agent
@@ -43,7 +44,7 @@ class TestActionRequestFlow:
             action_id="move_test_1",
             agent_id=self.agent_id,
             action_type=ActionType.MOVE_TO,
-            parameters=move_to_params(15.0, 15.0)
+            parameters=move_to_params(15.0, 15.0),
         )
 
         # Process the action
@@ -61,8 +62,8 @@ class TestActionRequestFlow:
         assert agent.x > 10.0  # Moved in X direction
         assert agent.y > 10.0  # Moved in Y direction
         # Should be moving towards (15, 15) - check direction is correct
-        distance_to_target = ((agent.x - 15.0)**2 + (agent.y - 15.0)**2)**0.5
-        original_distance = ((10.0 - 15.0)**2 + (10.0 - 15.0)**2)**0.5
+        distance_to_target = ((agent.x - 15.0) ** 2 + (agent.y - 15.0) ** 2) ** 0.5
+        original_distance = ((10.0 - 15.0) ** 2 + (10.0 - 15.0) ** 2) ** 0.5
         assert distance_to_target < original_distance  # Should be closer to target
 
     @pytest.mark.asyncio
@@ -72,7 +73,7 @@ class TestActionRequestFlow:
             action_id="bad_move_1",
             agent_id=self.agent_id,
             action_type=ActionType.MOVE_TO,
-            parameters=move_to_params(25.0, 25.0)  # Out of bounds
+            parameters=move_to_params(25.0, 25.0),  # Out of bounds
         )
 
         response = await self.processor.submit_action(request)
@@ -96,7 +97,7 @@ class TestActionRequestFlow:
                 action_id=f"rapid_{i}",
                 agent_id=self.agent_id,
                 action_type=ActionType.MOVE_TO,
-                parameters=move_to_params(10.0 + i, 10.0)
+                parameters=move_to_params(10.0 + i, 10.0),
             )
             requests.append(request)
 
@@ -117,7 +118,9 @@ class TestActionRequestFlow:
         rate_limit_rejections = [
             r for r in rejected if "rate limit" in r.message.lower()
         ]
-        assert len(rate_limit_rejections) > 0, "Rate limit rejections should mention rate limiting"
+        assert (
+            len(rate_limit_rejections) > 0
+        ), "Rate limit rejections should mention rate limiting"
 
     @pytest.mark.asyncio
     async def test_cooldown_enforcement(self):
@@ -127,7 +130,7 @@ class TestActionRequestFlow:
             action_id="attack_1",
             agent_id=self.agent_id,
             action_type=ActionType.ATTACK_TARGET,
-            parameters={"target_id": "dummy_target", "attack_name": "punch"}
+            parameters={"target_id": "dummy_target", "attack_name": "punch"},
         )
 
         # Add a dummy target
@@ -142,7 +145,7 @@ class TestActionRequestFlow:
             action_id="attack_2",
             agent_id=self.agent_id,
             action_type=ActionType.ATTACK_TARGET,
-            parameters={"target_id": target_id, "attack_name": "punch"}
+            parameters={"target_id": target_id, "attack_name": "punch"},
         )
 
         response2 = await self.processor.submit_action(attack_request2)
@@ -163,7 +166,7 @@ class TestActionRequestFlow:
             action_id="dead_move",
             agent_id=self.agent_id,
             action_type=ActionType.MOVE_TO,
-            parameters=move_to_params(12.0, 12.0)
+            parameters=move_to_params(12.0, 12.0),
         )
 
         response = await self.processor.submit_action(request)
@@ -182,14 +185,16 @@ class TestActionRequestFlow:
                 action_id=f"stats_test_{i}",
                 agent_id=self.agent_id,
                 action_type=ActionType.MOVE_TO,
-                parameters=move_to_params(10.0 + i, 10.0)
+                parameters=move_to_params(10.0 + i, 10.0),
             )
             await self.processor.submit_action(request)
 
         final_stats = self.processor.get_stats()
 
         assert final_stats["total_processed"] >= initial_stats["total_processed"] + 5
-        assert len(final_stats["processing_time_ms"]) >= len(initial_stats["processing_time_ms"])
+        assert len(final_stats["processing_time_ms"]) >= len(
+            initial_stats["processing_time_ms"]
+        )
         assert "average_processing_time_ms" in final_stats
 
 
@@ -207,7 +212,9 @@ class TestFishingActionIntegration:
         world_map = MagicMock()
         world_map.width = 25
         world_map.height = 25
-        world_map.get_tile = lambda x, y: terrain.get((x, y), terrain[(12, 12)])  # Default to water
+        world_map.get_tile = lambda x, y: terrain.get(
+            (x, y), terrain[(12, 12)]
+        )  # Default to water
         self.world.world_map = world_map
 
         self.agent_registry = MockAgentRegistry()
@@ -216,7 +223,7 @@ class TestFishingActionIntegration:
         self.processor = ActionProcessor(
             world=self.world,
             agent_registry=self.agent_registry,
-            attack_system=self.attack_system
+            attack_system=self.attack_system,
         )
 
         # Add agent near water
@@ -247,13 +254,15 @@ class TestFishingActionIntegration:
             action_id="fish_1",
             agent_id=self.agent_id,
             action_type=ActionType.FISH,
-            parameters={"target_x": 19, "target_y": 12}  # Water tile
+            parameters={"target_x": 19, "target_y": 12},  # Water tile
         )
 
         response = await self.processor.submit_action(request)
 
         assert response.result == ActionResult.APPROVED
-        assert "fish" in response.message.lower() or "success" in response.message.lower()
+        assert (
+            "fish" in response.message.lower() or "success" in response.message.lower()
+        )
         assert response.processing_time_ms > 0
 
     @pytest.mark.asyncio
@@ -267,7 +276,7 @@ class TestFishingActionIntegration:
             action_id="fish_no_rod",
             agent_id=self.agent_id,
             action_type=ActionType.FISH,
-            parameters={"target_x": 19, "target_y": 12}
+            parameters={"target_x": 19, "target_y": 12},
         )
 
         response = await self.processor.submit_action(request)
@@ -282,14 +291,17 @@ class TestFishingActionIntegration:
             action_id="fish_land",
             agent_id=self.agent_id,
             action_type=ActionType.FISH,
-            parameters={"target_x": 2, "target_y": 2}  # Land tile
+            parameters={"target_x": 2, "target_y": 2},  # Land tile
         )
 
         response = await self.processor.submit_action(request)
 
         assert response.result == ActionResult.REJECTED
         # Check that fishing was rejected with appropriate message
-        assert "fishing" in response.message.lower() and "locations" in response.message.lower()
+        assert (
+            "fishing" in response.message.lower()
+            and "locations" in response.message.lower()
+        )
 
 
 class TestBatchActionProcessing:
@@ -304,7 +316,7 @@ class TestBatchActionProcessing:
         self.processor = ActionProcessor(
             world=self.world,
             agent_registry=self.agent_registry,
-            attack_system=self.attack_system
+            attack_system=self.attack_system,
         )
 
         # Add test agent
@@ -322,7 +334,7 @@ class TestBatchActionProcessing:
                 action_id=f"batch_{i}",
                 agent_id=self.agent_id,
                 action_type=ActionType.MOVE_TO,
-                parameters=move_to_params(15.0 + i, 15.0)
+                parameters=move_to_params(15.0 + i, 15.0),
             )
             actions.append(action)
 
@@ -345,14 +357,14 @@ class TestBatchActionProcessing:
                 action_id="batch_good",
                 agent_id=self.agent_id,
                 action_type=ActionType.MOVE_TO,
-                parameters=move_to_params(16.0, 15.0)
+                parameters=move_to_params(16.0, 15.0),
             ),
             ActionRequest(
                 action_id="batch_bad",
                 agent_id=self.agent_id,
                 action_type=ActionType.MOVE_TO,
-                parameters=move_to_params(50.0, 50.0)  # Out of bounds
-            )
+                parameters=move_to_params(50.0, 50.0),  # Out of bounds
+            ),
         ]
 
         batch = ActionBatch(actions=actions, atomic=True)
@@ -375,7 +387,7 @@ class TestActionSystemPerformance:
         self.processor = ActionProcessor(
             world=self.world,
             agent_registry=self.agent_registry,
-            attack_system=self.attack_system
+            attack_system=self.attack_system,
         )
 
     @pytest.mark.asyncio
@@ -397,7 +409,7 @@ class TestActionSystemPerformance:
                 action_id=f"perf_test_{i}",
                 agent_id=agent_id,
                 action_type=ActionType.MOVE_TO,
-                parameters=move_to_params(20.0 + i, 20.0)
+                parameters=move_to_params(20.0 + i, 20.0),
             )
             task = asyncio.create_task(self.processor.submit_action(request))
             tasks.append(task)
@@ -410,11 +422,15 @@ class TestActionSystemPerformance:
 
         # Actions should complete quickly
         assert total_time < 2.0, f"Batch processing took too long: {total_time:.2f}s"
-        assert avg_time_per_action < 0.5, f"Average action time too high: {avg_time_per_action:.2f}s"
+        assert (
+            avg_time_per_action < 0.5
+        ), f"Average action time too high: {avg_time_per_action:.2f}s"
 
         # All actions should succeed
         successful = [r for r in responses if r.result == ActionResult.APPROVED]
-        assert len(successful) >= 4, f"Expected at least 4 successful actions, got {len(successful)}"
+        assert (
+            len(successful) >= 4
+        ), f"Expected at least 4 successful actions, got {len(successful)}"
 
 
 if __name__ == "__main__":

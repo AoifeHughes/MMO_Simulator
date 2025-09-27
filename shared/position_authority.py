@@ -8,10 +8,11 @@ This module implements true MMO-style position authority where:
 4. Action validation uses server position data
 """
 
-import time
 import logging
+import time
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
+
 from shared.messages import Message, MessageType
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ServerPosition:
     """Authoritative server position data"""
+
     x: float
     y: float
     rotation: float
@@ -31,6 +33,7 @@ class ServerPosition:
 @dataclass
 class ClientPositionState:
     """Client-side position interpolation state"""
+
     # Server authoritative position
     server_x: float = 0.0
     server_y: float = 0.0
@@ -62,13 +65,23 @@ class ServerPositionAuthority:
         self.last_broadcast_time = 0.0
         self.broadcast_interval = 0.1  # 100ms = 10 FPS position updates
 
-    def update_agent_position(self, agent_id: str, x: float, y: float, rotation: float = 0.0,
-                            velocity_x: float = 0.0, velocity_y: float = 0.0):
+    def update_agent_position(
+        self,
+        agent_id: str,
+        x: float,
+        y: float,
+        rotation: float = 0.0,
+        velocity_x: float = 0.0,
+        velocity_y: float = 0.0,
+    ):
         """Update server's authoritative position for an agent"""
         self.agent_positions[agent_id] = ServerPosition(
-            x=x, y=y, rotation=rotation,
-            velocity_x=velocity_x, velocity_y=velocity_y,
-            timestamp=time.time()
+            x=x,
+            y=y,
+            rotation=rotation,
+            velocity_x=velocity_x,
+            velocity_y=velocity_y,
+            timestamp=time.time(),
         )
 
     def get_agent_position(self, agent_id: str) -> Optional[ServerPosition]:
@@ -91,7 +104,7 @@ class ServerPositionAuthority:
                 "rotation": pos.rotation,
                 "velocity_x": pos.velocity_x,
                 "velocity_y": pos.velocity_y,
-                "timestamp": pos.timestamp
+                "timestamp": pos.timestamp,
             }
 
         self.last_broadcast_time = time.time()
@@ -100,9 +113,9 @@ class ServerPositionAuthority:
             type=MessageType.POSITION_SYNC,
             payload={
                 "positions": positions_data,
-                "server_timestamp": self.last_broadcast_time
+                "server_timestamp": self.last_broadcast_time,
             },
-            timestamp=self.last_broadcast_time
+            timestamp=self.last_broadcast_time,
         )
 
     def remove_agent(self, agent_id: str):
@@ -133,13 +146,18 @@ class ClientPositionInterpolator:
 
         # Check for large position jumps
         if state.prev_timestamp > 0.0:  # Not the first update
-            distance = ((server_data["x"] - state.server_x) ** 2 + (server_data["y"] - state.server_y) ** 2) ** 0.5
+            distance = (
+                (server_data["x"] - state.server_x) ** 2
+                + (server_data["y"] - state.server_y) ** 2
+            ) ** 0.5
             time_delta = server_data["timestamp"] - state.server_timestamp
             if distance > 2.0 and time_delta < 0.5:  # Large jump in short time
-                logger.warning(f"🚨 CLIENT position jump detected for {agent_id[:8]}: "
-                             f"moved {distance:.2f} units in {time_delta:.2f}s "
-                             f"from ({state.server_x:.2f}, {state.server_y:.2f}) "
-                             f"to ({server_data['x']:.2f}, {server_data['y']:.2f})")
+                logger.warning(
+                    f"🚨 CLIENT position jump detected for {agent_id[:8]}: "
+                    f"moved {distance:.2f} units in {time_delta:.2f}s "
+                    f"from ({state.server_x:.2f}, {state.server_y:.2f}) "
+                    f"to ({server_data['x']:.2f}, {server_data['y']:.2f})"
+                )
 
         # Update with new server data
         state.server_x = server_data["x"]
@@ -153,8 +171,10 @@ class ClientPositionInterpolator:
             state.display_y = state.server_y
             state.display_rotation = state.server_rotation
 
-        logger.debug(f"Client received server position for {agent_id[:8]}: "
-                    f"({state.server_x:.2f}, {state.server_y:.2f})")
+        logger.debug(
+            f"Client received server position for {agent_id[:8]}: "
+            f"({state.server_x:.2f}, {state.server_y:.2f})"
+        )
 
     def interpolate_positions(self, dt: float):
         """Interpolate display positions toward server positions"""
@@ -165,13 +185,17 @@ class ClientPositionInterpolator:
             dr = state.server_rotation - state.display_rotation
 
             # Apply interpolation
-            interpolation_factor = min(1.0, self.interpolation_speed * dt * 60)  # 60 FPS baseline
+            interpolation_factor = min(
+                1.0, self.interpolation_speed * dt * 60
+            )  # 60 FPS baseline
 
             state.display_x += dx * interpolation_factor
             state.display_y += dy * interpolation_factor
             state.display_rotation += dr * interpolation_factor
 
-    def get_display_position(self, agent_id: str) -> Optional[Tuple[float, float, float]]:
+    def get_display_position(
+        self, agent_id: str
+    ) -> Optional[Tuple[float, float, float]]:
         """Get current display position for agent (what the client should show)"""
         if agent_id not in self.agent_states:
             return None
@@ -179,7 +203,9 @@ class ClientPositionInterpolator:
         state = self.agent_states[agent_id]
         return (state.display_x, state.display_y, state.display_rotation)
 
-    def get_server_position(self, agent_id: str) -> Optional[Tuple[float, float, float]]:
+    def get_server_position(
+        self, agent_id: str
+    ) -> Optional[Tuple[float, float, float]]:
         """Get last known server position for agent (for action validation)"""
         if agent_id not in self.agent_states:
             return None
@@ -205,21 +231,35 @@ def get_server_position_for_action(agent_id: str) -> Optional[Tuple[float, float
     """
     pos = client_position_interpolator.get_server_position(agent_id)
     if pos:
-        logger.debug(f"Server position found for {agent_id[:8]}: ({pos[0]:.2f}, {pos[1]:.2f})")
+        logger.debug(
+            f"Server position found for {agent_id[:8]}: ({pos[0]:.2f}, {pos[1]:.2f})"
+        )
         return (pos[0], pos[1])  # Return (x, y)
     else:
-        logger.debug(f"No server position data available for {agent_id[:8]} - client has {len(client_position_interpolator.agent_states)} tracked agents")
+        logger.debug(
+            f"No server position data available for {agent_id[:8]} - client has {len(client_position_interpolator.agent_states)} tracked agents"
+        )
         # Log which agents we do have data for
         if client_position_interpolator.agent_states:
-            tracked_agents = [aid[:8] for aid in client_position_interpolator.agent_states.keys()]
+            tracked_agents = [
+                aid[:8] for aid in client_position_interpolator.agent_states.keys()
+            ]
             logger.debug(f"Tracked agents: {tracked_agents}")
     return None
 
 
-def update_agent_server_position(agent_id: str, x: float, y: float, rotation: float = 0.0,
-                                velocity_x: float = 0.0, velocity_y: float = 0.0):
+def update_agent_server_position(
+    agent_id: str,
+    x: float,
+    y: float,
+    rotation: float = 0.0,
+    velocity_x: float = 0.0,
+    velocity_y: float = 0.0,
+):
     """Convenience function for server to update authoritative position"""
-    server_position_authority.update_agent_position(agent_id, x, y, rotation, velocity_x, velocity_y)
+    server_position_authority.update_agent_position(
+        agent_id, x, y, rotation, velocity_x, velocity_y
+    )
 
 
 def create_position_broadcast() -> Message:

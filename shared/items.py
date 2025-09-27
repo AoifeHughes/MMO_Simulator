@@ -14,6 +14,7 @@ from typing import Any, Dict, Optional
 
 class ItemType(Enum):
     """Types of items in the game"""
+
     WEAPON = "weapon"
     EQUIPMENT = "equipment"
     CONSUMABLE = "consumable"
@@ -24,12 +25,14 @@ class ItemType(Enum):
 
 class WeaponType(Enum):
     """Types of weapons"""
+
     MELEE = "melee"
     RANGED = "ranged"
 
 
 class EquipmentSlot(Enum):
     """Equipment slots for wearable items"""
+
     MAIN_HAND = "main_hand"
     OFF_HAND = "off_hand"
     HEAD = "head"
@@ -82,7 +85,7 @@ class Gold(Item):
             weight=0.01 * amount,  # Gold is light
             stackable=True,
             max_stack_size=9999,
-            item_type=ItemType.CURRENCY
+            item_type=ItemType.CURRENCY,
         )
         self.amount = amount
 
@@ -114,16 +117,12 @@ class FishingRod(Tool):
             description="A simple fishing rod for catching fish",
             value=50,
             weight=2.0,
-            stackable=False
+            stackable=False,
         )
 
     def use(self, agent_id: str, world_context: Optional[Any] = None) -> Dict[str, Any]:
         """Use the fishing rod to catch fish"""
-        return {
-            "success": True,
-            "action": "fish",
-            "message": "Casting fishing line..."
-        }
+        return {"success": True, "action": "fish", "message": "Casting fishing line..."}
 
 
 @dataclass
@@ -139,7 +138,16 @@ class Equipment(Item):
         equipment_kwargs = {}
         item_kwargs = {}
 
-        item_fields = {'item_id', 'name', 'description', 'value', 'weight', 'stackable', 'max_stack_size', 'item_type'}
+        item_fields = {
+            "item_id",
+            "name",
+            "description",
+            "value",
+            "weight",
+            "stackable",
+            "max_stack_size",
+            "item_type",
+        }
 
         for key, value in kwargs.items():
             if key in item_fields:
@@ -157,11 +165,13 @@ class Equipment(Item):
 
     def to_dict(self) -> Dict[str, Any]:
         result = super().to_dict()
-        result.update({
-            "slot": self.slot.value,
-            "durability": self.durability,
-            "max_durability": self.max_durability,
-        })
+        result.update(
+            {
+                "slot": self.slot.value,
+                "durability": self.durability,
+                "max_durability": self.max_durability,
+            }
+        )
         return result
 
     def repair(self, amount: float = None):
@@ -181,7 +191,7 @@ class Equipment(Item):
             "success": True,
             "message": f"Equipped {self.name}",
             "action": "equip",
-            "slot": self.slot.value
+            "slot": self.slot.value,
         }
 
 
@@ -198,7 +208,13 @@ class Weapon(Equipment):
 
     def __init__(self, weapon_type: WeaponType = WeaponType.MELEE, **kwargs):
         # Extract weapon-specific attributes
-        weapon_attrs = ['damage', 'min_range', 'max_range', 'attack_speed', 'critical_chance']
+        weapon_attrs = [
+            "damage",
+            "min_range",
+            "max_range",
+            "attack_speed",
+            "critical_chance",
+        ]
         weapon_kwargs = {}
 
         for attr in weapon_attrs:
@@ -215,14 +231,16 @@ class Weapon(Equipment):
 
     def to_dict(self) -> Dict[str, Any]:
         result = super().to_dict()
-        result.update({
-            "weapon_type": self.weapon_type.value,
-            "damage": self.damage,
-            "min_range": self.min_range,
-            "max_range": self.max_range,
-            "attack_speed": self.attack_speed,
-            "critical_chance": self.critical_chance,
-        })
+        result.update(
+            {
+                "weapon_type": self.weapon_type.value,
+                "damage": self.damage,
+                "min_range": self.min_range,
+                "max_range": self.max_range,
+                "attack_speed": self.attack_speed,
+                "critical_chance": self.critical_chance,
+            }
+        )
         return result
 
     def get_attack_name(self) -> str:
@@ -257,7 +275,7 @@ class Consumable(Item):
 
     def __init__(self, **kwargs):
         # Extract consumable-specific attributes
-        consumable_attrs = ['effect_type', 'effect_value', 'effect_duration']
+        consumable_attrs = ["effect_type", "effect_value", "effect_duration"]
         consumable_kwargs = {}
 
         for attr in consumable_attrs:
@@ -273,11 +291,13 @@ class Consumable(Item):
 
     def to_dict(self) -> Dict[str, Any]:
         result = super().to_dict()
-        result.update({
-            "effect_type": self.effect_type,
-            "effect_value": self.effect_value,
-            "effect_duration": self.effect_duration,
-        })
+        result.update(
+            {
+                "effect_type": self.effect_type,
+                "effect_value": self.effect_value,
+                "effect_duration": self.effect_duration,
+            }
+        )
         return result
 
     def use(self, agent_id: str, world_context: Optional[Any] = None) -> Dict[str, Any]:
@@ -300,7 +320,7 @@ class Resource(Item):
 
     def __init__(self, **kwargs):
         # Extract resource-specific attributes
-        resource_attrs = ['resource_type']
+        resource_attrs = ["resource_type"]
         resource_kwargs = {}
 
         for attr in resource_attrs:
@@ -316,9 +336,11 @@ class Resource(Item):
 
     def to_dict(self) -> Dict[str, Any]:
         result = super().to_dict()
-        result.update({
-            "resource_type": self.resource_type,
-        })
+        result.update(
+            {
+                "resource_type": self.resource_type,
+            }
+        )
         return result
 
     def use(self, agent_id: str, world_context: Optional[Any] = None) -> Dict[str, Any]:
@@ -326,7 +348,7 @@ class Resource(Item):
         return {
             "success": False,
             "message": f"{self.name} is a crafting material and cannot be used directly",
-            "action": "none"
+            "action": "none",
         }
 
 
@@ -340,7 +362,7 @@ class Tool(Item):
 
     def __init__(self, **kwargs):
         # Extract tool-specific attributes
-        tool_attrs = ['tool_type', 'uses', 'max_uses']
+        tool_attrs = ["tool_type", "uses", "max_uses"]
         tool_kwargs = {}
 
         for attr in tool_attrs:
@@ -356,11 +378,13 @@ class Tool(Item):
 
     def to_dict(self) -> Dict[str, Any]:
         result = super().to_dict()
-        result.update({
-            "tool_type": self.tool_type,
-            "uses": self.uses,
-            "max_uses": self.max_uses,
-        })
+        result.update(
+            {
+                "tool_type": self.tool_type,
+                "uses": self.uses,
+                "max_uses": self.max_uses,
+            }
+        )
         return result
 
     def use_tool(self) -> bool:
@@ -376,7 +400,7 @@ class Tool(Item):
         if not self.use_tool():
             return {
                 "success": False,
-                "message": f"{self.name} is broken and cannot be used"
+                "message": f"{self.name} is broken and cannot be used",
             }
 
         return {
@@ -384,11 +408,12 @@ class Tool(Item):
             "message": f"Used {self.name}",
             "action": "use_tool",
             "tool_type": self.tool_type,
-            "remaining_uses": self.uses
+            "remaining_uses": self.uses,
         }
 
 
 # Predefined Items
+
 
 def create_sword() -> Weapon:
     """Create a basic sword weapon"""
@@ -403,7 +428,7 @@ def create_sword() -> Weapon:
         max_range=2.5,
         attack_speed=0.67,  # 1.5 second cooldown
         durability=80.0,
-        max_durability=80.0
+        max_durability=80.0,
     )
 
 
@@ -420,7 +445,7 @@ def create_bow() -> Weapon:
         max_range=15.0,
         attack_speed=0.5,  # 2 second cooldown
         durability=60.0,
-        max_durability=60.0
+        max_durability=60.0,
     )
 
 
@@ -468,7 +493,7 @@ def create_wood() -> Resource:
         description="Harvested wood from forest trees, useful for crafting",
         value=2,  # Wood base value
         weight=0.8,
-        resource_type="wood"
+        resource_type="wood",
     )
 
 

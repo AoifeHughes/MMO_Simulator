@@ -11,14 +11,15 @@ This script creates a simple scenario to test:
 Run this instead of the full simulation to test just the action system.
 """
 
-import pytest
 import asyncio
 import logging
 import time
 
-from shared.actions import ActionType, ActionRequest, move_to_params
+import pytest
+
 from client.action_manager import ActionManager
 from client.behavior_tree.nodes.request_action import RequestMoveTo
+from shared.actions import ActionRequest, ActionType, move_to_params
 from shared.messages import Message, MessageType
 
 # Set up logging
@@ -109,8 +110,12 @@ async def test_action_manager():
     stats = action_manager.get_stats()
     logger.info(f"Action manager stats: {stats}")
 
-    assert stats["requests_sent"] == 1, f"Expected 1 request sent, got {stats['requests_sent']}"
-    assert stats["responses_received"] == 1, f"Expected 1 response received, got {stats['responses_received']}"
+    assert (
+        stats["requests_sent"] == 1
+    ), f"Expected 1 request sent, got {stats['requests_sent']}"
+    assert (
+        stats["responses_received"] == 1
+    ), f"Expected 1 response received, got {stats['responses_received']}"
 
     logger.info("✅ Action manager test passed!")
 
@@ -146,6 +151,7 @@ async def test_request_action_node():
 
     # Simulate behavior tree updates
     from client.behavior_tree.nodes.base import NodeStatus
+
     max_updates = 10
     updates = 0
 
@@ -219,7 +225,9 @@ async def test_prediction_system():
 
     # Check results
     stats = action_manager.get_stats()
-    logger.info(f"Prediction stats: predictions={stats['predictions_made']}, rollbacks={stats['rollbacks_applied']}")
+    logger.info(
+        f"Prediction stats: predictions={stats['predictions_made']}, rollbacks={stats['rollbacks_applied']}"
+    )
 
     assert len(predictions_made) >= 1, "Should have made at least one prediction"
     logger.info("✅ Client-side prediction test passed!")

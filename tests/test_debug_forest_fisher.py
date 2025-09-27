@@ -16,17 +16,14 @@ from pathlib import Path
 # Add the parent directory to the path so we can import our modules
 sys.path.append(str(Path(__file__).parent))
 
-from main import SimulatorApp
 from debug_tracker import get_debugger, save_debug_report
+from main import SimulatorApp
 
 # Configure logging to be more verbose for debugging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('debug_test.log')
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(), logging.FileHandler("debug_test.log")],
 )
 
 logger = logging.getLogger(__name__)
@@ -42,7 +39,7 @@ async def run_debug_test():
         mode="scenario",
         visualize=False,  # Disable visualization for headless testing
         scenario="forest_fisher_cooperation",
-        timeout=60  # Run for 60 seconds to gather debug data
+        timeout=60,  # Run for 60 seconds to gather debug data
     )
 
     # Set up debug tracking
@@ -71,17 +68,21 @@ async def run_debug_test():
         logger.info(f"📄 Debug report saved to: {report_filename}")
 
         # Print a summary to console
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("FOREST FISHER DEBUG TEST COMPLETED")
-        print("="*60)
+        print("=" * 60)
         print(f"Debug report saved to: {report_filename}")
         print(f"Debug database saved to: {debugger.db_path}")
 
         # Print a quick summary
         total_agents = len(debugger.agents)
-        total_jumps = sum(len(tracker.get_position_jumps()) for tracker in debugger.agents.values())
-        total_distance_failures = sum(len(tracker.get_failed_actions_by_distance())
-                                    for tracker in debugger.agents.values())
+        total_jumps = sum(
+            len(tracker.get_position_jumps()) for tracker in debugger.agents.values()
+        )
+        total_distance_failures = sum(
+            len(tracker.get_failed_actions_by_distance())
+            for tracker in debugger.agents.values()
+        )
 
         print(f"\nQUICK SUMMARY:")
         print(f"- Agents tracked: {total_agents}")
@@ -92,27 +93,41 @@ async def run_debug_test():
             print("🚨 POSITION JUMPING DETECTED - Check the debug report for details")
 
         if total_distance_failures > 0:
-            print("🚨 DISTANCE VALIDATION ISSUES DETECTED - Check the debug report for details")
+            print(
+                "🚨 DISTANCE VALIDATION ISSUES DETECTED - Check the debug report for details"
+            )
 
         # Check if fixes are working
         if total_jumps == 0:
-            print("✅ NO POSITION JUMPING DETECTED - Position sync fixes appear to be working!")
+            print(
+                "✅ NO POSITION JUMPING DETECTED - Position sync fixes appear to be working!"
+            )
 
         if total_distance_failures == 0:
-            print("✅ NO DISTANCE VALIDATION FAILURES - Action validation fixes are working!")
+            print(
+                "✅ NO DISTANCE VALIDATION FAILURES - Action validation fixes are working!"
+            )
 
         # Check for wood harvesting behavior
         wood_harvesting_events = 0
         fishing_events = 0
         for tracker in debugger.agents.values():
             for event in tracker.resource_events:
-                if event.resource_type == "wood" and event.event_type in ["discovered", "harvesting_attempt"]:
+                if event.resource_type == "wood" and event.event_type in [
+                    "discovered",
+                    "harvesting_attempt",
+                ]:
                     wood_harvesting_events += 1
-                elif event.resource_type == "water" and event.event_type in ["discovered", "fishing_attempt"]:
+                elif event.resource_type == "water" and event.event_type in [
+                    "discovered",
+                    "fishing_attempt",
+                ]:
                     fishing_events += 1
 
         if wood_harvesting_events > 0:
-            print(f"✅ WOOD HARVESTING BEHAVIOR DETECTED - {wood_harvesting_events} events")
+            print(
+                f"✅ WOOD HARVESTING BEHAVIOR DETECTED - {wood_harvesting_events} events"
+            )
         else:
             print("⚠️  NO WOOD HARVESTING BEHAVIOR DETECTED - May need investigation")
 
@@ -132,7 +147,7 @@ async def run_quick_test():
         mode="scenario",
         visualize=True,  # Enable visualization for quick testing
         scenario="forest_fisher_cooperation",
-        timeout=30  # Run for 30 seconds
+        timeout=30,  # Run for 30 seconds
     )
 
     try:
@@ -150,7 +165,9 @@ async def run_quick_test():
         for agent_id, tracker in debugger.agents.items():
             jumps = len(tracker.get_position_jumps())
             failures = len(tracker.get_failed_actions_by_distance())
-            print(f"Agent {agent_id[:8]}: {jumps} position jumps, {failures} distance failures")
+            print(
+                f"Agent {agent_id[:8]}: {jumps} position jumps, {failures} distance failures"
+            )
 
 
 def main():

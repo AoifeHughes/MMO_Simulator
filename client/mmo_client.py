@@ -9,11 +9,11 @@ import asyncio
 import json
 import logging
 import time
-from typing import Any, Dict, List, Optional, Callable
 from dataclasses import dataclass
+from typing import Any, Callable, Dict, List, Optional
 
+from shared.actions import ActionRequest, ActionResponse, ActionResult, ActionType
 from shared.messages import Message, MessageType
-from shared.actions import ActionType, ActionRequest, ActionResponse, ActionResult
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ClientState:
     """Client-side state management"""
+
     agent_id: Optional[str] = None
     position: tuple = (0.0, 0.0)
     rotation: float = 0.0
@@ -53,22 +54,24 @@ class MMOClientAdapter:
         self.world_entities: Dict[str, Dict[str, Any]] = {}
         self.last_world_update = 0.0
 
-    async def connect(self, agent_type: str = "player", host: str = "127.0.0.1", port: int = 9999) -> bool:
+    async def connect(
+        self, agent_type: str = "player", host: str = "127.0.0.1", port: int = 9999
+    ) -> bool:
         """Connect to MMO server"""
         try:
             self.reader, self.writer = await asyncio.open_connection(host, port)
 
             # Send connection request
-            connect_msg = Message(MessageType.CONNECT, {
-                "agent_type": agent_type
-            })
+            connect_msg = Message(MessageType.CONNECT, {"agent_type": agent_type})
 
             await self._send_message(connect_msg)
 
             # Wait for response
             response = await self._receive_message()
 
-            if response.type == MessageType.CONNECT_RESPONSE and response.data.get("success"):
+            if response.type == MessageType.CONNECT_RESPONSE and response.data.get(
+                "success"
+            ):
                 self.connected = True
                 self.state.agent_id = response.data.get("agent_id")
 
@@ -82,7 +85,9 @@ class MMOClientAdapter:
 
                 return True
             else:
-                logger.error(f"Connection failed: {response.data.get('message', 'Unknown error')}")
+                logger.error(
+                    f"Connection failed: {response.data.get('message', 'Unknown error')}"
+                )
                 return False
 
         except Exception as e:
@@ -99,7 +104,9 @@ class MMOClientAdapter:
         self.state.agent_id = None
         logger.info("Disconnected from MMO server")
 
-    async def request_action(self, action_type: ActionType, parameters: Dict[str, Any]) -> ActionResponse:
+    async def request_action(
+        self, action_type: ActionType, parameters: Dict[str, Any]
+    ) -> ActionResponse:
         """Request an action from the server and wait for response"""
         if not self.connected or not self.state.agent_id:
             return ActionResponse(
@@ -107,7 +114,7 @@ class MMOClientAdapter:
                 agent_id="",
                 action_type=action_type,
                 result=ActionResult.ERROR,
-                message="Not connected to server"
+                message="Not connected to server",
             )
 
         # Generate action ID
@@ -119,11 +126,14 @@ class MMOClientAdapter:
         self.pending_actions[action_id] = response_future
 
         # Send action request
-        action_msg = Message(MessageType.ACTION, {
-            "action_id": action_id,
-            "action_type": action_type.value,
-            "parameters": parameters
-        })
+        action_msg = Message(
+            MessageType.ACTION,
+            {
+                "action_id": action_id,
+                "action_type": action_type.value,
+                "parameters": parameters,
+            },
+        )
 
         try:
             await self._send_message(action_msg)
@@ -142,7 +152,7 @@ class MMOClientAdapter:
                 agent_id=self.state.agent_id,
                 action_type=action_type,
                 result=ActionResult.ERROR,
-                message="Action timeout"
+                message="Action timeout",
             )
         except Exception as e:
             logger.error(f"Error requesting action: {e}")
@@ -151,16 +161,21 @@ class MMOClientAdapter:
                 agent_id=self.state.agent_id,
                 action_type=action_type,
                 result=ActionResult.ERROR,
-                message=f"Request failed: {str(e)}"
+                message=f"Request failed: {str(e)}",
             )
 
-    async def move_to(self, target_x: float, target_y: float, speed_multiplier: float = 1.0):
+    async def move_to(
+        self, target_x: float, target_y: float, speed_multiplier: float = 1.0
+    ):
         """Request movement to target position"""
-        move_msg = Message(MessageType.MOVEMENT, {
-            "target_x": target_x,
-            "target_y": target_y,
-            "speed_multiplier": speed_multiplier
-        })
+        move_msg = Message(
+            MessageType.MOVEMENT,
+            {
+                "target_x": target_x,
+                "target_y": target_y,
+                "speed_multiplier": speed_multiplier,
+            },
+        )
 
         await self._send_message(move_msg)
 
@@ -169,7 +184,7 @@ class MMOClientAdapter:
         world_state = {
             "agents": [],
             "world_objects": [],
-            "timestamp": self.last_world_update
+            "timestamp": self.last_world_update,
         }
 
         # Add our agent first
@@ -181,7 +196,7 @@ class MMOClientAdapter:
                 "rotation": self.state.rotation,
                 "health": self.state.health,
                 "is_alive": self.state.is_alive,
-                "inventory": self.state.inventory or {}
+                "inventory": self.state.inventory or {},
             }
             world_state["agents"].append(our_agent)
 
@@ -221,7 +236,7 @@ class MMOClientAdapter:
 
         try:
             data = message.to_json().encode()
-            self.writer.write(len(data).to_bytes(4, 'big') + data)
+            self.writer.write(len(data).to_bytes(4, "big") + data)
             await self.writer.drain()
         except Exception as e:
             logger.error(f"Error sending message: {e}")
@@ -234,7 +249,7 @@ class MMOClientAdapter:
 
         # Read message length
         length_bytes = await self.reader.readexactly(4)
-        message_length = int.from_bytes(length_bytes, 'big')
+        message_length = int.from_bytes(length_bytes, "big")
 
         # Read message data
         data = await self.reader.readexactly(message_length)
@@ -283,14 +298,20 @@ class MMOClientAdapter:
                     # Update our state
                     if "position" in entity_data:
                         pos_data = entity_data["position"]
-                        self.state.position = (pos_data.get("x", self.state.position[0]),
-                                             pos_data.get("y", self.state.position[1]))
-                        self.state.rotation = pos_data.get("rotation", self.state.rotation)
+                        self.state.position = (
+                            pos_data.get("x", self.state.position[0]),
+                            pos_data.get("y", self.state.position[1]),
+                        )
+                        self.state.rotation = pos_data.get(
+                            "rotation", self.state.rotation
+                        )
 
                     if "health" in entity_data:
                         health_data = entity_data["health"]
                         self.state.health = health_data.get("health", self.state.health)
-                        self.state.is_alive = health_data.get("is_alive", self.state.is_alive)
+                        self.state.is_alive = health_data.get(
+                            "is_alive", self.state.is_alive
+                        )
                 else:
                     # Update other entities
                     if entity_id not in self.world_entities:
@@ -306,7 +327,10 @@ class MMOClientAdapter:
                     # Update our state
                     if "position" in agent:
                         pos_data = agent["position"]
-                        self.state.position = (pos_data.get("x", 0.0), pos_data.get("y", 0.0))
+                        self.state.position = (
+                            pos_data.get("x", 0.0),
+                            pos_data.get("y", 0.0),
+                        )
                         self.state.rotation = pos_data.get("rotation", 0.0)
 
                     if "health" in agent:
@@ -336,7 +360,7 @@ class MMOClientAdapter:
                 action_type=ActionType(data.get("action_type", "ping")),
                 result=ActionResult(data.get("result", "error")),
                 message=data.get("message", ""),
-                approved_parameters=data.get("approved_parameters")
+                approved_parameters=data.get("approved_parameters"),
             )
 
             future.set_result(response)

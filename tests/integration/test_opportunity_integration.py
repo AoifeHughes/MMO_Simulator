@@ -4,8 +4,9 @@ Integration tests for the Opportunity System with agent behavior.
 Tests that the opportunity system properly integrates with existing agent functionality.
 """
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
 
 from client.agent import BaseAgent
 from client.opportunity_system import OpportunityType
@@ -31,11 +32,7 @@ class TestOpportunityIntegration:
     def setup_method(self):
         """Set up test fixtures"""
         self.personality = Personality(
-            combat=7.0,
-            fishing=8.0,
-            foraging=6.0,
-            social=5.0,
-            exploration=4.0
+            combat=7.0, fishing=8.0, foraging=6.0, social=5.0, exploration=4.0
         )
 
         self.agent = Agent("test_agent", 10.0, 10.0, "test", self.personality)
@@ -57,19 +54,14 @@ class TestOpportunityIntegration:
     def test_opportunity_detection_with_agent(self):
         """Test opportunity detection with real agent"""
         visible_entities = [
-            {
-                "id": "wood_1",
-                "type": "wood",
-                "x": 12.0,
-                "y": 11.0
-            },
+            {"id": "wood_1", "type": "wood", "x": 12.0, "y": 11.0},
             {
                 "id": "enemy_1",
                 "agent_type": "enemy",
                 "x": 8.0,
                 "y": 9.0,
-                "health": 60.0
-            }
+                "health": 60.0,
+            },
         ]
 
         self.agent.perceive(visible_entities)
@@ -90,14 +82,9 @@ class TestOpportunityIntegration:
                 "id": "fish_1",
                 "type": "fish",  # Agent has high fishing preference
                 "x": 11.0,
-                "y": 11.0
+                "y": 11.0,
             },
-            {
-                "id": "wood_1",
-                "type": "wood",
-                "x": 15.0,
-                "y": 15.0
-            }
+            {"id": "wood_1", "type": "wood", "x": 15.0, "y": 15.0},
         ]
 
         self.agent.perceive(visible_entities)
@@ -119,7 +106,8 @@ class TestOpportunityIntegration:
 
         # Should detect emergency opportunity
         emergency_opportunities = [
-            opp for opp, score in opportunities
+            opp
+            for opp, score in opportunities
             if opp.opportunity_type == OpportunityType.EMERGENCY
         ]
 
@@ -143,14 +131,9 @@ class TestOpportunityIntegration:
                 "agent_type": "enemy",
                 "x": 12.0,
                 "y": 11.0,
-                "health": 80.0
+                "health": 80.0,
             },
-            {
-                "id": "fish_1",
-                "type": "fish",
-                "x": 12.0,
-                "y": 11.0
-            }
+            {"id": "fish_1", "type": "fish", "x": 12.0, "y": 11.0},
         ]
 
         # Both agents see the same entities
@@ -178,7 +161,7 @@ class TestOpportunityIntegration:
         terrain_data = {
             (11, 11): "wood",  # Assuming string-based terrain types for test
             (12, 10): "water",
-            (13, 11): "grass"
+            (13, 11): "grass",
         }
 
         opportunities = self.agent.get_current_opportunities(terrain_data)
@@ -189,14 +172,7 @@ class TestOpportunityIntegration:
 
     def test_opportunity_clearing(self):
         """Test clearing opportunities"""
-        visible_entities = [
-            {
-                "id": "resource_1",
-                "type": "wood",
-                "x": 12.0,
-                "y": 11.0
-            }
-        ]
+        visible_entities = [{"id": "resource_1", "type": "wood", "x": 12.0, "y": 11.0}]
 
         self.agent.perceive(visible_entities)
         opportunities_before = self.agent.get_current_opportunities()
@@ -212,14 +188,7 @@ class TestOpportunityIntegration:
 
     def test_opportunity_system_thread_safety(self):
         """Test that opportunity system can be called multiple times safely"""
-        visible_entities = [
-            {
-                "id": "resource_1",
-                "type": "wood",
-                "x": 12.0,
-                "y": 11.0
-            }
-        ]
+        visible_entities = [{"id": "resource_1", "type": "wood", "x": 12.0, "y": 11.0}]
 
         self.agent.perceive(visible_entities)
 
