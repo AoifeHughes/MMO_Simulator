@@ -6,8 +6,8 @@ This script provides convenient ways to run different types of tests
 with appropriate configurations.
 """
 
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -16,7 +16,7 @@ def run_command(cmd, description):
     print(f"\n{'='*60}")
     print(f"Running: {description}")
     print(f"Command: {' '.join(cmd)}")
-    print('='*60)
+    print("=" * 60)
 
     result = subprocess.run(cmd, capture_output=False)
     if result.returncode != 0:
@@ -97,7 +97,8 @@ def main():
             "tests/unit/test_action_validators.py::TestRateLimitValidator::test_allows_normal_rate",
             "tests/unit/test_world_physics.py::TestCollisionDetector::test_basic_bounds_checking",
             "tests/integration/test_action_system.py::TestActionRequestFlow::test_move_action_complete_flow",
-            "-v", "--tb=short"
+            "-v",
+            "--tb=short",
         ]
         success = run_command(cmd, "Quick Smoke Tests")
 

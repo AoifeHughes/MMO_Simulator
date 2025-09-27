@@ -55,10 +55,17 @@ class BehaviorNode(ABC):
         """Log node execution for debugging (reduced verbosity)"""
         # Only log significant state changes or leaf node successes/failures
         should_log = (
-            status == NodeStatus.SUCCESS and not hasattr(self, "children")  # Leaf node success
-            or (status == NodeStatus.FAILURE and "Enemy" in self.get_path())  # Combat failures
-            or (status == NodeStatus.SUCCESS and "Attack" in self.name)  # Combat successes
-            or (status == NodeStatus.SUCCESS and "Fish" in self.name)  # Fishing successes
+            status == NodeStatus.SUCCESS
+            and not hasattr(self, "children")  # Leaf node success
+            or (
+                status == NodeStatus.FAILURE and "Enemy" in self.get_path()
+            )  # Combat failures
+            or (
+                status == NodeStatus.SUCCESS and "Attack" in self.name
+            )  # Combat successes
+            or (
+                status == NodeStatus.SUCCESS and "Fish" in self.name
+            )  # Fishing successes
         )
 
         if should_log:

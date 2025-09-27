@@ -88,7 +88,9 @@ class ThinBaseAgent(ABC):
     def perceive(self, visible_entities: List[Dict[str, Any]]):
         """Update visible entities (pure display data from server)"""
         self.visible_entities = visible_entities
-        logger.debug(f"[THIN CLIENT] Agent {self.id[:8]} received {len(visible_entities)} visible entities")
+        logger.debug(
+            f"[THIN CLIENT] Agent {self.id[:8]} received {len(visible_entities)} visible entities"
+        )
 
     def update(self, delta_time: float):
         """
@@ -98,7 +100,9 @@ class ThinBaseAgent(ABC):
         # Check if we haven't received updates from server recently
         time_since_update = time.time() - self.last_server_update
         if time_since_update > 2.0:  # 2 seconds without server update
-            logger.warning(f"[THIN CLIENT] Agent {self.id[:8]} hasn't received server update in {time_since_update:.1f}s")
+            logger.warning(
+                f"[THIN CLIENT] Agent {self.id[:8]} hasn't received server update in {time_since_update:.1f}s"
+            )
 
         # Minimal local state maintenance for smooth rendering
         # (Server controls all real logic)
@@ -122,7 +126,7 @@ class ThinBaseAgent(ABC):
                 "type": "user_move",
                 "target_x": data.get("x", self.x),
                 "target_y": data.get("y", self.y),
-                "agent_id": self.id
+                "agent_id": self.id,
             }
         return None
 
@@ -130,7 +134,9 @@ class ThinBaseAgent(ABC):
         """Set world bounds (thin clients don't need collision detection)"""
         # Thin clients don't need collision detection or pathfinding
         # This is a no-op method to maintain compatibility
-        logger.debug(f"[THIN CLIENT] Agent {self.id[:8]} received world bounds {width}x{height} (ignored)")
+        logger.debug(
+            f"[THIN CLIENT] Agent {self.id[:8]} received world bounds {width}x{height} (ignored)"
+        )
 
     def get_display_state(self) -> Dict[str, Any]:
         """Get current state for display/rendering purposes"""
@@ -147,7 +153,7 @@ class ThinBaseAgent(ABC):
             "velocity_y": self.velocity_y,
             "visible_entities": len(self.visible_entities),
             "last_update": self.last_server_update,
-            "updates_received": self.updates_received
+            "updates_received": self.updates_received,
         }
 
 
@@ -158,20 +164,19 @@ class ThinPlayerAgent(ThinBaseAgent):
         super().__init__(agent_id, x, y, "player")
         logger.info(f"[THIN CLIENT] Created thin player agent {agent_id[:8]}")
 
-    def handle_input(self, input_type: str, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def handle_input(
+        self, input_type: str, data: Dict[str, Any]
+    ) -> Optional[Dict[str, Any]]:
         """Handle player input and convert to server actions"""
         if input_type == "move_to":
             return {
                 "type": "user_move",
                 "target_x": data.get("x", self.x),
                 "target_y": data.get("y", self.y),
-                "agent_id": self.id
+                "agent_id": self.id,
             }
         elif input_type == "attack":
-            return {
-                "type": "user_attack",
-                "agent_id": self.id
-            }
+            return {"type": "user_attack", "agent_id": self.id}
         return None
 
 
@@ -192,7 +197,9 @@ class ThinNPCAgent(ThinBaseAgent):
 
 
 # Factory function to create thin agents
-def create_thin_agent(agent_id: str, x: float, y: float, agent_type: str) -> ThinBaseAgent:
+def create_thin_agent(
+    agent_id: str, x: float, y: float, agent_type: str
+) -> ThinBaseAgent:
     """Factory function to create the appropriate thin agent type"""
     if agent_type == "player":
         return ThinPlayerAgent(agent_id, x, y)

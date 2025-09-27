@@ -21,11 +21,16 @@ logger = logging.getLogger(__name__)
 
 class SimulatorApp:
     def __init__(
-        self, mode: str = "both", visualize: bool = True, scenario: Optional[str] = None
+        self,
+        mode: str = "both",
+        visualize: bool = True,
+        scenario: Optional[str] = None,
+        timeout: Optional[int] = None,
     ):
         self.mode = mode
         self.visualize = visualize
         self.scenario_name = scenario
+        self.timeout = timeout
         self.server: Optional[GameServer] = None
         self.client: Optional[GameClient] = None
         self.renderer: Optional[Renderer] = None
@@ -39,6 +44,8 @@ class SimulatorApp:
         scenario = None
         terrain_type = None
         seed = 42
+        world_width = 100
+        world_height = 100
 
         if self.scenario_name:
             # Get scenario without server to access terrain properties
@@ -46,8 +53,10 @@ class SimulatorApp:
             if temp_scenario:
                 terrain_type = temp_scenario.terrain_type
                 seed = temp_scenario.seed
+                world_width = temp_scenario.world_width
+                world_height = temp_scenario.world_height
                 logger.info(
-                    f"Using terrain type: {terrain_type.value} with seed: {seed}"
+                    f"Using terrain type: {terrain_type.value} with seed: {seed}, world size: {world_width}x{world_height}"
                 )
             else:
                 logger.error(f"Failed to find scenario: {self.scenario_name}")
@@ -55,7 +64,9 @@ class SimulatorApp:
                 return None
 
         # Create server with terrain parameters
-        self.server = GameServer(100, 100, terrain_type=terrain_type, seed=seed)
+        self.server = GameServer(
+            world_width, world_height, terrain_type=terrain_type, seed=seed
+        )
         logger.info("Starting server...")
 
         # Load scenario if specified
@@ -111,12 +122,18 @@ class SimulatorApp:
                 client = GameClient()
 
                 # Inject behavior tree provider from scenario if available
-                if scenario and hasattr(scenario, 'get_custom_behavior_tree'):
-                    from client.behavior_tree.provider import BehaviorTreeInjector, ScenarioTreeProvider
+                if scenario and hasattr(scenario, "get_custom_behavior_tree"):
+                    from client.behavior_tree.provider import (
+                        BehaviorTreeInjector,
+                        ScenarioTreeProvider,
+                    )
+
                     scenario_provider = ScenarioTreeProvider(scenario)
                     injector = BehaviorTreeInjector(scenario_provider)
                     client.set_behavior_tree_provider(injector)
-                    logger.info(f"Injected scenario behavior tree provider for {agent_type}")
+                    logger.info(
+                        f"Injected scenario behavior tree provider for {agent_type}"
+                    )
 
                 connected = await client.connect(agent_type=agent_type)
                 if connected:
@@ -253,11 +270,17 @@ class SimulatorApp:
                 viz_task = asyncio.create_task(self.run_visualization())
                 tasks.append(viz_task)
 
+            # Add timeout task if specified
+            if self.timeout:
+                timeout_task = asyncio.create_task(self._timeout_handler())
+                tasks.append(timeout_task)
+                logger.info(f"Timeout set for {self.timeout} seconds")
+
             if tasks:
                 # Wait for tasks or until shutdown signal
                 try:
                     done, pending = await asyncio.wait(
-                        tasks, return_when=asyncio.FIRST_EXCEPTION
+                        tasks, return_when=asyncio.FIRST_COMPLETED
                     )
 
                     # If we reach here due to shutdown, cancel remaining tasks
@@ -300,6 +323,12 @@ class SimulatorApp:
             self.renderer.cleanup()
 
         logger.info("Cleanup complete")
+
+    async def _timeout_handler(self):
+        """Handle automatic timeout shutdown"""
+        await asyncio.sleep(self.timeout)
+        logger.info(f"Timeout reached ({self.timeout}s), shutting down gracefully...")
+        self.running = False
 
 
 async def demo_multiple_clients():
@@ -359,6 +388,9 @@ def main():
     parser.add_argument(
         "--host", default="127.0.0.1", help="Server host (for client mode)"
     )
+    parser.add_argument(
+        "--timeout", type=int, help="Automatic shutdown timeout in seconds"
+    )
 
     args = parser.parse_args()
 
@@ -379,7 +411,12 @@ def main():
         else:
             mode = args.mode
 
-        app = SimulatorApp(mode=mode, visualize=not args.no_viz, scenario=args.scenario)
+        app = SimulatorApp(
+            mode=mode,
+            visualize=not args.no_viz,
+            scenario=args.scenario,
+            timeout=args.timeout,
+        )
         asyncio.run(app.run())
 
 

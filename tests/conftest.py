@@ -1,167 +1,272 @@
+"""
+New Test Configuration and Fixtures
+
+Provides pytest fixtures and configuration for the improved test framework.
+Follows the test pyramid pattern with proper separation of concerns.
+"""
+
 import asyncio
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import pytest
-import pytest_asyncio
 
-from client.client import GameClient
-from scenarios.scenario_manager import ScenarioManager
-from server.server import GameServer
-from tests.utils.agent_tracker import AgentTracker
-from tests.utils.metrics import BehaviorMetrics
+from tests.framework.agent_harness import AgentTestHarness
+from tests.framework.test_server import GameServer, IntegrationTestContext, ServerConfig
+from tests.framework.world_builder import PredefinedWorlds, WorldBuilder
 
-# Configure logging for tests
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Configure test logging
+logging.basicConfig(level=logging.WARNING)  # Reduce noise during tests
 
 
-@pytest_asyncio.fixture
-async def game_server():
-    """Create a test game server"""
-    server = GameServer(50, 50)  # Smaller world for faster tests
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create event loop for async tests"""
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
 
-    # Start server in background
-    server_task = asyncio.create_task(server.start())
-    await asyncio.sleep(0.5)  # Let server initialize
+
+# Unit Test Fixtures (Fast, Isolated)
+
+
+@pytest.fixture
+def empty_world_builder():
+    """Create empty world builder for unit tests"""
+    return WorldBuilder(10, 10).with_seed(12345)
+
+
+@pytest.fixture
+def maze_world_builder():
+    """Create maze world for pathfinding unit tests"""
+    return PredefinedWorlds.simple_maze(15)
+
+
+@pytest.fixture
+def water_world_builder():
+    """Create world with water obstacles for navigation unit tests"""
+    return PredefinedWorlds.water_navigation_test()
+
+
+@pytest.fixture
+def agent_harness(empty_world_builder):
+    """Create agent test harness with empty world"""
+    world = empty_world_builder.build()
+    return AgentTestHarness(world)
+
+
+# Integration Test Fixtures (Medium Speed, Real Components)
+
+
+@pytest.fixture
+async def test_server():
+    """Create lightweight test server for integration tests"""
+    config = ServerConfig(
+        world_width=15,
+        world_height=15,
+        time_acceleration=10.0,  # Speed up tests
+        log_level="ERROR",  # Minimal logging
+    )
+    server = GameServer(config)
+    await server.start()
 
     yield server
 
-    # Cleanup
-    server.stop()
-    server_task.cancel()
-    try:
-        await server_task
-    except asyncio.CancelledError:
-        pass
-
-
-@pytest_asyncio.fixture
-async def game_client(game_server):
-    """Create a test game client"""
-    client = GameClient()
-    connected = await client.connect("127.0.0.1", "player")
-
-    if not connected:
-        pytest.fail("Failed to connect test client")
-
-    yield client
-
-    # Cleanup
-    if client.connected:
-        await client.disconnect()
-
-
-@pytest_asyncio.fixture
-async def agent_clients(game_server):
-    """Create multiple agent clients for testing"""
-    clients = []
-
-    async def create_agent_client(agent_type: str) -> GameClient:
-        client = GameClient()
-        connected = await client.connect("127.0.0.1", agent_type)
-        if connected:
-            clients.append(client)
-            # Start the client update loop
-            update_task = asyncio.create_task(client.run_update_loop())
-            client._update_task = update_task  # Store for cleanup
-            return client
-        return None
-
-    yield create_agent_client
-
-    # Cleanup all clients
-    for client in clients:
-        # Cancel update task if exists
-        if hasattr(client, "_update_task"):
-            client._update_task.cancel()
-            try:
-                await client._update_task
-            except asyncio.CancelledError:
-                pass
-
-        if client.connected:
-            await client.disconnect()
+    await server.stop()
 
 
 @pytest.fixture
-def scenario_manager():
-    """Create scenario manager for tests"""
-    return ScenarioManager()
+async def integration_context():
+    """Create integration test context with automatic cleanup"""
+    config = ServerConfig(
+        world_width=20, world_height=20, time_acceleration=5.0, log_level="ERROR"
+    )
+
+    async with IntegrationTestContext(config) as ctx:
+        yield ctx
 
 
-@pytest_asyncio.fixture
-async def agent_tracker(game_server):
-    """Create agent tracker for monitoring agent behavior"""
-    tracker = AgentTracker(game_server)
-    await tracker.start()
-
-    yield tracker
-
-    await tracker.stop()
+# Scenario Test Fixtures (Slower, Complex Environments)
 
 
 @pytest.fixture
-def behavior_metrics():
-    """Create behavior metrics collector"""
-    return BehaviorMetrics()
+async def complex_scenario_context():
+    """Create complex scenario for end-to-end tests"""
+    config = ServerConfig(
+        world_width=30,
+        world_height=30,
+        time_acceleration=2.0,  # Slower for complex scenarios
+        log_level="WARNING",
+    )
 
+    world_builder = PredefinedWorlds.multi_room_dungeon()
 
-@pytest_asyncio.fixture
-async def test_scenario(game_server, scenario_manager):
-    """Load a test scenario"""
-
-    async def load_scenario(scenario_name: str):
-        scenario = await scenario_manager.load_scenario(scenario_name, game_server)
-        if not scenario:
-            pytest.fail(f"Failed to load scenario: {scenario_name}")
-        return scenario
-
-    yield load_scenario
+    async with IntegrationTestContext(config, world_builder) as ctx:
+        yield ctx
 
 
 @pytest.fixture
-def assert_agent_behavior():
-    """Custom assertions for agent behavior"""
+async def resource_scenario_context():
+    """Create resource gathering scenario"""
+    config = ServerConfig(world_width=25, world_height=25, time_acceleration=3.0)
 
-    def _assert_agent_moved(
-        start_pos: tuple, end_pos: tuple, min_distance: float = 1.0
-    ):
-        """Assert agent moved at least minimum distance"""
-        distance = (
-            (end_pos[0] - start_pos[0]) ** 2 + (end_pos[1] - start_pos[1]) ** 2
-        ) ** 0.5
-        assert (
-            distance >= min_distance
-        ), f"Agent moved only {distance:.2f}, expected >= {min_distance}"
+    world_builder = PredefinedWorlds.resource_gathering_area()
 
-    def _assert_agent_in_radius(agent_pos: tuple, center: tuple, radius: float):
-        """Assert agent is within specified radius of center"""
-        distance = (
-            (agent_pos[0] - center[0]) ** 2 + (agent_pos[1] - center[1]) ** 2
-        ) ** 0.5
-        assert (
-            distance <= radius
-        ), f"Agent at {agent_pos} is {distance:.2f} from center {center}, expected <= {radius}"
-
-    def _assert_agent_state(agent_data: dict, expected_state: str):
-        """Assert agent is in expected state"""
-        actual_state = agent_data.get("state", "unknown")
-        assert (
-            actual_state == expected_state
-        ), f"Agent state is {actual_state}, expected {expected_state}"
-
-    class AssertAgent:
-        moved = _assert_agent_moved
-        in_radius = _assert_agent_in_radius
-        state = _assert_agent_state
-
-    return AssertAgent()
+    async with IntegrationTestContext(config, world_builder) as ctx:
+        yield ctx
 
 
-@pytest_asyncio.fixture(autouse=True)
-async def test_timeout():
-    """Ensure tests don't hang indefinitely"""
-    # This fixture runs automatically for all tests
+# Parameterized Test Fixtures
+
+
+@pytest.fixture(params=["explorer", "player", "enemy"])
+def agent_type(request):
+    """Parameterized agent type for testing all agent types"""
+    return request.param
+
+
+@pytest.fixture(
+    params=[
+        {"width": 10, "height": 10},
+        {"width": 20, "height": 15},
+        {"width": 5, "height": 25},
+    ]
+)
+def world_dimensions(request):
+    """Parameterized world dimensions for testing different sizes"""
+    return request.param
+
+
+@pytest.fixture(params=[1, 2, 5])
+def agent_count(request):
+    """Parameterized agent count for multi-agent tests"""
+    return request.param
+
+
+# Performance Test Fixtures
+
+
+@pytest.fixture
+def performance_config():
+    """Configuration for performance tests"""
+    return ServerConfig(
+        world_width=50,
+        world_height=50,
+        time_acceleration=1.0,  # Real-time for performance measurement
+        log_level="ERROR",
+        max_agents=100,
+    )
+
+
+# Test Utilities
+
+
+@pytest.fixture
+def test_data():
+    """Common test data for various scenarios"""
+    return {
+        "spawn_positions": [(5, 5), (10, 10), (15, 15), (20, 20)],
+        "target_positions": [(25, 25), (30, 30), (35, 35), (40, 40)],
+        "movement_speeds": [0.5, 1.0, 1.5, 2.0],
+        "timeouts": {"unit": 5.0, "integration": 15.0, "scenario": 60.0},
+    }
+
+
+# Cleanup and Utilities
+
+
+@pytest.fixture(autouse=True)
+def cleanup_logs():
+    """Automatically clean up log handlers after each test"""
     yield
-    # Cleanup happens automatically via pytest-timeout
+    # Remove any test-specific log handlers
+    for logger_name in ["server", "client", "tests"]:
+        logger = logging.getLogger(logger_name)
+        for handler in logger.handlers[:]:
+            logger.removeHandler(handler)
+
+
+# Marks for Test Organization
+
+pytest_markers = [
+    "unit: Fast unit tests (<1s each)",
+    "integration: Integration tests with real components (<10s each)",
+    "scenario: Complex end-to-end scenario tests (<60s each)",
+    "performance: Performance and load tests",
+    "slow: Tests that take longer than 30 seconds",
+    "network: Tests requiring network components",
+    "agent: Agent behavior tests",
+    "pathfinding: Pathfinding and navigation tests",
+    "collision: Collision detection tests",
+    "action_system: Action request/response system tests",
+]
+
+
+def pytest_configure(config):
+    """Configure pytest with custom markers"""
+    for marker in pytest_markers:
+        config.addinivalue_line("markers", marker)
+
+
+def pytest_collection_modifyitems(config, items):
+    """Automatically apply test markers based on file location"""
+    for item in items:
+        # Apply markers based on test file location
+        if "unit/" in str(item.fspath):
+            item.add_marker(pytest.mark.unit)
+        elif "integration/" in str(item.fspath):
+            item.add_marker(pytest.mark.integration)
+        elif "scenarios/" in str(item.fspath):
+            item.add_marker(pytest.mark.scenario)
+        elif "performance/" in str(item.fspath):
+            item.add_marker(pytest.mark.performance)
+
+        # Apply markers based on test name patterns
+        if "pathfind" in item.name.lower():
+            item.add_marker(pytest.mark.pathfinding)
+        elif "collision" in item.name.lower():
+            item.add_marker(pytest.mark.collision)
+        elif "action" in item.name.lower():
+            item.add_marker(pytest.mark.action_system)
+        elif "agent" in item.name.lower():
+            item.add_marker(pytest.mark.agent)
+
+
+# Test Selection Helpers
+
+
+def pytest_addoption(parser):
+    """Add custom command line options"""
+    parser.addoption(
+        "--fast-only",
+        action="store_true",
+        default=False,
+        help="Run only fast tests (unit tests)",
+    )
+    parser.addoption(
+        "--integration-only",
+        action="store_true",
+        default=False,
+        help="Run only integration tests",
+    )
+    parser.addoption(
+        "--scenarios-only",
+        action="store_true",
+        default=False,
+        help="Run only scenario tests",
+    )
+
+
+def pytest_runtest_setup(item):
+    """Setup hook to filter tests based on command line options"""
+    if item.config.getoption("--fast-only"):
+        if not item.get_closest_marker("unit"):
+            pytest.skip("Skipping non-unit test in fast-only mode")
+
+    if item.config.getoption("--integration-only"):
+        if not item.get_closest_marker("integration"):
+            pytest.skip("Skipping non-integration test in integration-only mode")
+
+    if item.config.getoption("--scenarios-only"):
+        if not item.get_closest_marker("scenario"):
+            pytest.skip("Skipping non-scenario test in scenarios-only mode")

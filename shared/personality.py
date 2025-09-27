@@ -8,8 +8,8 @@ agent type system with flexible desire-driven behavior.
 import json
 import random
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -26,19 +26,19 @@ class Personality:
     """
 
     # Core desires that drive agent behavior
-    exploration: float = 5.0    # Drive to explore unknown areas
-    combat: float = 5.0         # Inclination towards fighting/aggression
-    money: float = 5.0          # Desire to accumulate wealth/resources
-    social: float = 5.0         # Interest in interacting with others
-    fishing: float = 5.0        # Preference for fishing activities
-    farming: float = 5.0        # Interest in growing crops
-    foraging: float = 5.0       # Drive to gather natural resources
-    cooking: float = 5.0        # Interest in food preparation
-    building: float = 5.0       # Desire to construct/craft
+    exploration: float = 5.0  # Drive to explore unknown areas
+    combat: float = 5.0  # Inclination towards fighting/aggression
+    money: float = 5.0  # Desire to accumulate wealth/resources
+    social: float = 5.0  # Interest in interacting with others
+    fishing: float = 5.0  # Preference for fishing activities
+    farming: float = 5.0  # Interest in growing crops
+    foraging: float = 5.0  # Drive to gather natural resources
+    cooking: float = 5.0  # Interest in food preparation
+    building: float = 5.0  # Desire to construct/craft
 
     # Personality traits that modify behavior
     risk_tolerance: float = 5.0  # Willingness to take risks (0=cautious, 10=reckless)
-    patience: float = 5.0        # How long they stick with activities
+    patience: float = 5.0  # How long they stick with activities
     cooperativeness: float = 5.0  # Tendency to work with others
 
     def __post_init__(self):
@@ -60,8 +60,15 @@ class Personality:
             List of (desire_name, value) tuples sorted by value (highest first)
         """
         desire_fields = [
-            'exploration', 'combat', 'money', 'social', 'fishing',
-            'farming', 'foraging', 'cooking', 'building'
+            "exploration",
+            "combat",
+            "money",
+            "social",
+            "fishing",
+            "farming",
+            "foraging",
+            "cooking",
+            "building",
         ]
 
         desires = [(name, getattr(self, name)) for name in desire_fields]
@@ -100,13 +107,13 @@ class Personality:
 
         return total_score / total_weight if total_weight > 0 else 0.0
 
-    def is_compatible_with(self, other: 'Personality', threshold: float = 5.0) -> bool:
+    def is_compatible_with(self, other: "Personality", threshold: float = 5.0) -> bool:
         """Check if this personality is compatible with another for cooperation"""
         # High cooperativeness makes compatibility easier
         cooperation_bonus = (self.cooperativeness + other.cooperativeness) / 20.0
 
         # Calculate difference in core desires
-        desire_fields = ['exploration', 'combat', 'money', 'social']
+        desire_fields = ["exploration", "combat", "money", "social"]
         total_difference = 0.0
 
         for field in desire_fields:
@@ -126,7 +133,7 @@ class Personality:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Personality':
+    def from_dict(cls, data: Dict[str, Any]) -> "Personality":
         """Create personality from dictionary"""
         # Filter to only include valid fields
         valid_fields = {field.name for field in cls.__dataclass_fields__.values()}
@@ -138,7 +145,7 @@ class Personality:
         return json.dumps(self.to_dict(), indent=2)
 
     @classmethod
-    def from_json(cls, json_str: str) -> 'Personality':
+    def from_json(cls, json_str: str) -> "Personality":
         """Create personality from JSON string"""
         data = json.loads(json_str)
         return cls.from_dict(data)
@@ -173,7 +180,7 @@ class PersonalityArchetype:
             building=4.0,
             risk_tolerance=7.0,
             patience=8.0,
-            cooperativeness=7.0
+            cooperativeness=7.0,
         )
 
     @staticmethod
@@ -191,7 +198,7 @@ class PersonalityArchetype:
             building=4.0,
             risk_tolerance=8.0,
             patience=6.0,
-            cooperativeness=5.0
+            cooperativeness=5.0,
         )
 
     @staticmethod
@@ -209,7 +216,7 @@ class PersonalityArchetype:
             building=5.0,
             risk_tolerance=4.0,
             patience=9.0,
-            cooperativeness=8.0
+            cooperativeness=8.0,
         )
 
     @staticmethod
@@ -227,7 +234,7 @@ class PersonalityArchetype:
             building=6.0,
             risk_tolerance=6.0,
             patience=7.0,
-            cooperativeness=9.0
+            cooperativeness=9.0,
         )
 
     @staticmethod
@@ -245,7 +252,7 @@ class PersonalityArchetype:
             building=8.0,
             risk_tolerance=3.0,
             patience=10.0,
-            cooperativeness=8.0
+            cooperativeness=8.0,
         )
 
     @staticmethod
@@ -263,7 +270,7 @@ class PersonalityArchetype:
             building=6.0,
             risk_tolerance=5.0,
             patience=8.0,
-            cooperativeness=9.0
+            cooperativeness=9.0,
         )
 
     @staticmethod
@@ -281,7 +288,7 @@ class PersonalityArchetype:
             building=3.0,
             risk_tolerance=7.0,
             patience=6.0,
-            cooperativeness=4.0
+            cooperativeness=4.0,
         )
 
     @staticmethod
@@ -299,7 +306,7 @@ class PersonalityArchetype:
             building=8.0,
             risk_tolerance=3.0,
             patience=10.0,
-            cooperativeness=6.0
+            cooperativeness=6.0,
         )
 
     @staticmethod
@@ -320,21 +327,21 @@ class PersonalityArchetype:
             building=random.uniform(0, 10),
             risk_tolerance=random.uniform(0, 10),
             patience=random.uniform(0, 10),
-            cooperativeness=random.uniform(0, 10)
+            cooperativeness=random.uniform(0, 10),
         )
 
     @classmethod
     def get_all_archetypes(cls) -> Dict[str, Personality]:
         """Get all predefined archetypes as a dictionary"""
         return {
-            'explorer': cls.explorer(),
-            'warrior': cls.warrior(),
-            'fisher': cls.fisher(),
-            'merchant': cls.merchant(),
-            'farmer': cls.farmer(),
-            'guardian': cls.guardian(),
-            'hunter': cls.hunter(),
-            'scholar': cls.scholar()
+            "explorer": cls.explorer(),
+            "warrior": cls.warrior(),
+            "fisher": cls.fisher(),
+            "merchant": cls.merchant(),
+            "farmer": cls.farmer(),
+            "guardian": cls.guardian(),
+            "hunter": cls.hunter(),
+            "scholar": cls.scholar(),
         }
 
     @classmethod
@@ -344,8 +351,9 @@ class PersonalityArchetype:
         return archetypes.get(name.lower())
 
 
-def create_personality_variant(base_personality: Personality,
-                             mutations: Dict[str, float]) -> Personality:
+def create_personality_variant(
+    base_personality: Personality, mutations: Dict[str, float]
+) -> Personality:
     """
     Create a personality variant by modifying specific desires.
 
@@ -363,9 +371,9 @@ def create_personality_variant(base_personality: Personality,
     return Personality.from_dict(personality_dict)
 
 
-def blend_personalities(personality_a: Personality,
-                       personality_b: Personality,
-                       weight_a: float = 0.5) -> Personality:
+def blend_personalities(
+    personality_a: Personality, personality_b: Personality, weight_a: float = 0.5
+) -> Personality:
     """
     Blend two personalities together.
 

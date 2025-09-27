@@ -17,10 +17,20 @@ class MessageType(Enum):
     AGENT_DEATH = "agent_death"
     AGENT_RESPAWN = "agent_respawn"
     GAME_DATA_UPDATE = "game_data_update"  # Send game mechanics data to client
-    ACTION_REQUEST = "action_request"     # Client requests single action from server
-    ACTION_RESPONSE = "action_response"   # Server responds to single action request
-    ACTION_BATCH = "action_batch"         # Client requests multiple actions (batch)
+    ACTION_REQUEST = "action_request"  # Client requests single action from server
+    ACTION_RESPONSE = "action_response"  # Server responds to single action request
+    ACTION_BATCH = "action_batch"  # Client requests multiple actions (batch)
     ACTION_BATCH_RESPONSE = "action_batch_response"  # Server responds to batch
+    POSITION_SYNC = "position_sync"  # Server broadcasts authoritative positions
+    POSITION_UPDATE = "position_update"  # Client reports movement to server
+    POSITION_QUERY = "position_query"  # Client requests fresh position from server
+    POSITION_RESPONSE = "position_response"  # Server responds with fresh position data
+    ENVIRONMENT_QUERY = (
+        "environment_query"  # Client requests environment scan from server
+    )
+    ENVIRONMENT_RESPONSE = (
+        "environment_response"  # Server responds with environment data
+    )
     PING = "ping"
     PONG = "pong"
     ERROR = "error"

@@ -47,6 +47,10 @@ class GameLoop:
         self.last_tick = current_time
         self.tick_count += 1
 
+        # Update world objects (cleanup expired ones) every 10 seconds
+        if self.tick_count % 300 == 0:  # 300 ticks = 10 seconds at 30 TPS
+            self.world.update()
+
         # Send standardized updates every 500ms (15 ticks at 30 TPS)
         if self.tick_count % 15 == 0:
             await self.server.send_client_updates()
@@ -84,9 +88,7 @@ class GameLoop:
 
         if action_type == "damage":
             # Process AI-generated attack
-            await self.server.process_damage_action(
-                action.get("attacker_id"), action
-            )
+            await self.server.process_damage_action(action.get("attacker_id"), action)
 
         elif action_type == "move":
             # Process AI-generated movement

@@ -312,6 +312,10 @@ class TerrainGenerator:
 
         # Generate lakes
         for _ in range(num_bodies):
+            # Skip if map is too small for water bodies of this size
+            if max_size * 2 >= min(self.width, self.height):
+                continue
+
             # Try to place a water body
             attempts = 20
             for _ in range(attempts):

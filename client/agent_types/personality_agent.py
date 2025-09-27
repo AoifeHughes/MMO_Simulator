@@ -36,9 +36,13 @@ class PersonalityAgent(BaseAgent):
 
         # Dynamic behavior state based on personality
         self.exploration_history: List[Tuple[float, float]] = []
-        self.social_interactions: Dict[str, float] = {}  # agent_id -> last_interaction_time
+        self.social_interactions: Dict[
+            str, float
+        ] = {}  # agent_id -> last_interaction_time
         self.resource_goals: Dict[str, int] = {}  # resource_type -> target_amount
-        self.activity_satisfaction: Dict[str, float] = {}  # activity -> satisfaction_level
+        self.activity_satisfaction: Dict[
+            str, float
+        ] = {}  # activity -> satisfaction_level
 
         # Personality-driven configuration
         self._configure_from_personality()
@@ -46,9 +50,13 @@ class PersonalityAgent(BaseAgent):
         # Don't initialize behavior tree yet - wait for provider injection
         self.behavior_tree_initialized = False
 
-        logger.info(f"PersonalityAgent {agent_id[:8]} created with {self.archetype_name} personality: {personality}")
+        logger.info(
+            f"PersonalityAgent {agent_id[:8]} created with {self.archetype_name} personality: {personality}"
+        )
 
-    def _personality_to_legacy_type(self, personality: Personality, primary_desires: List[Tuple[str, float]]) -> str:
+    def _personality_to_legacy_type(
+        self, personality: Personality, primary_desires: List[Tuple[str, float]]
+    ) -> str:
         """Convert personality to legacy agent type for server compatibility"""
         if not primary_desires:
             return "player"
@@ -57,31 +65,31 @@ class PersonalityAgent(BaseAgent):
 
         # Map primary desires to legacy types
         desire_to_type = {
-            'exploration': 'explorer',
-            'combat': 'enemy' if personality.cooperativeness < 5.0 else 'player',
-            'fishing': 'explorer',  # Fishing explorers were explorers
-            'social': 'npc',
-            'farming': 'npc',
-            'money': 'npc',
-            'building': 'npc',
-            'cooking': 'npc',
-            'foraging': 'explorer'
+            "exploration": "explorer",
+            "combat": "enemy" if personality.cooperativeness < 5.0 else "player",
+            "fishing": "explorer",  # Fishing explorers were explorers
+            "social": "npc",
+            "farming": "npc",
+            "money": "npc",
+            "building": "npc",
+            "cooking": "npc",
+            "foraging": "explorer",
         }
 
-        return desire_to_type.get(primary_desire, 'player')
+        return desire_to_type.get(primary_desire, "player")
 
     def _determine_archetype_name(self, personality: Personality) -> str:
         """Determine the closest archetype name for this personality"""
         archetypes = PersonalityArchetype.get_all_archetypes()
 
         best_match = None
-        best_score = float('inf')
+        best_score = float("inf")
 
         for name, archetype in archetypes.items():
             # Calculate difference score
             score = 0.0
             for field_name in personality.__dataclass_fields__:
-                if field_name.startswith('_'):  # Skip private fields
+                if field_name.startswith("_"):  # Skip private fields
                     continue
 
                 personality_value = getattr(personality, field_name)
@@ -103,7 +111,9 @@ class PersonalityAgent(BaseAgent):
 
         # Adjust vision based on exploration and risk tolerance
         base_vision = 15.0
-        vision_modifier = (self.personality.exploration + self.personality.risk_tolerance) / 20.0
+        vision_modifier = (
+            self.personality.exploration + self.personality.risk_tolerance
+        ) / 20.0
         self.vision_range = base_vision * (0.8 + vision_modifier * 0.4)
 
         # Set intention cooldown based on patience
@@ -120,7 +130,9 @@ class PersonalityAgent(BaseAgent):
         desires = self.personality.get_primary_desires(count)
         return [desire[0] for desire in desires]
 
-    def should_engage_in_activity(self, activity: str, context: Dict[str, Any] = None) -> float:
+    def should_engage_in_activity(
+        self, activity: str, context: Dict[str, Any] = None
+    ) -> float:
         """
         Calculate how motivated the agent is to engage in a specific activity.
 
@@ -147,18 +159,21 @@ class PersonalityAgent(BaseAgent):
 
         elif activity == "exploration":
             # Increase exploration if we haven't moved much lately
-            if hasattr(self, 'last_position') and len(self.exploration_history) > 5:
-                recent_movement = sum(
-                    abs(pos[0] - self.x) + abs(pos[1] - self.y)
-                    for pos in self.exploration_history[-5:]
-                ) / 5.0
+            if hasattr(self, "last_position") and len(self.exploration_history) > 5:
+                recent_movement = (
+                    sum(
+                        abs(pos[0] - self.x) + abs(pos[1] - self.y)
+                        for pos in self.exploration_history[-5:]
+                    )
+                    / 5.0
+                )
 
                 if recent_movement < 2.0:  # Been stationary
                     motivation += 2.0
 
         elif activity == "social":
             # Increase social desire if haven't interacted recently
-            current_time = getattr(context, 'time', 0)
+            current_time = getattr(context, "time", 0)
             if self.social_interactions:
                 last_interaction = max(self.social_interactions.values())
                 time_since_social = current_time - last_interaction
@@ -172,7 +187,9 @@ class PersonalityAgent(BaseAgent):
 
         return max(0.0, min(10.0, motivation))
 
-    def update_activity_satisfaction(self, activity: str, success: bool, duration: float):
+    def update_activity_satisfaction(
+        self, activity: str, success: bool, duration: float
+    ):
         """Update satisfaction levels for activities"""
         if activity not in self.activity_satisfaction:
             self.activity_satisfaction[activity] = 5.0
@@ -185,16 +202,22 @@ class PersonalityAgent(BaseAgent):
             self.activity_satisfaction[activity] = min(10.0, current + gain)
         else:
             # Failures decrease satisfaction
-            self.activity_satisfaction[activity] = max(0.0, self.activity_satisfaction[activity] - duration * 0.2)
+            self.activity_satisfaction[activity] = max(
+                0.0, self.activity_satisfaction[activity] - duration * 0.2
+            )
 
         # All other activities slowly decay toward neutral (5.0)
         for other_activity in self.activity_satisfaction:
             if other_activity != activity:
                 current = self.activity_satisfaction[other_activity]
                 if current > 5.0:
-                    self.activity_satisfaction[other_activity] = max(5.0, current - 0.05)
+                    self.activity_satisfaction[other_activity] = max(
+                        5.0, current - 0.05
+                    )
                 elif current < 5.0:
-                    self.activity_satisfaction[other_activity] = min(5.0, current + 0.05)
+                    self.activity_satisfaction[other_activity] = min(
+                        5.0, current + 0.05
+                    )
 
     def record_exploration(self, x: float, y: float):
         """Record exploration progress"""
@@ -211,27 +234,37 @@ class PersonalityAgent(BaseAgent):
         """Initialize the behavior tree for this personality agent"""
         # PersonalityAgent ALWAYS uses the personality tree builder (not provider system)
         try:
-            from client.behavior_tree.personality_tree_builder import personality_tree_builder
+            from client.behavior_tree.personality_tree_builder import (
+                personality_tree_builder,
+            )
 
-            logger.info(f"PersonalityAgent {self.id[:8]} building personality-driven behavior tree")
+            logger.info(
+                f"PersonalityAgent {self.id[:8]} building personality-driven behavior tree"
+            )
             tree = personality_tree_builder.build_tree(
                 self.personality,
                 self.x,
                 self.y,
                 home_base=(self.x, self.y),
-                patrol_radius=8.0
+                patrol_radius=8.0,
             )
 
             if tree:
                 self.set_behavior_tree(tree)
-                logger.info(f"PersonalityAgent {self.id[:8]} initialized with personality tree builder")
+                logger.info(
+                    f"PersonalityAgent {self.id[:8]} initialized with personality tree builder"
+                )
                 self.behavior_tree_initialized = True
             else:
-                logger.error(f"PersonalityAgent {self.id[:8]} personality tree builder returned None")
+                logger.error(
+                    f"PersonalityAgent {self.id[:8]} personality tree builder returned None"
+                )
                 self._create_fallback_tree()
 
         except Exception as e:
-            logger.error(f"PersonalityAgent {self.id[:8]} failed to initialize behavior tree: {e}")
+            logger.error(
+                f"PersonalityAgent {self.id[:8]} failed to initialize behavior tree: {e}"
+            )
             self._create_fallback_tree()
 
     def _create_fallback_tree(self):
@@ -239,12 +272,15 @@ class PersonalityAgent(BaseAgent):
         try:
             from client.behavior_tree.nodes import Idle
             from client.behavior_tree.tree import BehaviorTree
+
             fallback_tree = BehaviorTree(Idle(5.0), "FallbackTree")
             self.set_behavior_tree(fallback_tree)
             self.behavior_tree_initialized = True
             logger.warning(f"PersonalityAgent {self.id[:8]} using fallback idle tree")
         except Exception as e:
-            logger.error(f"PersonalityAgent {self.id[:8]} failed to create fallback tree: {e}")
+            logger.error(
+                f"PersonalityAgent {self.id[:8]} failed to create fallback tree: {e}"
+            )
 
     def update(self, delta_time: float):
         """Update agent using personality-driven behavior tree"""
@@ -254,8 +290,12 @@ class PersonalityAgent(BaseAgent):
 
         # Record current position for exploration tracking
         import time
+
         current_time = time.time()
-        if not hasattr(self, '_last_position_record') or current_time - self._last_position_record > 1.0:
+        if (
+            not hasattr(self, "_last_position_record")
+            or current_time - self._last_position_record > 1.0
+        ):
             self.record_exploration(self.x, self.y)
             self._last_position_record = current_time
 
@@ -271,9 +311,13 @@ class PersonalityAgent(BaseAgent):
 
         # Record social opportunities
         import time
+
         current_time = time.time()
         for entity in visible_entities:
-            if entity.get("id") != self.id and entity.get("agent_type") in ["player", "npc"]:
+            if entity.get("id") != self.id and entity.get("agent_type") in [
+                "player",
+                "npc",
+            ]:
                 # This is a potential social interaction
                 if self.personality.social > 6.0:  # Only record if socially inclined
                     entity_id = entity.get("id")
@@ -286,13 +330,16 @@ class PersonalityAgent(BaseAgent):
         # The behavior tree now handles most decisions
         # This method mainly serves for reporting and debugging
 
-        if hasattr(self, 'personality') and self.personality:
+        if hasattr(self, "personality") and self.personality:
             primary_motivations = self.get_primary_motivations(2)
 
             # Report personality-driven status occasionally
             import time
-            if not hasattr(self, '_last_personality_report') or \
-               time.time() - self._last_personality_report > 10.0:
+
+            if (
+                not hasattr(self, "_last_personality_report")
+                or time.time() - self._last_personality_report > 10.0
+            ):
                 self._last_personality_report = time.time()
 
                 return {
@@ -300,8 +347,8 @@ class PersonalityAgent(BaseAgent):
                     "agent_id": self.id,
                     "archetype": self.archetype_name,
                     "primary_motivations": primary_motivations,
-                    "current_activity": getattr(self, 'current_intention', None),
-                    "position": (self.x, self.y)
+                    "current_activity": getattr(self, "current_intention", None),
+                    "position": (self.x, self.y),
                 }
 
         return None
@@ -316,24 +363,30 @@ class PersonalityAgent(BaseAgent):
             "primary_motivations": self.get_primary_motivations(3),
             "activity_satisfaction": dict(self.activity_satisfaction),
             "social_interactions_count": len(self.social_interactions),
-            "exploration_history_length": len(self.exploration_history)
+            "exploration_history_length": len(self.exploration_history),
         }
 
         base_debug.update(personality_debug)
         return base_debug
 
     @classmethod
-    def create_from_archetype(cls, agent_id: str, x: float, y: float, archetype_name: str) -> 'PersonalityAgent':
+    def create_from_archetype(
+        cls, agent_id: str, x: float, y: float, archetype_name: str
+    ) -> "PersonalityAgent":
         """Create a personality agent from a named archetype"""
         archetype = PersonalityArchetype.get_archetype(archetype_name)
         if archetype is None:
-            logger.warning(f"Unknown archetype '{archetype_name}', using explorer default")
+            logger.warning(
+                f"Unknown archetype '{archetype_name}', using explorer default"
+            )
             archetype = PersonalityArchetype.explorer()
 
         return cls(agent_id, x, y, archetype)
 
     @classmethod
-    def create_random(cls, agent_id: str, x: float, y: float, seed: Optional[int] = None) -> 'PersonalityAgent':
+    def create_random(
+        cls, agent_id: str, x: float, y: float, seed: Optional[int] = None
+    ) -> "PersonalityAgent":
         """Create a personality agent with random personality"""
         random_personality = PersonalityArchetype.random_personality(seed)
         return cls(agent_id, x, y, random_personality)

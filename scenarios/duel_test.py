@@ -69,52 +69,49 @@ class DuelTestScenario(BaseScenario):
         # Spawn positions - very close to each other in the center of the map
         center_x = map_width // 2
         center_y = map_height // 2
-        player_spawn = (center_x - 2, center_y)   # Left of center
-        enemy_spawn = (center_x + 2, center_y)    # Right of center, 4 units apart
+        player_spawn = (center_x - 2, center_y)  # Left of center
+        enemy_spawn = (center_x + 2, center_y)  # Right of center, 4 units apart
 
         # Store spawn points for respawning
-        self.spawn_points = {
-            "player": player_spawn,
-            "enemy": enemy_spawn
-        }
+        self.spawn_points = {"player": player_spawn, "enemy": enemy_spawn}
 
         agent_configs = []
 
         # Spawn player
         logger.info(f"Spawning player at {player_spawn}")
         player_agent_id = self.server.world.spawn_agent(
-            agent_type="player",
-            x=player_spawn[0],
-            y=player_spawn[1]
+            agent_type="player", x=player_spawn[0], y=player_spawn[1]
         )
         if player_agent_id:
             # Register agent so clients can take control
-            self.server.agent_registry.register_agent(player_agent_id, "player", player_spawn[0], player_spawn[1])
+            self.server.agent_registry.register_agent(
+                player_agent_id, "player", player_spawn[0], player_spawn[1]
+            )
             # Register with AI system
-            self.server.ai_system.register_agent(player_agent_id, "player", player_spawn[0], player_spawn[1])
-            agent_configs.append({
-                "type": "player",
-                "position": player_spawn,
-                "id": player_agent_id
-            })
+            self.server.ai_system.register_agent(
+                player_agent_id, "player", player_spawn[0], player_spawn[1]
+            )
+            agent_configs.append(
+                {"type": "player", "position": player_spawn, "id": player_agent_id}
+            )
 
         # Spawn enemy
         logger.info(f"Spawning enemy at {enemy_spawn}")
         enemy_agent_id = self.server.world.spawn_agent(
-            agent_type="enemy",
-            x=enemy_spawn[0],
-            y=enemy_spawn[1]
+            agent_type="enemy", x=enemy_spawn[0], y=enemy_spawn[1]
         )
         if enemy_agent_id:
             # Register agent so clients can take control
-            self.server.agent_registry.register_agent(enemy_agent_id, "enemy", enemy_spawn[0], enemy_spawn[1])
+            self.server.agent_registry.register_agent(
+                enemy_agent_id, "enemy", enemy_spawn[0], enemy_spawn[1]
+            )
             # Register with AI system
-            self.server.ai_system.register_agent(enemy_agent_id, "enemy", enemy_spawn[0], enemy_spawn[1])
-            agent_configs.append({
-                "type": "enemy",
-                "position": enemy_spawn,
-                "id": enemy_agent_id
-            })
+            self.server.ai_system.register_agent(
+                enemy_agent_id, "enemy", enemy_spawn[0], enemy_spawn[1]
+            )
+            agent_configs.append(
+                {"type": "enemy", "position": enemy_spawn, "id": enemy_agent_id}
+            )
 
         logger.info("Duel test setup:")
         logger.info(f"  Map size: {map_width}x{map_height}")
@@ -150,19 +147,23 @@ class DuelTestScenario(BaseScenario):
                 "dead_agent_type": dead_agent.agent_type if dead_agent else "unknown",
                 "killer_id": killer_id[:8] if killer_id else "none",
                 "killer_type": killer_agent.agent_type if killer_agent else "none",
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
             self.death_log.append(death_info)
 
-            logger.info(f"[DUEL TEST] Death #{self.death_count}/{self.death_target}: "
-                       f"{death_info['dead_agent_type']} {death_info['dead_agent_id']} "
-                       f"killed by {death_info['killer_type']} {death_info['killer_id']} "
-                       f"at {elapsed:.1f}s")
+            logger.info(
+                f"[DUEL TEST] Death #{self.death_count}/{self.death_target}: "
+                f"{death_info['dead_agent_type']} {death_info['dead_agent_id']} "
+                f"killed by {death_info['killer_type']} {death_info['killer_id']} "
+                f"at {elapsed:.1f}s"
+            )
 
             # Check if we've reached the target
             if self.death_count >= self.death_target:
-                logger.info(f"[DUEL TEST] Target of {self.death_target} deaths reached!")
+                logger.info(
+                    f"[DUEL TEST] Target of {self.death_target} deaths reached!"
+                )
                 await self._finish_test(server)
 
             # Respawn close to maintain engagement
@@ -184,14 +185,18 @@ class DuelTestScenario(BaseScenario):
             # Respawn at the designated close spawn point
             dead_agent.x = spawn_point[0]
             dead_agent.y = spawn_point[1]
-            dead_agent.health = getattr(dead_agent, 'max_health', 100)
+            dead_agent.health = getattr(dead_agent, "max_health", 100)
             dead_agent.is_alive = True
             dead_agent.respawn_time = None
 
-            logger.info(f"[DUEL TEST] Respawned {agent_type} {dead_agent_id[:8]} at {spawn_point}")
+            logger.info(
+                f"[DUEL TEST] Respawned {agent_type} {dead_agent_id[:8]} at {spawn_point}"
+            )
 
             # Notify clients about the respawn so they can reset behavior trees
-            await server.broadcast_respawn_event(dead_agent_id, spawn_point[0], spawn_point[1])
+            await server.broadcast_respawn_event(
+                dead_agent_id, spawn_point[0], spawn_point[1]
+            )
 
     async def _finish_test(self, server):
         """Finish the test and log results"""
@@ -203,8 +208,10 @@ class DuelTestScenario(BaseScenario):
         logger.info(f"Average time between deaths: {total_time/self.death_count:.1f}s")
 
         # Log death statistics
-        player_deaths = sum(1 for d in self.death_log if d['dead_agent_type'] == 'player')
-        enemy_deaths = sum(1 for d in self.death_log if d['dead_agent_type'] == 'enemy')
+        player_deaths = sum(
+            1 for d in self.death_log if d["dead_agent_type"] == "player"
+        )
+        enemy_deaths = sum(1 for d in self.death_log if d["dead_agent_type"] == "enemy")
 
         logger.info(f"Player deaths: {player_deaths}")
         logger.info(f"Enemy deaths: {enemy_deaths}")
@@ -223,10 +230,12 @@ class DuelTestScenario(BaseScenario):
 
         elapsed = time.time() - self.start_time
         return {
-            "status": "running" if self.death_count < self.death_target else "completed",
+            "status": "running"
+            if self.death_count < self.death_target
+            else "completed",
             "deaths": self.death_count,
             "target": self.death_target,
             "progress": f"{self.death_count}/{self.death_target}",
             "elapsed_time": elapsed,
-            "death_log": self.death_log
+            "death_log": self.death_log,
         }

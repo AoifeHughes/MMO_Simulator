@@ -47,6 +47,10 @@ class ServerAgentState:
         }
     )
 
+    # Agent behavior configuration
+    specialization: Optional[str] = None
+    exploration_mode: Optional[str] = None
+
     # Inventory system
     inventory: Inventory = field(default_factory=lambda: Inventory(max_weight=100.0))
     experience: float = 0.0
@@ -133,17 +137,25 @@ class ServerAgentState:
                 self.inventory.equip_item(sword.item_id)
 
         elif self.agent_type == "explorer":
-            # Explorers start with fishing rod
+            # Explorers start with fishing rod and hatchet
             fishing_rod = create_item("fishing_rod")
             if fishing_rod:
                 self.inventory.add_item(fishing_rod, 1)
+            hatchet = create_item("hatchet")
+            if hatchet:
+                self.inventory.add_item(hatchet, 1)
+        elif self.agent_type in ["lumberjack", "wood_cutter", "woodcutter"]:
+            # Wood cutters start with hatchet
+            hatchet = create_item("hatchet")
+            if hatchet:
+                self.inventory.add_item(hatchet, 1)
 
         # All agents start with some gold
         self.inventory.add_gold(100)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization"""
-        return {
+        data = {
             "agent_id": self.agent_id,
             "agent_type": self.agent_type,
             "health": self.health,
@@ -157,6 +169,14 @@ class ServerAgentState:
             "last_update_time": self.last_update_time,
             "explored_tiles_count": len(self.explored_tiles),
         }
+
+        # Include behavior configuration if available
+        if self.specialization:
+            data["specialization"] = self.specialization
+        if self.exploration_mode:
+            data["exploration_mode"] = self.exploration_mode
+
+        return data
 
 
 class AgentRegistry:
@@ -292,7 +312,9 @@ class AgentRegistry:
         self.world_width = width
         self.world_height = height
 
-    def process_agent_vision_update(self, agent_id: str, discovered_tiles: List[Tuple[int, int]]):
+    def process_agent_vision_update(
+        self, agent_id: str, discovered_tiles: List[Tuple[int, int]]
+    ):
         """Process vision update from agent to track server-side exploration"""
         agent = self.get_agent(agent_id)
         if not agent:
@@ -302,5 +324,7 @@ class AgentRegistry:
             agent.add_explored_tile(x, y)
 
         # Update the exploration percentage in stats
-        exploration_percent = agent.get_exploration_percentage(self.world_width, self.world_height)
+        exploration_percent = agent.get_exploration_percentage(
+            self.world_width, self.world_height
+        )
         agent.update_exploration(exploration_percent)

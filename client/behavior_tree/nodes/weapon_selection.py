@@ -4,7 +4,12 @@ Weapon selection and combat nodes for behavior trees.
 
 from typing import List, Optional
 
-from shared.actions import ActionRequest, ActionType, attack_target_params, equip_item_params
+from shared.actions import (
+    ActionRequest,
+    ActionType,
+    attack_target_params,
+    equip_item_params,
+)
 from shared.items import Weapon, WeaponType
 
 from .base import ActionNode, ConditionNode, NodeStatus
@@ -56,10 +61,10 @@ class SelectBestWeapon(ActionNode):
         """Request weapon equipment from server"""
         # This is a simplified implementation
         # In reality, we'd need to find the weapon in inventory by ID
-        if hasattr(agent, 'action_manager') and agent.action_manager:
+        if hasattr(agent, "action_manager") and agent.action_manager:
             # For now, just store the preferred weapon type
             # The combat action will use this information
-            if not hasattr(agent, 'preferred_weapon'):
+            if not hasattr(agent, "preferred_weapon"):
                 agent.preferred_weapon = weapon_type
             else:
                 agent.preferred_weapon = weapon_type
@@ -117,7 +122,7 @@ class AttackWithBestWeapon(ActionNode):
             agent,
             agent.visible_entities,
             self.enemy_types,
-            max_range=20.0  # Large range for weapon selection
+            max_range=20.0,  # Large range for weapon selection
         )
         if not target:
             return NodeStatus.FAILURE
@@ -136,6 +141,7 @@ class AttackWithBestWeapon(ActionNode):
 
         # Check cooldown
         import time
+
         current_time = time.time()
         if current_time - self.last_attack_time < weapon_info["cooldown"]:
             return NodeStatus.RUNNING
@@ -154,12 +160,12 @@ class AttackWithBestWeapon(ActionNode):
 
     def _select_weapon_for_distance(self, distance: float, agent) -> Optional[dict]:
         """Select the best weapon for the given distance using server data"""
-        if not hasattr(agent, 'server_game_data') or not agent.server_game_data:
+        if not hasattr(agent, "server_game_data") or not agent.server_game_data:
             # Fallback to hardcoded values if no server data
             return self._select_fallback_weapon_for_distance(distance)
 
-        attacks = agent.server_game_data.get('attacks', {})
-        character_attacks = agent.server_game_data.get('character_attacks', {})
+        attacks = agent.server_game_data.get("attacks", {})
+        character_attacks = agent.server_game_data.get("character_attacks", {})
         available_attacks = character_attacks.get(agent.agent_type, [])
 
         # Find attacks that can hit at this distance
@@ -167,8 +173,8 @@ class AttackWithBestWeapon(ActionNode):
         for attack_name in available_attacks:
             if attack_name in attacks:
                 attack_data = attacks[attack_name]
-                min_range = attack_data.get('min_range', 0.0)
-                max_range = attack_data.get('max_range', 1.0)
+                min_range = attack_data.get("min_range", 0.0)
+                max_range = attack_data.get("max_range", 1.0)
 
                 if min_range <= distance <= max_range:
                     weapon_info = {
@@ -176,8 +182,8 @@ class AttackWithBestWeapon(ActionNode):
                         "attack_name": attack_name,
                         "min_range": min_range,
                         "max_range": max_range,
-                        "damage": attack_data.get('damage', 1.0),
-                        "cooldown": attack_data.get('cooldown', 1.0)
+                        "damage": attack_data.get("damage", 1.0),
+                        "cooldown": attack_data.get("cooldown", 1.0),
                     }
                     usable_weapons.append(weapon_info)
 
@@ -196,7 +202,7 @@ class AttackWithBestWeapon(ActionNode):
                 "min_range": 3.0,
                 "max_range": 15.0,
                 "damage": 20.0,
-                "cooldown": 2.0
+                "cooldown": 2.0,
             },
             {
                 "name": "sword",
@@ -204,7 +210,7 @@ class AttackWithBestWeapon(ActionNode):
                 "min_range": 0.5,
                 "max_range": 2.5,
                 "damage": 15.0,
-                "cooldown": 1.5
+                "cooldown": 1.5,
             },
             {
                 "name": "punch",
@@ -212,8 +218,8 @@ class AttackWithBestWeapon(ActionNode):
                 "min_range": 0.0,
                 "max_range": 1.5,
                 "damage": 8.0,
-                "cooldown": 1.0
-            }
+                "cooldown": 1.0,
+            },
         ]
 
         usable_weapons = []
@@ -228,20 +234,26 @@ class AttackWithBestWeapon(ActionNode):
 
     def _request_attack(self, agent, target_id: str, attack_name: str):
         """Request attack action from server"""
-        if hasattr(agent, 'action_manager') and agent.action_manager:
+        if hasattr(agent, "action_manager") and agent.action_manager:
             import asyncio
-            asyncio.create_task(agent.action_manager.request_action(
-                action_type=ActionType.ATTACK_TARGET,
-                parameters=attack_target_params(target_id, attack_name)
-            ))
+
+            asyncio.create_task(
+                agent.action_manager.request_action(
+                    action_type=ActionType.ATTACK_TARGET,
+                    parameters=attack_target_params(target_id, attack_name),
+                )
+            )
         else:
             # Fallback for legacy system
-            if hasattr(agent, 'client') and agent.client:
+            if hasattr(agent, "client") and agent.client:
                 import asyncio
-                asyncio.create_task(agent.client.request_action(
-                    ActionType.ATTACK_TARGET,
-                    attack_target_params(target_id, attack_name)
-                ))
+
+                asyncio.create_task(
+                    agent.client.request_action(
+                        ActionType.ATTACK_TARGET,
+                        attack_target_params(target_id, attack_name),
+                    )
+                )
 
     def reset(self):
         """Reset attack state"""
@@ -258,13 +270,15 @@ class IsInWeaponRange(ConditionNode):
 
     def check_condition(self, agent) -> bool:
         """Check if any enemy is in weapon range"""
-        if not hasattr(agent, 'visible_entities') or not agent.visible_entities:
+        if not hasattr(agent, "visible_entities") or not agent.visible_entities:
             return False
 
         # Check each visible enemy
         for entity in agent.visible_entities:
             if entity.get("agent_type") in self.enemy_types:
-                distance = ((entity["x"] - agent.x) ** 2 + (entity["y"] - agent.y) ** 2) ** 0.5
+                distance = (
+                    (entity["x"] - agent.x) ** 2 + (entity["y"] - agent.y) ** 2
+                ) ** 0.5
 
                 # Check if any weapon can reach this target
                 if self._can_attack_at_distance(distance):
@@ -276,8 +290,8 @@ class IsInWeaponRange(ConditionNode):
         """Check if we have a weapon that can attack at this distance"""
         weapon_ranges = [
             (3.0, 15.0),  # Bow
-            (0.5, 2.5),   # Sword
-            (0.0, 1.5),   # Punch
+            (0.5, 2.5),  # Sword
+            (0.0, 1.5),  # Punch
         ]
 
         for min_range, max_range in weapon_ranges:

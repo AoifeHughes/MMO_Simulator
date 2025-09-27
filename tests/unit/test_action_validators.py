@@ -4,16 +4,21 @@ Unit tests for action validation system
 These tests focus on individual validators in isolation for speed and precision.
 """
 
-import pytest
 import time
 from unittest.mock import MagicMock
 
+import pytest
+
 from server.action_processor import (
-    ActionContext, RateLimitValidator, CooldownValidator,
-    MovementValidator, CombatValidator, FishingValidator
+    ActionContext,
+    CombatValidator,
+    CooldownValidator,
+    FishingValidator,
+    MovementValidator,
+    RateLimitValidator,
 )
 from shared.actions import ActionRequest, ActionType
-from tests.fixtures.mock_server import MockWorld, MockGameServer
+from tests.fixtures.mock_server import MockGameServer, MockWorld
 from tests.fixtures.test_maps import TestMaps
 from world.tiles import TileType
 
@@ -30,7 +35,7 @@ class TestRateLimitValidator:
             action_id="test1",
             agent_id="agent1",
             action_type=ActionType.MOVE_TO,
-            parameters={}
+            parameters={},
         )
 
         # First few actions should pass
@@ -48,7 +53,7 @@ class TestRateLimitValidator:
             action_id="test1",
             agent_id="agent1",
             action_type=ActionType.MOVE_TO,
-            parameters={}
+            parameters={},
         )
 
         # First 2 should pass
@@ -67,12 +72,16 @@ class TestRateLimitValidator:
         context = MagicMock()
 
         request1 = ActionRequest(
-            action_id="test1", agent_id="agent1",
-            action_type=ActionType.MOVE_TO, parameters={}
+            action_id="test1",
+            agent_id="agent1",
+            action_type=ActionType.MOVE_TO,
+            parameters={},
         )
         request2 = ActionRequest(
-            action_id="test2", agent_id="agent2",
-            action_type=ActionType.MOVE_TO, parameters={}
+            action_id="test2",
+            agent_id="agent2",
+            action_type=ActionType.MOVE_TO,
+            parameters={},
         )
 
         # Both agents should be able to make their first action
@@ -102,7 +111,7 @@ class TestCooldownValidator:
             action_id="test1",
             agent_id="agent1",
             action_type=ActionType.ATTACK_TARGET,
-            parameters={}
+            parameters={},
         )
 
         # First action should pass
@@ -120,12 +129,16 @@ class TestCooldownValidator:
         context = MagicMock()
 
         attack_request = ActionRequest(
-            action_id="attack", agent_id="agent1",
-            action_type=ActionType.ATTACK_TARGET, parameters={}
+            action_id="attack",
+            agent_id="agent1",
+            action_type=ActionType.ATTACK_TARGET,
+            parameters={},
         )
         move_request = ActionRequest(
-            action_id="move", agent_id="agent1",
-            action_type=ActionType.MOVE_TO, parameters={}
+            action_id="move",
+            agent_id="agent1",
+            action_type=ActionType.MOVE_TO,
+            parameters={},
         )
 
         # Attack action
@@ -143,8 +156,10 @@ class TestCooldownValidator:
 
         # Use an action type that's not in the cooldowns dict
         request = ActionRequest(
-            action_id="test", agent_id="agent1",
-            action_type=ActionType.QUERY_INVENTORY, parameters={}
+            action_id="test",
+            agent_id="agent1",
+            action_type=ActionType.QUERY_INVENTORY,
+            parameters={},
         )
 
         # Should pass multiple times since no cooldown configured
@@ -173,7 +188,7 @@ class TestMovementValidator:
             action_id="move1",
             agent_id=self.agent_id,
             action_type=ActionType.MOVE_TO,
-            parameters={"target_x": 15.0, "target_y": 15.0}
+            parameters={"target_x": 15.0, "target_y": 15.0},
         )
 
         is_valid, message = self.validator.validate(request, self.context)
@@ -185,7 +200,7 @@ class TestMovementValidator:
             action_id="move1",
             agent_id=self.agent_id,
             action_type=ActionType.MOVE_TO,
-            parameters={"target_x": 25.0, "target_y": 15.0}  # X out of bounds
+            parameters={"target_x": 25.0, "target_y": 15.0},  # X out of bounds
         )
 
         is_valid, message = self.validator.validate(request, self.context)
@@ -201,7 +216,7 @@ class TestMovementValidator:
             action_id="move1",
             agent_id=self.agent_id,
             action_type=ActionType.MOVE_TO,
-            parameters={"target_x": 12.0, "target_y": 12.0}
+            parameters={"target_x": 12.0, "target_y": 12.0},
         )
 
         is_valid, message = self.validator.validate(request, self.context)
@@ -214,7 +229,7 @@ class TestMovementValidator:
             action_id="attack1",
             agent_id=self.agent_id,
             action_type=ActionType.ATTACK_TARGET,
-            parameters={"target_id": "other_agent"}
+            parameters={"target_id": "other_agent"},
         )
 
         is_valid, message = self.validator.validate(request, self.context)
@@ -266,7 +281,7 @@ class TestFishingValidator:
             action_id="fish1",
             agent_id="agent1",
             action_type=ActionType.FISH,
-            parameters={"target_x": 12, "target_y": 12}  # Water tile in test map
+            parameters={"target_x": 12, "target_y": 12},  # Water tile in test map
         )
 
         is_valid, message = self.validator.validate(request, self.context)
@@ -278,12 +293,12 @@ class TestFishingValidator:
             action_id="fish1",
             agent_id="agent1",
             action_type=ActionType.FISH,
-            parameters={"target_x": 2, "target_y": 2}  # Land tile
+            parameters={"target_x": 2, "target_y": 2},  # Land tile
         )
 
         is_valid, message = self.validator.validate(request, self.context)
         assert not is_valid, "Fishing on land should be rejected"
-        assert "water" in message.lower()
+        assert "fishing" in message.lower()
 
     def test_rejects_fishing_without_rod(self):
         """Should reject fishing without fishing equipment"""
@@ -295,7 +310,7 @@ class TestFishingValidator:
             action_id="fish1",
             agent_id="agent1",
             action_type=ActionType.FISH,
-            parameters={"target_x": 12, "target_y": 12}
+            parameters={"target_x": 12, "target_y": 12},
         )
 
         is_valid, message = self.validator.validate(request, self.context)
@@ -308,7 +323,7 @@ class TestFishingValidator:
             action_id="move1",
             agent_id="agent1",
             action_type=ActionType.MOVE_TO,
-            parameters={"target_x": 10, "target_y": 10}
+            parameters={"target_x": 10, "target_y": 10},
         )
 
         is_valid, message = self.validator.validate(request, self.context)

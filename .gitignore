@@ -73,3 +73,8 @@ output/logs/
 # Runtime files
 *.pid
 *.lock
+
+# Database files (development artifacts)
+*.db
+debug_data.db
+scenario_data.db

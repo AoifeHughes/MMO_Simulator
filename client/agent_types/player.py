@@ -24,15 +24,17 @@ class PlayerAgent(BaseAgent):
         """Initialize the behavior tree for this Player agent"""
         # Try provider-based initialization first
         if self.behavior_tree_provider:
-            success = self.initialize_behavior_tree_from_provider(
-                patrol_radius=8.0
-            )
+            success = self.initialize_behavior_tree_from_provider(patrol_radius=8.0)
             if success:
-                logger.info(f"Player {self.id[:8]} initialized with custom scenario behavior tree")
+                logger.info(
+                    f"Player {self.id[:8]} initialized with custom scenario behavior tree"
+                )
                 self.behavior_tree_initialized = True
                 return
             else:
-                logger.warning(f"Player {self.id[:8]} provider failed, falling back to TreeFactory")
+                logger.warning(
+                    f"Player {self.id[:8]} provider failed, falling back to TreeFactory"
+                )
 
         # Fallback to TreeFactory
         tree = TreeFactory.create_tree_for_agent_type(
@@ -40,7 +42,9 @@ class PlayerAgent(BaseAgent):
         )
         if tree:
             self.set_behavior_tree(tree)
-            logger.info(f"Player {self.id[:8]} initialized with TreeFactory behavior tree")
+            logger.info(
+                f"Player {self.id[:8]} initialized with TreeFactory behavior tree"
+            )
             self.behavior_tree_initialized = True
         else:
             raise Exception(f"Failed to create behavior tree for Player {self.id[:8]}")
@@ -55,7 +59,9 @@ class PlayerAgent(BaseAgent):
 
         # Debug: Log when perceive is called (reduced verbosity)
         enemy_count = sum(1 for e in visible_entities if e.get("agent_type") == "enemy")
-        logger.debug(f"[PERCEIVE] Player {self.id[:8]} perceive() called - sees {enemy_count} enemies of {len(visible_entities)} total entities")
+        logger.debug(
+            f"[PERCEIVE] Player {self.id[:8]} perceive() called - sees {enemy_count} enemies of {len(visible_entities)} total entities"
+        )
 
     def decide(self) -> Optional[Dict[str, Any]]:
         """Decision making is now handled by the behavior tree"""

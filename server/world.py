@@ -1,14 +1,20 @@
+import logging
 import time
 import uuid
 from typing import Dict, List, Optional, Tuple
 
+from debug_tracker import track_agent_position
+from server.world_objects import WorldObjectManager
 from shared.collision import CollisionDetector
 from shared.constants import DEFAULT_VISION_ANGLE, DEFAULT_VISION_RANGE
 from shared.messages import AgentData
+from shared.position_authority import update_agent_server_position
 from world.map import WorldMap
 from world.terrain_generator import TerrainType
 from world.tiles import TileType
 from world.vision import VisionSystem
+
+logger = logging.getLogger(__name__)
 
 
 class ServerWorld:
@@ -25,6 +31,7 @@ class ServerWorld:
         )
         self.vision_system = VisionSystem(self.world_map)
         self.collision_detector = CollisionDetector(width, height)
+        self.world_objects = WorldObjectManager()
         self.agents: Dict[str, AgentData] = {}
         self.last_update = time.time()
 
@@ -87,50 +94,89 @@ class ServerWorld:
         # Don't allow dead agents to move
         if not agent.is_alive:
             return False
+
         current_pos = (agent.x, agent.y)
         intended_pos = (new_x, new_y)
 
-        # Get positions of other agents for collision checking
-        other_agents = [(a.x, a.y) for aid, a in self.agents.items() if aid != agent_id]
+        # Check if movement is valid before making any changes
+        if not self.is_movement_valid(agent_id, current_pos, intended_pos):
+            return False
 
-        # Resolve collisions and get safe position
-        safe_x, safe_y = self.collision_detector.resolve_movement_collision(
-            current_pos, intended_pos, other_agents
+        # If movement is valid, apply it directly
+        agent.x = new_x
+        agent.y = new_y
+        agent.rotation = rotation
+        agent.velocity_x = velocity_x
+        agent.velocity_y = velocity_y
+
+        # Update server position authority
+        update_agent_server_position(
+            agent_id, new_x, new_y, rotation, velocity_x, velocity_y
         )
 
-        # Enhanced terrain validation
-        if not self.validate_movement_path(current_pos, (safe_x, safe_y)):
-            # Calculate intended movement direction to prefer corrections in that direction
-            intended_direction = (safe_x - current_pos[0], safe_y - current_pos[1])
-            direction_length = (intended_direction[0] ** 2 + intended_direction[1] ** 2) ** 0.5
-
-            if direction_length > 0.01:  # Avoid division by zero for very small movements
-                normalized_direction = (intended_direction[0] / direction_length, intended_direction[1] / direction_length)
-            else:
-                normalized_direction = None
-
-            # Movement blocked by terrain - try to find nearby walkable position
-            safe_x, safe_y = self.find_nearest_walkable_position(safe_x, safe_y, preferred_direction=normalized_direction)
-
-            # If still not walkable, reject movement
-            if not self.world_map.is_walkable(round(safe_x), round(safe_y)):
-                return False
-
-        # Apply movement cost penalty for difficult terrain
-        movement_cost = self.get_movement_cost_penalty(safe_x, safe_y)
-
-        # Reduce velocity based on terrain difficulty
-        adjusted_velocity_x = velocity_x * movement_cost
-        adjusted_velocity_y = velocity_y * movement_cost
-
-        # Update agent position and velocity
-        agent.x = safe_x
-        agent.y = safe_y
-        agent.rotation = rotation
-        agent.velocity_x = adjusted_velocity_x
-        agent.velocity_y = adjusted_velocity_y
+        # Track the position change for debugging
+        track_agent_position(agent_id, new_x, new_y, "movement")
 
         return True
+
+    def is_movement_valid(
+        self,
+        agent_id: str,
+        current_pos: Tuple[float, float],
+        intended_pos: Tuple[float, float],
+    ) -> bool:
+        """
+        Validate if a movement from current_pos to intended_pos is allowed.
+        Returns True if valid, False if should be rejected.
+        """
+        # Check movement distance - reject if too large (indicates desync)
+        distance = (
+            (intended_pos[0] - current_pos[0]) ** 2
+            + (intended_pos[1] - current_pos[1]) ** 2
+        ) ** 0.5
+        max_movement_distance = 2.0  # Maximum units per movement request
+
+        if distance > max_movement_distance:
+            logger.warning(
+                f"🚫 MOVEMENT REJECTED: Agent {agent_id[:8]} attempted to move {distance:.2f} units "
+                f"from ({current_pos[0]:.2f}, {current_pos[1]:.2f}) to ({intended_pos[0]:.2f}, {intended_pos[1]:.2f})"
+            )
+            return False
+
+        # Check collision with other agents
+        other_agents = [(a.x, a.y) for aid, a in self.agents.items() if aid != agent_id]
+        if self._would_collide_with_agents(intended_pos, other_agents):
+            logger.debug(
+                f"🚫 MOVEMENT REJECTED: Agent {agent_id[:8]} would collide with other agents at ({intended_pos[0]:.2f}, {intended_pos[1]:.2f})"
+            )
+            return False
+
+        # Check boundary collision
+        if not self.collision_detector.is_position_valid(
+            intended_pos[0], intended_pos[1]
+        ):
+            logger.debug(
+                f"🚫 MOVEMENT REJECTED: Agent {agent_id[:8]} would exit world bounds at ({intended_pos[0]:.2f}, {intended_pos[1]:.2f})"
+            )
+            return False
+
+        # Check terrain validity
+        if not self.validate_movement_path(current_pos, intended_pos):
+            logger.debug(
+                f"🚫 MOVEMENT REJECTED: Agent {agent_id[:8]} movement blocked by terrain to ({intended_pos[0]:.2f}, {intended_pos[1]:.2f})"
+            )
+            return False
+
+        return True
+
+    def _would_collide_with_agents(
+        self, pos: Tuple[float, float], other_agents: List[Tuple[float, float]]
+    ) -> bool:
+        """Check if position would collide with other agents"""
+        collision_result = self.collision_detector.check_multiple_agent_collisions(
+            pos, other_agents
+        )
+        return collision_result.collided
 
     def get_visible_agents(
         self,
@@ -250,12 +296,13 @@ class ServerWorld:
             end_tile_x, end_tile_y = int(end_x), int(end_y)
 
             # If both positions are in the same walkable tile, allow movement
-            if (start_tile_x == end_tile_x and start_tile_y == end_tile_y):
+            if start_tile_x == end_tile_x and start_tile_y == end_tile_y:
                 return self.world_map.is_walkable(start_tile_x, start_tile_y)
 
             # If crossing tile boundary, both tiles must be walkable
-            return (self.world_map.is_walkable(start_tile_x, start_tile_y) and
-                    self.world_map.is_walkable(end_tile_x, end_tile_y))
+            return self.world_map.is_walkable(
+                start_tile_x, start_tile_y
+            ) and self.world_map.is_walkable(end_tile_x, end_tile_y)
 
         # For medium distances, check tile boundaries more carefully
         if distance < 2.0:
@@ -286,7 +333,11 @@ class ServerWorld:
         return True
 
     def find_nearest_walkable_position(
-        self, x: float, y: float, max_radius: int = 3, preferred_direction: Optional[Tuple[float, float]] = None
+        self,
+        x: float,
+        y: float,
+        max_radius: int = 3,
+        preferred_direction: Optional[Tuple[float, float]] = None,
     ) -> Tuple[float, float]:
         """
         Find the nearest walkable position to the given coordinates.
@@ -324,10 +375,16 @@ class ServerWorld:
                             if preferred_direction:
                                 dir_x, dir_y = preferred_direction
                                 # Dot product to measure alignment with preferred direction
-                                alignment = (check_x - x) * dir_x + (check_y - y) * dir_y
-                                preference_score = max(0, alignment)  # Positive alignment is preferred
+                                alignment = (check_x - x) * dir_x + (
+                                    check_y - y
+                                ) * dir_y
+                                preference_score = max(
+                                    0, alignment
+                                )  # Positive alignment is preferred
 
-                            candidates.append((check_x, check_y, distance, preference_score))
+                            candidates.append(
+                                (check_x, check_y, distance, preference_score)
+                            )
 
             # If we found candidates at this radius, pick the best one
             if candidates:
@@ -369,3 +426,14 @@ class ServerWorld:
     def get_world_bounds(self) -> Tuple[int, int]:
         """Get world dimensions"""
         return self.world_map.width, self.world_map.height
+
+    def update(self) -> None:
+        """Update world state, including object cleanup"""
+        current_time = time.time()
+
+        # Update world objects (cleanup expired ones)
+        expired_count = self.world_objects.update()
+        if expired_count > 0:
+            print(f"Cleaned up {expired_count} expired world objects")
+
+        self.last_update = current_time

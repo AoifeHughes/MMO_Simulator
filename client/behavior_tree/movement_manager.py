@@ -8,20 +8,21 @@ jittery behavior caused by frequent direction changes and micro-adjustments.
 import logging
 import math
 import time
-from typing import Tuple, Optional
 from enum import Enum
+from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
 
 class MovementMode(Enum):
     """Different movement modes for different behaviors"""
-    DIRECT = "direct"           # Direct movement to target
-    CHASE = "chase"             # Chase with prediction
-    WANDER = "wander"           # Random wandering
-    PATROL = "patrol"           # Patrol between waypoints
-    FLEE = "flee"               # Fleeing from threat
-    PATHFINDING = "pathfinding" # Following calculated path
+
+    DIRECT = "direct"  # Direct movement to target
+    CHASE = "chase"  # Chase with prediction
+    WANDER = "wander"  # Random wandering
+    PATROL = "patrol"  # Patrol between waypoints
+    FLEE = "flee"  # Fleeing from threat
+    PATHFINDING = "pathfinding"  # Following calculated path
 
 
 class MovementManager:
@@ -73,7 +74,7 @@ class MovementManager:
         target_pos: Optional[Tuple[float, float]] = None,
         mode: MovementMode = MovementMode.DIRECT,
         speed_multiplier: float = 1.0,
-        arrival_threshold: Optional[float] = None
+        arrival_threshold: Optional[float] = None,
     ) -> bool:
         """
         Update agent movement with stability controls.
@@ -135,12 +136,16 @@ class MovementManager:
 
         # Update rotation to face movement direction
         if smoothed_velocity[0] != 0 or smoothed_velocity[1] != 0:
-            agent.rotation = math.degrees(math.atan2(smoothed_velocity[1], smoothed_velocity[0]))
+            agent.rotation = math.degrees(
+                math.atan2(smoothed_velocity[1], smoothed_velocity[0])
+            )
 
         self.last_update_time = current_time
         self.target_velocity = new_velocity
 
-        logger.debug(f"Agent {self.agent_id[:8]} movement updated - mode: {mode.value}, dist: {distance:.1f}")
+        logger.debug(
+            f"Agent {self.agent_id[:8]} movement updated - mode: {mode.value}, dist: {distance:.1f}"
+        )
 
         return False
 
@@ -159,7 +164,7 @@ class MovementManager:
         base_update_interval: Optional[float] = None,
         commitment_duration: Optional[float] = None,
         direction_smoothing: Optional[float] = None,
-        arrival_threshold: Optional[float] = None
+        arrival_threshold: Optional[float] = None,
     ):
         """Configure movement parameters"""
         if base_update_interval is not None:
@@ -173,8 +178,9 @@ class MovementManager:
 
     def is_moving_toward_target(self) -> bool:
         """Check if agent is currently moving toward a target"""
-        return (self.target_position is not None and
-                (self.target_velocity[0] != 0 or self.target_velocity[1] != 0))
+        return self.target_position is not None and (
+            self.target_velocity[0] != 0 or self.target_velocity[1] != 0
+        )
 
     def get_time_since_movement_start(self) -> float:
         """Get time since current movement started"""
@@ -192,12 +198,7 @@ class MovementManager:
             return self.base_update_interval
 
     def _calculate_target_velocity(
-        self,
-        agent,
-        dx: float,
-        dy: float,
-        distance: float,
-        speed_multiplier: float
+        self, agent, dx: float, dy: float, distance: float, speed_multiplier: float
     ) -> Tuple[float, float]:
         """Calculate desired velocity toward target"""
         if distance == 0:
@@ -218,22 +219,27 @@ class MovementManager:
         return (dir_x * base_speed, dir_y * base_speed)
 
     def _apply_movement_smoothing(
-        self,
-        target_velocity: Tuple[float, float],
-        current_time: float
+        self, target_velocity: Tuple[float, float], current_time: float
     ) -> Tuple[float, float]:
         """Apply smoothing to reduce jittery movement"""
         # Get commitment duration and smoothing factor based on mode
-        commitment_duration = (self.pathfinding_commitment_duration
-                             if self.current_mode == MovementMode.PATHFINDING
-                             else self.commitment_duration)
-        smoothing_factor = (self.pathfinding_smoothing
-                          if self.current_mode == MovementMode.PATHFINDING
-                          else self.direction_smoothing)
+        commitment_duration = (
+            self.pathfinding_commitment_duration
+            if self.current_mode == MovementMode.PATHFINDING
+            else self.commitment_duration
+        )
+        smoothing_factor = (
+            self.pathfinding_smoothing
+            if self.current_mode == MovementMode.PATHFINDING
+            else self.direction_smoothing
+        )
 
         # Check movement commitment
-        if (current_time - self.last_direction_change < commitment_duration and
-            self.last_velocity[0] != 0 or self.last_velocity[1] != 0):
+        if (
+            current_time - self.last_direction_change < commitment_duration
+            and self.last_velocity[0] != 0
+            or self.last_velocity[1] != 0
+        ):
             # Still in commitment period, maintain current direction
             return self.last_velocity
 
@@ -247,14 +253,23 @@ class MovementManager:
             dir_change = 2 * math.pi - dir_change
 
         # For pathfinding mode, allow quicker direction changes
-        direction_threshold = (math.pi / 6 if self.current_mode == MovementMode.PATHFINDING
-                             else math.pi / 4)  # 30 vs 45 degrees
+        direction_threshold = (
+            math.pi / 6
+            if self.current_mode == MovementMode.PATHFINDING
+            else math.pi / 4
+        )  # 30 vs 45 degrees
 
         # If direction change is significant, apply smoothing
         if dir_change > direction_threshold:
             # Smooth the transition
-            smoothed_x = self.last_velocity[0] * (1 - smoothing_factor) + target_velocity[0] * smoothing_factor
-            smoothed_y = self.last_velocity[1] * (1 - smoothing_factor) + target_velocity[1] * smoothing_factor
+            smoothed_x = (
+                self.last_velocity[0] * (1 - smoothing_factor)
+                + target_velocity[0] * smoothing_factor
+            )
+            smoothed_y = (
+                self.last_velocity[1] * (1 - smoothing_factor)
+                + target_velocity[1] * smoothing_factor
+            )
 
             self.last_direction_change = current_time
             result = (smoothed_x, smoothed_y)
@@ -292,5 +307,5 @@ class MovementManager:
             "target_position": self.target_position,
             "movement_age": self.get_time_since_movement_start(),
             "last_velocity": self.last_velocity,
-            "target_velocity": self.target_velocity
+            "target_velocity": self.target_velocity,
         }

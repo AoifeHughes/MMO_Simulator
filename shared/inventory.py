@@ -8,7 +8,7 @@ limit and weight-based restrictions.
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-from .items import Item, Equipment, Weapon, Gold, EquipmentSlot
+from .items import Equipment, EquipmentSlot, Gold, Item, Weapon
 
 
 @dataclass
@@ -71,10 +71,7 @@ class InventorySlot:
         if self.is_empty():
             return {"item": None, "quantity": 0}
 
-        return {
-            "item": self.item.to_dict(),
-            "quantity": self.quantity
-        }
+        return {"item": self.item.to_dict(), "quantity": self.quantity}
 
 
 class Inventory:
@@ -83,7 +80,9 @@ class Inventory:
     MAX_SLOTS = 64
 
     def __init__(self, max_weight: float = 1000.0):
-        self.slots: List[InventorySlot] = [InventorySlot() for _ in range(self.MAX_SLOTS)]
+        self.slots: List[InventorySlot] = [
+            InventorySlot() for _ in range(self.MAX_SLOTS)
+        ]
         self.max_weight = max_weight
         self.equipped_items: Dict[EquipmentSlot, Optional[Item]] = {
             slot: None for slot in EquipmentSlot
@@ -119,14 +118,20 @@ class Inventory:
         if item.stackable:
             for slot in self.slots:
                 if slot.can_add(item, remaining_quantity):
-                    can_add = min(remaining_quantity, item.max_stack_size - slot.quantity)
+                    can_add = min(
+                        remaining_quantity, item.max_stack_size - slot.quantity
+                    )
                     remaining_quantity -= can_add
                     if remaining_quantity <= 0:
                         return True
 
         # Then check for empty slots
         empty_slots = sum(1 for slot in self.slots if slot.is_empty())
-        slots_needed = (remaining_quantity + (item.max_stack_size - 1)) // item.max_stack_size if item.stackable else remaining_quantity
+        slots_needed = (
+            (remaining_quantity + (item.max_stack_size - 1)) // item.max_stack_size
+            if item.stackable
+            else remaining_quantity
+        )
 
         return empty_slots >= slots_needed
 
@@ -149,7 +154,9 @@ class Inventory:
         # Then use empty slots
         for slot in self.slots:
             if slot.is_empty() and remaining_quantity > 0:
-                add_amount = min(remaining_quantity, item.max_stack_size if item.stackable else 1)
+                add_amount = min(
+                    remaining_quantity, item.max_stack_size if item.stackable else 1
+                )
                 added = slot.add_item(item, add_amount)
                 remaining_quantity -= added
                 if remaining_quantity <= 0:
@@ -163,7 +170,9 @@ class Inventory:
 
         for slot in self.slots:
             if not slot.is_empty() and slot.item.name == item_name:
-                _, removed = slot.remove_item(min(quantity - removed_quantity, slot.quantity))
+                _, removed = slot.remove_item(
+                    min(quantity - removed_quantity, slot.quantity)
+                )
                 removed_quantity += removed
                 if removed_quantity >= quantity:
                     break
@@ -214,8 +223,11 @@ class Inventory:
 
         # Debug logging
         import logging
+
         logger = logging.getLogger(__name__)
-        logger.debug(f"Searching for '{item_name}' in inventory. Found items: {found_items}. Total '{item_name}': {total_quantity}")
+        logger.debug(
+            f"Searching for '{item_name}' in inventory. Found items: {found_items}. Total '{item_name}': {total_quantity}"
+        )
 
         return total_quantity
 
@@ -227,7 +239,9 @@ class Inventory:
                 weapons.append(slot.item)
         return weapons
 
-    def get_equipped_weapon(self, slot: EquipmentSlot = EquipmentSlot.MAIN_HAND) -> Optional[Weapon]:
+    def get_equipped_weapon(
+        self, slot: EquipmentSlot = EquipmentSlot.MAIN_HAND
+    ) -> Optional[Weapon]:
         """Get equipped weapon from specific slot"""
         equipped = self.equipped_items.get(slot)
         return equipped if isinstance(equipped, Weapon) else None
@@ -348,7 +362,7 @@ class Inventory:
             "equipped_items": {
                 slot.value: item.to_dict() if item else None
                 for slot, item in self.equipped_items.items()
-            }
+            },
         }
 
     def get_summary(self) -> Dict[str, Any]:
@@ -360,5 +374,7 @@ class Inventory:
             "max_weight": self.max_weight,
             "total_gold": self.get_total_gold(),
             "weapon_count": len(self.get_weapons()),
-            "equipped_weapon": self.get_equipped_weapon().name if self.get_equipped_weapon() else None
+            "equipped_weapon": self.get_equipped_weapon().name
+            if self.get_equipped_weapon()
+            else None,
         }

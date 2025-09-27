@@ -35,10 +35,14 @@ class FishingExplorerAgent(BaseAgent):
                 exploration_mode=self.exploration_mode,
             )
             if success:
-                logger.info(f"Fishing Explorer {self.id[:8]} initialized with custom scenario behavior tree")
+                logger.info(
+                    f"Fishing Explorer {self.id[:8]} initialized with custom scenario behavior tree"
+                )
                 return
             else:
-                logger.warning(f"Fishing Explorer {self.id[:8]} provider failed, falling back to TreeFactory")
+                logger.warning(
+                    f"Fishing Explorer {self.id[:8]} provider failed, falling back to TreeFactory"
+                )
 
         # Fallback to TreeFactory
         tree = TreeFactory.create_tree_for_agent_type(
@@ -50,7 +54,9 @@ class FishingExplorerAgent(BaseAgent):
         )
         if tree:
             self.set_behavior_tree(tree)
-            logger.info(f"Fishing Explorer {self.id[:8]} initialized with TreeFactory fishing behavior tree")
+            logger.info(
+                f"Fishing Explorer {self.id[:8]} initialized with TreeFactory fishing behavior tree"
+            )
         else:
             raise Exception(
                 f"Failed to create fishing behavior tree for Explorer {self.id[:8]}"
@@ -65,7 +71,7 @@ class FishingExplorerAgent(BaseAgent):
         self.visible_entities = visible_entities
 
         # Track water discovery for fishing behavior
-        if hasattr(self, 'agent_map') and self.agent_map:
+        if hasattr(self, "agent_map") and self.agent_map:
             # Check recently explored areas for water
             agent_x, agent_y = int(self.x), int(self.y)
             for dy in range(-5, 6):
@@ -73,10 +79,12 @@ class FishingExplorerAgent(BaseAgent):
                     check_x, check_y = agent_x + dx, agent_y + dy
                     if self.agent_map.is_explored(check_x, check_y):
                         tile_type = self.agent_map.get_tile_type(check_x, check_y)
-                        if hasattr(tile_type, 'name') and tile_type.name == 'WATER':
+                        if hasattr(tile_type, "name") and tile_type.name == "WATER":
                             self.water_tiles_found.add((check_x, check_y))
                             if len(self.water_tiles_found) == 1:  # First water found
-                                logger.info(f"Fishing Explorer {self.id[:8]} discovered water at ({check_x}, {check_y})!")
+                                logger.info(
+                                    f"Fishing Explorer {self.id[:8]} discovered water at ({check_x}, {check_y})!"
+                                )
 
         # Call parent perceive method
         super().perceive(visible_entities)

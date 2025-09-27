@@ -7,11 +7,12 @@ from scenarios.dual_weapon_combat import DualWeaponCombatScenario
 from scenarios.duel_test import DuelTestScenario
 from scenarios.exploration_demo import ExplorationDemoScenario
 from scenarios.fishing_exploration import FishingExplorationScenario
+from scenarios.forest_fisher_cooperation import ForestFisherCooperationScenario
 from scenarios.pathfinding_demo import PathfindingDemoScenario
 from scenarios.peaceful_village import PeacefulVillageScenario
 from scenarios.simple_duel import SimpleDuelScenario
-from scenarios.test_combat_simple import TestCombatSimpleScenario
-from scenarios.test_fishing_simple import TestFishingSimpleScenario
+from scenarios.test_combat_simple import CombatSimpleScenario
+from scenarios.test_fishing_simple import FishingSimpleScenario
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +33,10 @@ class ScenarioManager:
             PathfindingDemoScenario(),
             SimpleDuelScenario(),
             FishingExplorationScenario(),
+            ForestFisherCooperationScenario(),
             DualWeaponCombatScenario(),
-            TestCombatSimpleScenario(),
-            TestFishingSimpleScenario(),
+            CombatSimpleScenario(),
+            FishingSimpleScenario(),
         ]
 
         for scenario in scenarios:

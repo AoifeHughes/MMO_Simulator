@@ -98,13 +98,20 @@ class CollisionDetector:
         # Check if collision occurs
         min_distance = radius1 + radius2
 
-        if distance < min_distance and distance > 0:
+        if distance < min_distance:
             # Calculate correction vector
-            correction_factor = (min_distance - distance) / distance
-            correction_x = (
-                -dx * correction_factor * 0.5
-            )  # Split correction between both agents
-            correction_y = -dy * correction_factor * 0.5
+            if distance > 0:
+                correction_factor = (min_distance - distance) / distance
+                correction_x = (
+                    -dx * correction_factor * 0.5
+                )  # Split correction between both agents
+                correction_y = -dy * correction_factor * 0.5
+            else:
+                # Same position - move entities apart by minimum distance
+                correction_x = (
+                    min_distance * 0.5
+                )  # Move one entity by half the minimum distance
+                correction_y = 0.0
 
             return CollisionResult(
                 collided=True,

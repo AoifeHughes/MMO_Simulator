@@ -10,11 +10,12 @@ from client.agent_types.enemy import EnemyAgent
 from client.agent_types.explorer import ExplorerAgent
 from client.agent_types.npc import NPCAgent
 from client.agent_types.pathfinding_test import PathfindingTestAgent
-from client.agent_types.player import PlayerAgent
 from client.agent_types.personality_agent import PersonalityAgent
+from client.agent_types.player import PlayerAgent
 from client.thin_agent import ThinBaseAgent, create_thin_agent
 from shared.constants import SERVER_PORT, UDP_PORT
 from shared.messages import Message, MessageType
+from shared.position_authority import client_position_interpolator
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -37,6 +38,11 @@ class GameClient:
 
         # Behavior tree provider for dependency injection
         self.behavior_tree_provider: Optional["BehaviorTreeProvider"] = None
+
+        # Query callback management
+        self._position_query_callbacks = {}
+        self._environment_query_callbacks = {}
+        self._query_sequence = 0
 
     def set_behavior_tree_provider(self, provider: Optional["BehaviorTreeProvider"]):
         """Set behavior tree provider for agent dependency injection."""
@@ -70,14 +76,20 @@ class GameClient:
 
                 # Store server game data for agent decision-making
                 self.server_game_data = response.payload.get("attack_data", {})
-                self.exploration_mode = response.payload.get("exploration_mode", "frontier")
+                self.exploration_mode = response.payload.get(
+                    "exploration_mode", "frontier"
+                )
 
                 # Store personality configuration if provided by scenario
                 self.personality_config = response.payload.get("personality_config")
                 if self.personality_config:
-                    logger.info(f"[CLIENT] Received personality config for {self.personality_config.get('archetype', 'custom')} agent")
+                    logger.info(
+                        f"[CLIENT] Received personality config for {self.personality_config.get('archetype', 'custom')} agent"
+                    )
 
-                logger.info(f"[CLIENT] Received game data: {len(self.server_game_data.get('attacks', {}))} attacks")
+                logger.info(
+                    f"[CLIENT] Received game data: {len(self.server_game_data.get('attacks', {}))} attacks"
+                )
 
                 self.connected = True
                 logger.info(f"Connected as agent {self.agent_id}")
@@ -94,19 +106,20 @@ class GameClient:
         self, agent_type: str, x: float = 50, y: float = 50, rotation: float = 0
     ):
         # Check if we have personality data from scenario
-        personality_config = getattr(self, 'personality_config', None)
+        personality_config = getattr(self, "personality_config", None)
 
-        if personality_config and 'personality' in personality_config:
+        if personality_config and "personality" in personality_config:
             # Create personality agent with scenario-provided personality
             # Deserialize personality from dict
             from shared.personality import Personality
-            personality_dict = personality_config['personality']
+
+            personality_dict = personality_config["personality"]
             personality = Personality.from_dict(personality_dict)
 
-            logger.info(f"Creating PersonalityAgent with {personality_config.get('archetype', 'custom')} personality")
-            self.agent = PersonalityAgent(
-                self.agent_id, x, y, personality
+            logger.info(
+                f"Creating PersonalityAgent with {personality_config.get('archetype', 'custom')} personality"
             )
+            self.agent = PersonalityAgent(self.agent_id, x, y, personality)
         else:
             # Fallback to legacy agents for backward compatibility
             logger.info(f"Creating legacy {agent_type} agent (no personality data)")
@@ -119,7 +132,7 @@ class GameClient:
             elif agent_type == "explorer":
                 self.agent = ExplorerAgent(self.agent_id, x, y)
                 # Pass exploration mode if available
-                if hasattr(self, 'exploration_mode'):
+                if hasattr(self, "exploration_mode"):
                     self.agent.exploration_mode = self.exploration_mode
             elif agent_type == "pathfinding_test":
                 # For pathfinding test, use the test agent with predefined waypoints
@@ -136,27 +149,41 @@ class GameClient:
                 self.agent.x = x
                 self.agent.y = y
 
-        logger.info(f"[CLIENT] Created {agent_type} agent {self.agent_id[:8]} with behavior tree")
+        logger.info(
+            f"[CLIENT] Created {agent_type} agent {self.agent_id[:8]} with behavior tree"
+        )
 
         if self.agent:
             self.agent.rotation = rotation
 
+            # Give agent a reference to its client for server queries
+            self.agent.client = self
+
             # Inject behavior tree provider before anything else
             if self.behavior_tree_provider:
                 self.agent.set_behavior_tree_provider(self.behavior_tree_provider)
-                logger.info(f"[CLIENT] Injected behavior tree provider into agent {self.agent_id[:8]}")
+                logger.info(
+                    f"[CLIENT] Injected behavior tree provider into agent {self.agent_id[:8]}"
+                )
 
             # Provide server game data to agent
             if self.server_game_data:
-                if hasattr(self.agent, 'set_server_game_data'):
+                if hasattr(self.agent, "set_server_game_data"):
                     self.agent.set_server_game_data(self.server_game_data)
-                    logger.info(f"[CLIENT] Provided server game data to agent {self.agent_id[:8]}")
+                    logger.info(
+                        f"[CLIENT] Provided server game data to agent {self.agent_id[:8]}"
+                    )
 
             # Initialize behavior tree now that provider is injected (for agents that deferred initialization)
-            if hasattr(self.agent, 'behavior_tree_initialized') and not self.agent.behavior_tree_initialized:
-                if hasattr(self.agent, '_initialize_behavior_tree'):
+            if (
+                hasattr(self.agent, "behavior_tree_initialized")
+                and not self.agent.behavior_tree_initialized
+            ):
+                if hasattr(self.agent, "_initialize_behavior_tree"):
                     self.agent._initialize_behavior_tree()
-                    logger.info(f"[CLIENT] Manually initialized behavior tree for agent {self.agent_id[:8]} after provider injection")
+                    logger.info(
+                        f"[CLIENT] Manually initialized behavior tree for agent {self.agent_id[:8]} after provider injection"
+                    )
 
             # Set default world bounds immediately so pathfinding can work
             # These will be updated with actual bounds when world state arrives
@@ -164,11 +191,26 @@ class GameClient:
 
             # Initialize action manager for new request-response system
             from client.action_manager import ActionManager
+
             self.agent.action_manager = ActionManager(
                 agent_id=self.agent_id,
                 send_message_callback=self.send_tcp_message,
             )
-            logger.info(f"[CLIENT] Initialized action manager for agent {self.agent_id[:8]}")
+            logger.info(
+                f"[CLIENT] Initialized action manager for agent {self.agent_id[:8]}"
+            )
+
+            # Initialize position reconciliation system to fix sync issues
+            self.agent._initialize_position_reconciler()
+            logger.info(
+                f"[CLIENT] Initialized position reconciler for agent {self.agent_id[:8]}"
+            )
+
+            # Initialize movement validation system to prevent conflicts
+            self.agent._initialize_movement_validator()
+            logger.info(
+                f"[CLIENT] Initialized movement validator for agent {self.agent_id[:8]}"
+            )
 
     async def send_tcp_message(self, message: Message):
         if self.tcp_writer:
@@ -218,10 +260,18 @@ class GameClient:
                 terrain_dict = message.payload.get("terrain", {})
 
                 # Debug: Log received visibility data (reduced verbosity)
-                logger.debug(f"[VISIBILITY] Agent {self.agent_id[:8]} received {len(self.visible_entities)} visible entities")
+                logger.debug(
+                    f"[VISIBILITY] Agent {self.agent_id[:8]} received {len(self.visible_entities)} visible entities"
+                )
                 if len(self.visible_entities) > 0:
-                    enemy_count = sum(1 for e in self.visible_entities if e.get("agent_type") != getattr(self.agent, 'agent_type', ''))
-                    logger.debug(f"[VISIBILITY] - Including {enemy_count} potential targets")
+                    enemy_count = sum(
+                        1
+                        for e in self.visible_entities
+                        if e.get("agent_type") != getattr(self.agent, "agent_type", "")
+                    )
+                    logger.debug(
+                        f"[VISIBILITY] - Including {enemy_count} potential targets"
+                    )
 
                 # Convert terrain data back to usable format
                 terrain_data = {}
@@ -263,17 +313,26 @@ class GameClient:
                 # Handle action response from new action system
                 if self.agent and self.agent.action_manager:
                     from shared.actions import ActionResponse
+
                     response = ActionResponse.from_dict(message.payload)
                     await self.agent.action_manager.handle_response(response)
-                    logger.debug(f"[ACTION] Processed response for action {response.action_id}: {response.result.value}")
+                    logger.debug(
+                        f"[ACTION] Processed response for action {response.action_id}: {response.result.value}"
+                    )
 
             elif message.type == MessageType.ACTION_BATCH_RESPONSE:
                 # Handle batch action response from new action system
                 if self.agent and self.agent.action_manager:
                     from shared.actions import ActionResponse
-                    responses = [ActionResponse.from_dict(r) for r in message.payload.get("responses", [])]
+
+                    responses = [
+                        ActionResponse.from_dict(r)
+                        for r in message.payload.get("responses", [])
+                    ]
                     await self.agent.action_manager.handle_batch_response(responses)
-                    logger.debug(f"[ACTION] Processed batch response with {len(responses)} actions")
+                    logger.debug(
+                        f"[ACTION] Processed batch response with {len(responses)} actions"
+                    )
 
             elif message.type == MessageType.AGENT_RESPAWN:
                 agent_id = message.payload.get("agent_id")
@@ -287,9 +346,14 @@ class GameClient:
                     self.agent.is_alive = True
 
                     # Reset behavior tree to clear any stuck states
-                    if hasattr(self.agent, 'behavior_tree') and self.agent.behavior_tree:
+                    if (
+                        hasattr(self.agent, "behavior_tree")
+                        and self.agent.behavior_tree
+                    ):
                         self.agent.behavior_tree.reset()
-                        logger.debug(f"[RESPAWN] Reset behavior tree for agent {self.agent_id[:8]}")
+                        logger.debug(
+                            f"[RESPAWN] Reset behavior tree for agent {self.agent_id[:8]}"
+                        )
 
                     # Reset movement state
                     self.agent.velocity_x = 0
@@ -299,6 +363,64 @@ class GameClient:
                         f"[RESPAWN] Agent {self.agent_id[:8]} respawned at "
                         f"({respawn_x:.1f}, {respawn_y:.1f})"
                     )
+
+            elif message.type == MessageType.POSITION_SYNC:
+                # Handle server position synchronization
+                positions_data = message.payload.get("positions", {})
+                server_timestamp = message.payload.get("server_timestamp", time.time())
+
+                logger.debug(
+                    f"[POSITION_SYNC] Received sync for {len(positions_data)} agents"
+                )
+
+                # Update position interpolator with server data
+                for agent_id, pos_data in positions_data.items():
+                    client_position_interpolator.update_server_position(
+                        agent_id, pos_data
+                    )
+
+                # Update our own agent's server position if included
+                if self.agent and self.agent_id in positions_data:
+                    server_pos = client_position_interpolator.get_server_position(
+                        self.agent_id
+                    )
+                    if server_pos:
+                        # Store server position for action validation
+                        (
+                            self.agent.server_x,
+                            self.agent.server_y,
+                            self.agent.server_rotation,
+                        ) = server_pos
+
+                        # Update logical position used by behavior tree (non-interpolated)
+                        self.agent.x, self.agent.y, self.agent.rotation = server_pos
+
+                        logger.debug(
+                            f"[POSITION_SYNC] Updated server position for {self.agent_id[:8]}: "
+                            f"({server_pos[0]:.2f}, {server_pos[1]:.2f})"
+                        )
+
+            elif message.type == MessageType.POSITION_RESPONSE:
+                # Handle position query response
+                if hasattr(self, "_position_query_callbacks"):
+                    query_id = message.payload.get("query_id")
+                    if query_id in self._position_query_callbacks:
+                        callback = self._position_query_callbacks.pop(query_id)
+                        try:
+                            callback(message.payload)
+                        except Exception as e:
+                            logger.error(f"Error in position query callback: {e}")
+
+            elif message.type == MessageType.ENVIRONMENT_RESPONSE:
+                # Handle environment query response
+                if hasattr(self, "_environment_query_callbacks"):
+                    query_id = message.payload.get("query_id")
+                    if query_id in self._environment_query_callbacks:
+                        callback = self._environment_query_callbacks.pop(query_id)
+                        try:
+                            callback(message.payload)
+                        except Exception as e:
+                            logger.error(f"Error in environment query callback: {e}")
 
     def update_agent_from_world_state(self):
         if not self.agent or not self.agent_id:
@@ -315,7 +437,17 @@ class GameClient:
         agents = self.world_state.get("agents", [])
         for agent_data in agents:
             if agent_data.get("id") == self.agent_id:
+                # Update non-position data from world state
+                # Position is managed by position sync system
+                position_backup = (self.agent.x, self.agent.y, self.agent.rotation)
                 self.agent.update_from_state(agent_data)
+
+                # Restore server authoritative position if we have it
+                if hasattr(self.agent, "server_x") and self.agent.server_x is not None:
+                    self.agent.x, self.agent.y, self.agent.rotation = position_backup
+                    logger.debug(
+                        f"[WORLD_STATE] Preserved server position over world state for {self.agent_id[:8]}"
+                    )
                 break
 
     async def update_agent(self):
@@ -324,12 +456,29 @@ class GameClient:
 
         # Ensure agent has latest visibility data before each update
         # Initialize empty list if not yet received
-        if not hasattr(self, 'visible_entities'):
+        if not hasattr(self, "visible_entities"):
             self.visible_entities = []
 
         self.agent.perceive(self.visible_entities)
 
         delta_time = 0.016
+
+        # Update position interpolation
+        client_position_interpolator.interpolate_positions(delta_time)
+
+        # Update display position for our agent if server data is available
+        if self.agent_id:
+            display_pos = client_position_interpolator.get_display_position(
+                self.agent_id
+            )
+            if display_pos:
+                # Use interpolated position for smooth visual display
+                (
+                    self.agent.display_x,
+                    self.agent.display_y,
+                    self.agent.display_rotation,
+                ) = display_pos
+
         self.agent.update(delta_time)
 
         action = self.agent.decide()
@@ -358,8 +507,154 @@ class GameClient:
         )
         await self.send_tcp_message(message)
 
+    async def query_position(self, timeout: float = 2.0) -> Optional[Dict[str, Any]]:
+        """
+        Query the server for fresh position data.
+
+        Args:
+            timeout: Maximum time to wait for response
+
+        Returns:
+            Position data dict or None if query failed
+        """
+        if not self.connected or not self.agent_id:
+            return None
+
+        # Generate unique query ID
+        self._query_sequence += 1
+        query_id = f"pos_{self.agent_id[:8]}_{self._query_sequence}"
+
+        # Set up response callback
+        response_future = asyncio.Future()
+
+        def callback(response_data):
+            if not response_future.done():
+                response_future.set_result(response_data)
+
+        self._position_query_callbacks[query_id] = callback
+
+        # Send query
+        message = Message(
+            type=MessageType.POSITION_QUERY,
+            payload={
+                "agent_id": self.agent_id,
+                "query_id": query_id,
+                "timestamp": time.time(),
+            },
+            timestamp=time.time(),
+        )
+
+        try:
+            await self.send_tcp_message(message)
+
+            # Wait for response
+            response_data = await asyncio.wait_for(response_future, timeout=timeout)
+
+            if response_data.get("success"):
+                logger.debug(
+                    f"Received position query response for {self.agent_id[:8]}"
+                )
+                return response_data
+            else:
+                logger.warning(
+                    f"Position query failed for {self.agent_id[:8]}: {response_data.get('error')}"
+                )
+                return None
+
+        except asyncio.TimeoutError:
+            logger.warning(f"Position query timeout for {self.agent_id[:8]}")
+            # Clean up callback
+            self._position_query_callbacks.pop(query_id, None)
+            return None
+        except Exception as e:
+            logger.error(f"Position query error for {self.agent_id[:8]}: {e}")
+            # Clean up callback
+            self._position_query_callbacks.pop(query_id, None)
+            return None
+
+    async def query_environment(
+        self, scan_radius: float = 5.0, timeout: float = 2.0
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Query the server for environment data around the agent.
+
+        Args:
+            scan_radius: Radius to scan around agent
+            timeout: Maximum time to wait for response
+
+        Returns:
+            Environment data dict or None if query failed
+        """
+        if not self.connected or not self.agent_id:
+            return None
+
+        # Generate unique query ID
+        self._query_sequence += 1
+        query_id = f"env_{self.agent_id[:8]}_{self._query_sequence}"
+
+        # Set up response callback
+        response_future = asyncio.Future()
+
+        def callback(response_data):
+            if not response_future.done():
+                response_future.set_result(response_data)
+
+        self._environment_query_callbacks[query_id] = callback
+
+        # Send query
+        message = Message(
+            type=MessageType.ENVIRONMENT_QUERY,
+            payload={
+                "agent_id": self.agent_id,
+                "scan_radius": scan_radius,
+                "query_id": query_id,
+                "timestamp": time.time(),
+            },
+            timestamp=time.time(),
+        )
+
+        try:
+            await self.send_tcp_message(message)
+
+            # Wait for response
+            response_data = await asyncio.wait_for(response_future, timeout=timeout)
+
+            if response_data.get("success"):
+                logger.debug(
+                    f"Received environment query response for {self.agent_id[:8]}: "
+                    f"{len(response_data.get('resources', []))} resources found"
+                )
+                return response_data
+            else:
+                logger.warning(
+                    f"Environment query failed for {self.agent_id[:8]}: {response_data.get('error')}"
+                )
+                return None
+
+        except asyncio.TimeoutError:
+            logger.warning(f"Environment query timeout for {self.agent_id[:8]}")
+            # Clean up callback
+            self._environment_query_callbacks.pop(query_id, None)
+            return None
+        except Exception as e:
+            logger.error(f"Environment query error for {self.agent_id[:8]}: {e}")
+            # Clean up callback
+            self._environment_query_callbacks.pop(query_id, None)
+            return None
+
     async def move_to(self, x: float, y: float):
         if self.agent and isinstance(self.agent, PlayerAgent):
+            # Validate movement through position reconciler
+            if self.agent.position_reconciler:
+                is_valid, reason = self.agent.position_reconciler.validate_movement(
+                    x, y
+                )
+                if not is_valid:
+                    logger.warning(
+                        f"[CLIENT] Movement validation failed for agent {self.agent_id[:8]}: {reason}"
+                    )
+                    return
+
             self.agent.handle_input("move_to", {"x": x, "y": y})
 
             message = Message(
