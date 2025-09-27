@@ -477,21 +477,25 @@ class InventoryManagedAction:
             "explorer": {
                 "fishing_rod": 1.1,  # Explorers are versatile
                 "axe": 1.1,
+                "woodcutting": 1.1,  # Hatchets
                 "pickaxe": 1.1
             },
             "fisher": {
                 "fishing_rod": 1.5,  # Fishers excel at fishing
                 "axe": 0.8,
+                "woodcutting": 0.8,  # Hatchets
                 "pickaxe": 0.8
             },
             "lumberjack": {
                 "fishing_rod": 0.8,
                 "axe": 1.5,  # Lumberjacks excel at woodcutting
+                "woodcutting": 1.5,  # Hatchets
                 "pickaxe": 0.9
             },
             "miner": {
                 "fishing_rod": 0.8,
                 "axe": 0.9,
+                "woodcutting": 0.9,  # Hatchets
                 "pickaxe": 1.5  # Miners excel at mining
             }
         }

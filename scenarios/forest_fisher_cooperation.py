@@ -145,10 +145,15 @@ class ForestFisherCooperationScenario(BaseScenario):
             woodcutter_state.specialization = "wood_harvesting"
             woodcutter_state.exploration_mode = "wood_harvesting"
 
-        # Give wood cutter starting items (no fishing rod, focused on wood)
+        # Give wood cutter starting items (with hatchet for wood harvesting)
         if woodcutter_state:
-            # Remove fishing rod and add a simple tool or extra inventory space
-            woodcutter_state.inventory.slots = [slot for slot in woodcutter_state.inventory.slots if slot.is_empty() or "fishing" not in slot.item.name.lower()]
+            # Ensure wood cutter has hatchet for wood harvesting
+            from shared.items import create_hatchet
+            hatchet = create_hatchet()
+            if hatchet and not any(hasattr(item, 'tool_type') and item.tool_type == "woodcutting"
+                                 for slot in woodcutter_state.inventory.slots
+                                 if not slot.is_empty() for item in [slot.item]):
+                woodcutter_state.inventory.add_item(hatchet, 1)
 
         logger.info(f"Spawned Wood Cutter {woodcutter_id} at ({woodcutter_x}, {woodcutter_y})")
 

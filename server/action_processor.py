@@ -449,7 +449,7 @@ class WoodHarvestingValidator(ResourceGatheringValidator):
             resource_name="wood_harvesting",
             required_tile_type=TileType.WOOD,
             max_distance=DISTANCES.WOOD_HARVESTING_RANGE,
-            required_tool=None  # No tool required for basic wood harvesting
+            required_tool="hatchet"  # Hatchet required for wood harvesting
         )
 
     def get_supported_action_type(self) -> ActionType:
@@ -457,9 +457,14 @@ class WoodHarvestingValidator(ResourceGatheringValidator):
         return ActionType.HARVEST_WOOD
 
     def check_tool_requirement(self, agent) -> Tuple[bool, str]:
-        """Check if agent has tools for wood harvesting (none required for basic harvesting)"""
-        # For basic wood harvesting, no tool is required
-        # In the future, this could check for axes to improve efficiency
+        """Check if agent has tools for wood harvesting (hatchet required)"""
+        # Check for hatchet in agent's inventory
+        hatchets = [item for item in agent.inventory.get_items_by_type("tool")
+                    if hasattr(item, 'tool_type') and item.tool_type == "woodcutting"]
+
+        if not hatchets:
+            return False, "Hatchet required for wood harvesting"
+
         return True, ""
 
     def validate_additional_requirements(self, agent, target_pos: Tuple[float, float], context: "ActionContext") -> Tuple[bool, str]:

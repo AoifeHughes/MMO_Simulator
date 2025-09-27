@@ -1,8 +1,8 @@
 {
   "suite_name": "comprehensive_integration",
-  "start_time": 1758979248.5919821,
-  "end_time": 1758979248.598696,
-  "duration": 0.0067138671875,
+  "start_time": 1758983752.569174,
+  "end_time": 1758983752.5743601,
+  "duration": 0.0051860809326171875,
   "total_tests": 8,
   "passed": 8,
   "failed": 0,
@@ -14,7 +14,7 @@
       "test_name": "memory_behavior_integration",
       "test_level": "component",
       "result": "pass",
-      "duration": 9.775161743164062e-05,
+      "duration": 7.009506225585938e-05,
       "components_tested": [
         "AgentMemory",
         "BehaviorComposer"
@@ -34,7 +34,7 @@
       "test_name": "behavior_interrupt_integration",
       "test_level": "component",
       "result": "pass",
-      "duration": 3.910064697265625e-05,
+      "duration": 2.002716064453125e-05,
       "components_tested": [
         "BehaviorComposer",
         "InterruptManager"
@@ -53,15 +53,15 @@
       "test_name": "flexibility_regression_integration",
       "test_level": "component",
       "result": "pass",
-      "duration": 0.0006201267242431641,
+      "duration": 0.0006458759307861328,
       "components_tested": [
         "FlexibilityHarness",
         "BehaviorRegressionTester"
       ],
       "error_message": null,
       "performance_metrics": {
-        "flexibility_score": 0.6317445694454132,
-        "regression_score": 0.6
+        "flexibility_score": 0.6317456184871613,
+        "regression_score": 1.0
       },
       "memory_usage": {},
       "details": {
@@ -74,7 +74,7 @@
       "test_name": "agent_lifecycle_integration",
       "test_level": "subsystem",
       "result": "pass",
-      "duration": 0.0001671314239501953,
+      "duration": 0.00010609626770019531,
       "components_tested": [
         "AgentMemory",
         "BehaviorComposer",
@@ -85,7 +85,7 @@
       "performance_metrics": {
         "lifecycle_completion": 1.0,
         "memory_utilization": 1,
-        "flexibility_score": 0.631744346921406
+        "flexibility_score": 0.6317455072251577
       },
       "memory_usage": {},
       "details": {
@@ -104,7 +104,7 @@
       "test_name": "multi_agent_interaction_integration",
       "test_level": "subsystem",
       "result": "pass",
-      "duration": 8.797645568847656e-05,
+      "duration": 5.984306335449219e-05,
       "components_tested": [
         "AgentMemory",
         "BehaviorComposer",
@@ -154,7 +154,7 @@
       "test_name": "performance_integration",
       "test_level": "system",
       "result": "pass",
-      "duration": 0.0013217926025390625,
+      "duration": 0.0012011528015136719,
       "components_tested": [
         "BehaviorComposer",
         "AgentMemory",
@@ -162,11 +162,11 @@
       ],
       "error_message": null,
       "performance_metrics": {
-        "avg_composition_time": 1.8167495727539063e-05,
-        "max_composition_time": 3.3855438232421875e-05,
-        "avg_memory_operation_time": 1.9969940185546876e-05,
-        "max_memory_operation_time": 9.894371032714844e-05,
-        "flexibility_assessment_time": 0.00012421607971191406
+        "avg_composition_time": 4.1961669921875e-06,
+        "max_composition_time": 1.6689300537109375e-05,
+        "avg_memory_operation_time": 2.0923614501953126e-05,
+        "max_memory_operation_time": 0.00012922286987304688,
+        "flexibility_assessment_time": 9.989738464355469e-05
       },
       "memory_usage": {},
       "details": {
@@ -180,7 +180,7 @@
       "test_name": "stress_test_integration",
       "test_level": "system",
       "result": "pass",
-      "duration": 0.0036988258361816406,
+      "duration": 0.0023751258850097656,
       "components_tested": [
         "BehaviorComposer",
         "AgentMemory",
@@ -207,7 +207,7 @@
       "test_name": "complete_scenario_integration",
       "test_level": "end_to_end",
       "result": "pass",
-      "duration": 0.0006687641143798828,
+      "duration": 0.0006890296936035156,
       "components_tested": [
         "AgentMemory",
         "BehaviorComposer",
@@ -218,9 +218,9 @@
       "error_message": null,
       "performance_metrics": {
         "scenario_completion": 1.0,
-        "flexibility_score": 0.363914877674567,
+        "flexibility_score": 0.36391514258409935,
         "memory_utilization": 6,
-        "regression_score": 0.8
+        "regression_score": 0.6
       },
       "memory_usage": {},
       "details": {
@@ -245,9 +245,9 @@
     }
   ],
   "overall_performance": {
-    "avg_test_duration": 0.0008376836776733398,
-    "max_test_duration": 0.0036988258361816406,
-    "total_test_time": 0.006701469421386719,
+    "avg_test_duration": 0.0006459057331085205,
+    "max_test_duration": 0.0023751258850097656,
+    "total_test_time": 0.005167245864868164,
     "avg_composition_time": 0.1,
     "max_composition_time": 0.1,
     "avg_memory_influence": 1.0,
@@ -256,10 +256,10 @@
     "max_interrupt_check_time": 0.01,
     "avg_integration_success": 1.0,
     "max_integration_success": 1.0,
-    "avg_flexibility_score": 0.5424679313471287,
-    "max_flexibility_score": 0.6317445694454132,
-    "avg_regression_score": 0.7,
-    "max_regression_score": 0.8,
+    "avg_flexibility_score": 0.5424687560988061,
+    "max_flexibility_score": 0.6317456184871613,
+    "avg_regression_score": 0.8,
+    "max_regression_score": 1.0,
     "avg_lifecycle_completion": 1.0,
     "max_lifecycle_completion": 1.0,
     "avg_memory_utilization": 3.5,
@@ -270,16 +270,16 @@
     "max_social_memory_formation": 2,
     "avg_flexibility_in_social_context": 0.06,
     "max_flexibility_in_social_context": 0.06,
-    "avg_avg_composition_time": 1.8167495727539063e-05,
-    "max_avg_composition_time": 1.8167495727539063e-05,
-    "avg_max_composition_time": 3.3855438232421875e-05,
-    "max_max_composition_time": 3.3855438232421875e-05,
-    "avg_avg_memory_operation_time": 1.9969940185546876e-05,
-    "max_avg_memory_operation_time": 1.9969940185546876e-05,
-    "avg_max_memory_operation_time": 9.894371032714844e-05,
-    "max_max_memory_operation_time": 9.894371032714844e-05,
-    "avg_flexibility_assessment_time": 0.00012421607971191406,
-    "max_flexibility_assessment_time": 0.00012421607971191406,
+    "avg_avg_composition_time": 4.1961669921875e-06,
+    "max_avg_composition_time": 4.1961669921875e-06,
+    "avg_max_composition_time": 1.6689300537109375e-05,
+    "max_max_composition_time": 1.6689300537109375e-05,
+    "avg_avg_memory_operation_time": 2.0923614501953126e-05,
+    "max_avg_memory_operation_time": 2.0923614501953126e-05,
+    "avg_max_memory_operation_time": 0.00012922286987304688,
+    "max_max_memory_operation_time": 0.00012922286987304688,
+    "avg_flexibility_assessment_time": 9.989738464355469e-05,
+    "max_flexibility_assessment_time": 9.989738464355469e-05,
     "avg_composition_failure_rate": 0.0,
     "max_composition_failure_rate": 0.0,
     "avg_memory_failure_rate": 0.0,

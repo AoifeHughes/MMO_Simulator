@@ -63,15 +63,16 @@ class WoodHarvestingAction(ResourceActionBase):
         """Get additional parameters for wood harvesting action"""
         return {
             'action_name': 'wood_harvesting',
-            'tool_type': 'axe'
+            'tool_type': 'woodcutting'
         }
 
     def check_required_tools(self, agent, tool_type: str) -> bool:
         """Check if agent has required tools for wood harvesting"""
-        if tool_type == "axe":
-            # For now, assume explorer agents have axes
-            # TODO: Implement proper tool checking when inventory system is enhanced
-            return agent.agent_type == "explorer"
+        if tool_type == "woodcutting":
+            # Check for hatchet in agent's inventory
+            hatchets = [item for item in agent.inventory.get_items_by_type("tool")
+                        if hasattr(item, 'tool_type') and item.tool_type == "woodcutting"]
+            return len(hatchets) > 0
         return super().check_required_tools(agent, tool_type)
 
     async def start_action(self, agent) -> bool:
@@ -208,10 +209,12 @@ def create_wood_harvesting_behavior_nodes(max_distance: float = None):
     return {
         'wood_harvesting_action': WoodHarvestingAction(max_distance),
         'wood_nearby_check': WoodNearbyCondition(max_distance),
+        'hatchet_check': HatchetRequirement(),
 
         # Backward compatibility
         'harvest_wood': HarvestWood(max_distance),
         'wood_nearby': WoodNearby(max_distance),
+        'axe_check': AxeRequirement(),
     }
 
 
@@ -231,17 +234,33 @@ class ToolRequirement(ConditionNode):
 
     def check_condition(self, agent) -> bool:
         """Check if agent has the required tool"""
-        # For now, assume explorer agents have all tools
-        # TODO: Implement proper inventory checking when inventory system is enhanced
-        has_tool = agent.agent_type == "explorer"
+        # Check for the specific tool in agent's inventory
+        if self.tool_type == "woodcutting":
+            tools = [item for item in agent.inventory.get_items_by_type("tool")
+                    if hasattr(item, 'tool_type') and item.tool_type == "woodcutting"]
+            has_tool = len(tools) > 0
+        elif self.tool_type == "fishing":
+            tools = [item for item in agent.inventory.get_items_by_type("tool")
+                    if hasattr(item, 'tool_type') and item.tool_type == "fishing"]
+            has_tool = len(tools) > 0
+        else:
+            # For now, assume explorer agents have all other tools
+            has_tool = agent.agent_type == "explorer"
 
         logger.info(f"🔧 Tool check: Agent {agent.id[:8]} type '{agent.agent_type}' has {self.tool_type}: {has_tool}")
 
         return has_tool
 
 
-class AxeRequirement(ToolRequirement):
-    """Specific axe requirement for wood harvesting"""
+class HatchetRequirement(ToolRequirement):
+    """Specific hatchet requirement for wood harvesting"""
 
     def __init__(self):
-        super().__init__("axe", "AxeRequirement")
+        super().__init__("woodcutting", "HatchetRequirement")
+
+
+class AxeRequirement(ToolRequirement):
+    """Backward compatibility alias for hatchet requirement"""
+
+    def __init__(self):
+        super().__init__("woodcutting", "AxeRequirement")

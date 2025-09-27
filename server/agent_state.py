@@ -137,10 +137,18 @@ class ServerAgentState:
                 self.inventory.equip_item(sword.item_id)
 
         elif self.agent_type == "explorer":
-            # Explorers start with fishing rod
+            # Explorers start with fishing rod and hatchet
             fishing_rod = create_item("fishing_rod")
             if fishing_rod:
                 self.inventory.add_item(fishing_rod, 1)
+            hatchet = create_item("hatchet")
+            if hatchet:
+                self.inventory.add_item(hatchet, 1)
+        elif self.agent_type in ["lumberjack", "wood_cutter", "woodcutter"]:
+            # Wood cutters start with hatchet
+            hatchet = create_item("hatchet")
+            if hatchet:
+                self.inventory.add_item(hatchet, 1)
 
         # All agents start with some gold
         self.inventory.add_gold(100)

@@ -29,7 +29,10 @@ class TestWoodHarvesting:
     @pytest.fixture
     def agent_near_forest(self):
         """Create agent positioned near a forest tile"""
-        return ServerAgentState("harvester1", "explorer", 5.0, 5.0)
+        agent = ServerAgentState("harvester1", "explorer", 5.0, 5.0)
+        # Add starting items including hatchet
+        agent.add_starting_items()
+        return agent
 
     @pytest.mark.asyncio
     async def test_harvest_wood_success(self, action_processor, mock_server, agent_near_forest):
@@ -157,6 +160,8 @@ class TestWoodHarvesting:
         for i in range(10):
             # Reset agent for each test
             agent = ServerAgentState(f"harvester_{i}", "explorer", 5.0, 5.0)
+            # Add starting items including hatchet
+            agent.add_starting_items()
             mock_server.agent_registry.get_agent.return_value = agent
 
             # Reset cooldowns for this test
@@ -181,6 +186,8 @@ class TestWoodHarvesting:
     async def test_harvest_wood_tile_proximity(self, action_processor, mock_server):
         """Test that harvesting checks the tile the agent is actually on"""
         agent = ServerAgentState("harvester_proximity", "explorer", 5.7, 5.3)  # Between tiles
+        # Add starting items including hatchet
+        agent.add_starting_items()
 
         mock_server.agent_registry.get_agent.return_value = agent
         mock_server.world.get_agent.return_value = Mock(x=5.7, y=5.3)

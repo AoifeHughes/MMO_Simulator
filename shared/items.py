@@ -436,6 +436,18 @@ def create_fishing_rod() -> Tool:
     )
 
 
+def create_hatchet() -> Tool:
+    """Create a hatchet tool for wood harvesting"""
+    return Tool(
+        name="Hatchet",
+        description="A tool for harvesting wood from trees",
+        value=40,  # Hatchet base value
+        weight=2.0,
+        tool_type="woodcutting",
+        uses=-1,  # Infinite uses
+    )
+
+
 def create_fish() -> Consumable:
     """Create a fish consumable"""
     return Consumable(
@@ -471,6 +483,7 @@ ITEM_REGISTRY = {
     "iron_sword": create_sword,
     "hunters_bow": create_bow,
     "fishing_rod": create_fishing_rod,
+    "hatchet": create_hatchet,
     "fish": create_fish,
     "wood": create_wood,
     "gold": lambda: create_gold_stack(10),

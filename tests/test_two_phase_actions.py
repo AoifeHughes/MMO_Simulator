@@ -274,6 +274,13 @@ class TestWoodHarvestingIntegration:
         self.mock_agent.y = 10.0
         self.mock_agent.speed = 5.0
         self.mock_agent.stop_movement = Mock()
+        self.mock_agent.agent_type = "woodcutter"
+
+        # Mock inventory with hatchet for wood harvesting
+        self.mock_agent.inventory = Mock()
+        from shared.items import create_hatchet
+        hatchet = create_hatchet()
+        self.mock_agent.inventory.get_items_by_type = Mock(return_value=[hatchet])
 
         # Mock agent map with wood
         self.mock_agent.agent_map = Mock()
