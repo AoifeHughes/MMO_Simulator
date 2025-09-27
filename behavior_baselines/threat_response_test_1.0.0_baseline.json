@@ -1,0 +1,120 @@
+{
+  "scenario": "threat_response",
+  "version": "test_1.0.0",
+  "snapshots": [
+    {
+      "timestamp": 1758979268.1588109,
+      "agent_config": {
+        "personality": {
+          "combat": 5.0,
+          "exploration": 5.0,
+          "social": 5.0
+        },
+        "resources": {
+          "wood": 10,
+          "stone": 5,
+          "food": 20
+        },
+        "health": 100.0
+      },
+      "scenario": "threat_response",
+      "metrics": {
+        "decision_time": 1.1205673217773438e-05,
+        "behavior_consistency": 0.92,
+        "resource_efficiency": 0.3453463292920228,
+        "goal_completion_rate": 1.0,
+        "adaptation_quality": 0.8,
+        "memory_utilization": 0.0,
+        "social_interaction_success": 0.5,
+        "strategy_diversity": 0.0
+      },
+      "execution_trace": [
+        "Composed behavior with 0 fragments",
+        "Executed behavior in 0.000s with result NodeStatus.SUCCESS"
+      ],
+      "context": {
+        "scenario_type": "threat_response",
+        "difficulty": "standard"
+      },
+      "version_info": {
+        "test_version": "1.0.0"
+      }
+    },
+    {
+      "timestamp": 1758979268.158853,
+      "agent_config": {
+        "personality": {
+          "combat": 8.0,
+          "exploration": 3.0,
+          "social": 4.0
+        },
+        "resources": {
+          "wood": 8,
+          "stone": 8,
+          "food": 15
+        },
+        "health": 100.0
+      },
+      "scenario": "threat_response",
+      "metrics": {
+        "decision_time": 4.76837158203125e-06,
+        "behavior_consistency": 0.57,
+        "resource_efficiency": 0.6088917531296083,
+        "goal_completion_rate": 1.0,
+        "adaptation_quality": 0.8,
+        "memory_utilization": 0.0,
+        "social_interaction_success": 0.5,
+        "strategy_diversity": 0.0
+      },
+      "execution_trace": [
+        "Composed behavior with 0 fragments",
+        "Executed behavior in 0.000s with result NodeStatus.SUCCESS"
+      ],
+      "context": {
+        "scenario_type": "threat_response",
+        "difficulty": "standard"
+      },
+      "version_info": {
+        "test_version": "1.0.0"
+      }
+    },
+    {
+      "timestamp": 1758979268.158893,
+      "agent_config": {
+        "personality": {
+          "combat": 3.0,
+          "exploration": 9.0,
+          "social": 3.0
+        },
+        "resources": {
+          "wood": 12,
+          "stone": 3,
+          "food": 25
+        },
+        "health": 100.0
+      },
+      "scenario": "threat_response",
+      "metrics": {
+        "decision_time": 5.0067901611328125e-06,
+        "behavior_consistency": 0.81,
+        "resource_efficiency": 0.1704669988481472,
+        "goal_completion_rate": 1.0,
+        "adaptation_quality": 0.8,
+        "memory_utilization": 0.0,
+        "social_interaction_success": 0.5,
+        "strategy_diversity": 0.0
+      },
+      "execution_trace": [
+        "Composed behavior with 0 fragments",
+        "Executed behavior in 0.000s with result NodeStatus.SUCCESS"
+      ],
+      "context": {
+        "scenario_type": "threat_response",
+        "difficulty": "standard"
+      },
+      "version_info": {
+        "test_version": "1.0.0"
+      }
+    }
+  ]
+}

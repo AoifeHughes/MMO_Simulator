@@ -52,6 +52,10 @@ class ActionType(Enum):
     TRADE_REQUEST = "trade_request"      # Request a trade with another agent
     TRADE_ACCEPT = "trade_accept"       # Accept a trade offer
     TRADE_DECLINE = "trade_decline"     # Decline a trade offer
+    ADVERTISE_TRADE = "advertise_trade"  # Advertise items for trade publicly
+    SEARCH_TRADES = "search_trades"      # Search for available trade advertisements
+    NEGOTIATE_TRADE = "negotiate_trade"  # Counter-offer in trade negotiation
+    CANCEL_TRADE_AD = "cancel_trade_ad"  # Cancel a trade advertisement
 
     # Exploration Actions
     EXPLORATION_REPORT = "exploration_report"  # Report exploration progress
@@ -353,6 +357,43 @@ def trade_decline_params(trade_id: str) -> Dict[str, Any]:
     }
 
 
+def advertise_trade_params(offering_items: List[Dict], requesting_items: List[Dict],
+                          duration: float = 300.0, max_distance: float = 50.0) -> Dict[str, Any]:
+    """Parameters for ADVERTISE_TRADE action"""
+    return {
+        "offering_items": offering_items,
+        "requesting_items": requesting_items,
+        "duration": duration,
+        "max_distance": max_distance,
+    }
+
+
+def search_trades_params(desired_items: Optional[List[Dict]] = None,
+                        available_items: Optional[List[Dict]] = None,
+                        max_distance: float = 50.0) -> Dict[str, Any]:
+    """Parameters for SEARCH_TRADES action"""
+    return {
+        "desired_items": desired_items or [],
+        "available_items": available_items or [],
+        "max_distance": max_distance,
+    }
+
+
+def negotiate_trade_params(trade_id: str, counter_offer: Dict[str, Any]) -> Dict[str, Any]:
+    """Parameters for NEGOTIATE_TRADE action"""
+    return {
+        "trade_id": trade_id,
+        "counter_offer": counter_offer,
+    }
+
+
+def cancel_trade_ad_params(ad_id: str) -> Dict[str, Any]:
+    """Parameters for CANCEL_TRADE_AD action"""
+    return {
+        "ad_id": ad_id,
+    }
+
+
 # Action creation helpers
 def create_harvest_wood_action(x: float = 0.0, y: float = 0.0) -> ActionRequest:
     """Create a harvest wood action"""
@@ -391,4 +432,39 @@ def create_trade_decline_action(trade_id: str) -> ActionRequest:
     return ActionRequest(
         action_type=ActionType.TRADE_DECLINE,
         parameters=trade_decline_params(trade_id)
+    )
+
+
+def create_advertise_trade_action(offering_items: List[Dict], requesting_items: List[Dict],
+                                 duration: float = 300.0, max_distance: float = 50.0) -> ActionRequest:
+    """Create a trade advertisement action"""
+    return ActionRequest(
+        action_type=ActionType.ADVERTISE_TRADE,
+        parameters=advertise_trade_params(offering_items, requesting_items, duration, max_distance)
+    )
+
+
+def create_search_trades_action(desired_items: Optional[List[Dict]] = None,
+                               available_items: Optional[List[Dict]] = None,
+                               max_distance: float = 50.0) -> ActionRequest:
+    """Create a search trades action"""
+    return ActionRequest(
+        action_type=ActionType.SEARCH_TRADES,
+        parameters=search_trades_params(desired_items, available_items, max_distance)
+    )
+
+
+def create_negotiate_trade_action(trade_id: str, counter_offer: Dict[str, Any]) -> ActionRequest:
+    """Create a trade negotiation action"""
+    return ActionRequest(
+        action_type=ActionType.NEGOTIATE_TRADE,
+        parameters=negotiate_trade_params(trade_id, counter_offer)
+    )
+
+
+def create_cancel_trade_ad_action(ad_id: str) -> ActionRequest:
+    """Create a cancel trade advertisement action"""
+    return ActionRequest(
+        action_type=ActionType.CANCEL_TRADE_AD,
+        parameters=cancel_trade_ad_params(ad_id)
     )

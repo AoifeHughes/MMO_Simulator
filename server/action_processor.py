@@ -222,6 +222,10 @@ class CooldownValidator(ActionValidator):
             ActionType.TRADE_REQUEST: 1.0,  # Trade request cooldown
             ActionType.TRADE_ACCEPT: 0.5,  # Trade accept cooldown
             ActionType.TRADE_DECLINE: 0.5,  # Trade decline cooldown
+            ActionType.ADVERTISE_TRADE: 2.0,  # Trade advertisement cooldown
+            ActionType.SEARCH_TRADES: 1.0,  # Trade search cooldown
+            ActionType.NEGOTIATE_TRADE: 1.0,  # Trade negotiation cooldown
+            ActionType.CANCEL_TRADE_AD: 0.5,  # Cancel advertisement cooldown
             ActionType.EQUIP_ITEM: 0.2,  # Equipment swap cooldown
         }
         # (agent_id, action_type) -> last_use_timestamp
@@ -481,6 +485,11 @@ class ActionProcessor:
         self.active_trades: Dict[str, Dict[str, Any]] = {}  # trade_id -> trade_data
         self.agent_trades: Dict[str, str] = {}  # agent_id -> trade_id
 
+        # Market-maker functionality
+        self.trade_advertisements: Dict[str, Dict[str, Any]] = {}  # ad_id -> ad_data
+        self.agent_advertisements: Dict[str, List[str]] = defaultdict(list)  # agent_id -> [ad_ids]
+        self.trade_negotiations: Dict[str, Dict[str, Any]] = {}  # trade_id -> negotiation_data
+
         # Validation pipeline
         self.validators: List[ActionValidator] = [
             RateLimitValidator(),
@@ -638,6 +647,14 @@ class ActionProcessor:
                 return await self._execute_trade_accept(request, context)
             elif request.action_type == ActionType.TRADE_DECLINE:
                 return await self._execute_trade_decline(request, context)
+            elif request.action_type == ActionType.ADVERTISE_TRADE:
+                return await self._execute_advertise_trade(request, context)
+            elif request.action_type == ActionType.SEARCH_TRADES:
+                return await self._execute_search_trades(request, context)
+            elif request.action_type == ActionType.NEGOTIATE_TRADE:
+                return await self._execute_negotiate_trade(request, context)
+            elif request.action_type == ActionType.CANCEL_TRADE_AD:
+                return await self._execute_cancel_trade_ad(request, context)
             elif request.action_type == ActionType.EXPLORATION_REPORT:
                 return await self._execute_exploration_report(request, context)
             else:
@@ -811,6 +828,8 @@ class ActionProcessor:
     async def _process_queue(self, priority: ActionPriority):
         """Process actions from a priority queue"""
         queue = self.queues[priority]
+        last_cleanup_time = time.time()
+        cleanup_interval = 30.0  # Clean up every 30 seconds
 
         while not self.shutdown_event.is_set():
             try:
@@ -818,6 +837,12 @@ class ActionProcessor:
                 request = await asyncio.wait_for(queue.get(), timeout=1.0)
                 await self.submit_action(request)
             except asyncio.TimeoutError:
+                # Periodic cleanup for trade advertisements (only on NORMAL priority to avoid duplication)
+                if priority == ActionPriority.NORMAL:
+                    current_time = time.time()
+                    if current_time - last_cleanup_time > cleanup_interval:
+                        self._cleanup_expired_trade_ads()
+                        last_cleanup_time = current_time
                 continue  # Check shutdown event
             except Exception as e:
                 logger.error(f"Error in queue processor for {priority}: {e}")
@@ -1480,6 +1505,343 @@ class ActionProcessor:
 
             # Remove trade
             del self.active_trades[trade_id]
+
+    async def _execute_advertise_trade(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+        """Execute ADVERTISE_TRADE action - create a public trade advertisement"""
+        agent = context.agent_registry.get_agent(request.agent_id)
+        offering_items = request.parameters.get("offering_items", [])
+        requesting_items = request.parameters.get("requesting_items", [])
+        duration = request.parameters.get("duration", 300.0)  # 5 minutes default
+        max_distance = request.parameters.get("max_distance", 50.0)
+
+        # Validate offered items exist in agent's inventory (only for specific item_id)
+        for offered_item in offering_items:
+            item_id = offered_item.get("item_id")
+            item_type = offered_item.get("item_type")
+            quantity = offered_item.get("quantity", 1)
+
+            # Only validate if specific item_id is provided
+            if item_id:
+                found_item = agent.inventory.get_item_by_id(item_id)
+                if not found_item or found_item.quantity < quantity:
+                    return ActionResponse(
+                        action_id=request.action_id,
+                        agent_id=request.agent_id,
+                        action_type=request.action_type,
+                        result=ActionResult.REJECTED,
+                        message=f"Insufficient quantity of item {item_id} for advertisement"
+                    )
+            # For item_type only, we assume the agent will have items when the trade happens
+
+        # Create advertisement
+        ad_id = str(uuid.uuid4())[:8]
+        agent_x, agent_y = agent.position
+
+        ad_data = {
+            "ad_id": ad_id,
+            "advertiser": request.agent_id,
+            "offering_items": offering_items,
+            "requesting_items": requesting_items,
+            "created_time": time.time(),
+            "expires_time": time.time() + duration,
+            "location": (agent_x, agent_y),
+            "max_distance": max_distance,
+            "status": "active"
+        }
+
+        self.trade_advertisements[ad_id] = ad_data
+        self.agent_advertisements[request.agent_id].append(ad_id)
+
+        logger.info(f"📢 Trade advertisement {ad_id} created by {request.agent_id[:8]}")
+
+        return ActionResponse(
+            action_id=request.action_id,
+            agent_id=request.agent_id,
+            action_type=request.action_type,
+            result=ActionResult.APPROVED,
+            message=f"Trade advertisement created with ID {ad_id}",
+            approved_parameters={
+                "ad_id": ad_id,
+                "offering_items": offering_items,
+                "requesting_items": requesting_items,
+                "expires_in": duration
+            }
+        )
+
+    async def _execute_search_trades(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+        """Execute SEARCH_TRADES action - search for matching trade advertisements"""
+        agent = context.agent_registry.get_agent(request.agent_id)
+        desired_items = request.parameters.get("desired_items", [])
+        available_items = request.parameters.get("available_items", [])
+        max_distance = request.parameters.get("max_distance", 50.0)
+
+        agent_x, agent_y = agent.position
+        current_time = time.time()
+        matching_ads = []
+
+        for ad_id, ad_data in self.trade_advertisements.items():
+            # Skip expired or own advertisements
+            if (ad_data["expires_time"] < current_time or
+                ad_data["advertiser"] == request.agent_id or
+                ad_data["status"] != "active"):
+                continue
+
+            # Check distance
+            ad_x, ad_y = ad_data["location"]
+            distance = ((ad_x - agent_x) ** 2 + (ad_y - agent_y) ** 2) ** 0.5
+            if distance > max_distance or distance > ad_data["max_distance"]:
+                continue
+
+            # Check for item matches
+            match_score = 0
+
+            # Score for items we want that they're offering
+            for desired in desired_items:
+                desired_type = desired.get("item_type")
+                desired_id = desired.get("item_id")
+                for offered in ad_data["offering_items"]:
+                    offered_type = offered.get("item_type")
+                    offered_id = offered.get("item_id")
+
+                    # Match by type (both must be non-None and equal)
+                    if desired_type and offered_type and desired_type == offered_type:
+                        match_score += 10
+                    # Match by ID (both must be non-None and equal)
+                    elif desired_id and offered_id and desired_id == offered_id:
+                        match_score += 10
+
+            # Score for items they want that we have available
+            for available in available_items:
+                available_type = available.get("item_type")
+                available_id = available.get("item_id")
+                for requested in ad_data["requesting_items"]:
+                    requested_type = requested.get("item_type")
+                    requested_id = requested.get("item_id")
+
+                    # Match by type (both must be non-None and equal)
+                    if available_type and requested_type and available_type == requested_type:
+                        match_score += 10
+                    # Match by ID (both must be non-None and equal)
+                    elif available_id and requested_id and available_id == requested_id:
+                        match_score += 10
+
+            if match_score > 0:
+                matching_ads.append({
+                    "ad_id": ad_id,
+                    "advertiser": ad_data["advertiser"],
+                    "offering_items": ad_data["offering_items"],
+                    "requesting_items": ad_data["requesting_items"],
+                    "distance": distance,
+                    "match_score": match_score,
+                    "expires_in": ad_data["expires_time"] - current_time
+                })
+
+        # Sort by match score and distance
+        matching_ads.sort(key=lambda x: (-x["match_score"], x["distance"]))
+
+        logger.info(f"🔍 Agent {request.agent_id[:8]} found {len(matching_ads)} matching trade advertisements")
+
+        return ActionResponse(
+            action_id=request.action_id,
+            agent_id=request.agent_id,
+            action_type=request.action_type,
+            result=ActionResult.APPROVED,
+            message=f"Found {len(matching_ads)} matching trade advertisements",
+            approved_parameters={
+                "matching_ads": matching_ads[:10],  # Limit to top 10 matches
+                "total_matches": len(matching_ads)
+            }
+        )
+
+    async def _execute_negotiate_trade(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+        """Execute NEGOTIATE_TRADE action - make a counter-offer in trade negotiation"""
+        agent = context.agent_registry.get_agent(request.agent_id)
+        trade_id = request.parameters.get("trade_id")
+        counter_offer = request.parameters.get("counter_offer", {})
+
+        # Check if trade exists
+        if trade_id not in self.active_trades:
+            return ActionResponse(
+                action_id=request.action_id,
+                agent_id=request.agent_id,
+                action_type=request.action_type,
+                result=ActionResult.REJECTED,
+                message="Trade not found"
+            )
+
+        trade_data = self.active_trades[trade_id]
+
+        # Check if agent is part of this trade
+        if request.agent_id not in [trade_data["initiator"], trade_data["target"]]:
+            return ActionResponse(
+                action_id=request.action_id,
+                agent_id=request.agent_id,
+                action_type=request.action_type,
+                result=ActionResult.REJECTED,
+                message="You are not part of this trade"
+            )
+
+        # Validate counter-offer items if agent is offering them
+        offered_items = counter_offer.get("offering_items", [])
+        for offered_item in offered_items:
+            item_id = offered_item.get("item_id")
+            quantity = offered_item.get("quantity", 1)
+
+            found_item = agent.inventory.get_item_by_id(item_id)
+            if not found_item or found_item.quantity < quantity:
+                return ActionResponse(
+                    action_id=request.action_id,
+                    agent_id=request.agent_id,
+                    action_type=request.action_type,
+                    result=ActionResult.REJECTED,
+                    message=f"Insufficient quantity of item {item_id} for negotiation"
+                )
+
+        # Store negotiation data
+        if trade_id not in self.trade_negotiations:
+            self.trade_negotiations[trade_id] = {"offers": []}
+
+        negotiation_data = {
+            "agent_id": request.agent_id,
+            "timestamp": time.time(),
+            "counter_offer": counter_offer
+        }
+
+        self.trade_negotiations[trade_id]["offers"].append(negotiation_data)
+
+        # Update trade status
+        trade_data["status"] = "negotiating"
+        trade_data["last_negotiation"] = time.time()
+
+        logger.info(f"💬 Trade {trade_id} - Agent {request.agent_id[:8]} made counter-offer")
+
+        return ActionResponse(
+            action_id=request.action_id,
+            agent_id=request.agent_id,
+            action_type=request.action_type,
+            result=ActionResult.APPROVED,
+            message="Counter-offer submitted successfully",
+            approved_parameters={
+                "trade_id": trade_id,
+                "counter_offer": counter_offer,
+                "negotiation_round": len(self.trade_negotiations[trade_id]["offers"])
+            }
+        )
+
+    async def _execute_cancel_trade_ad(self, request: ActionRequest, context: ActionContext) -> ActionResponse:
+        """Execute CANCEL_TRADE_AD action - cancel a trade advertisement"""
+        agent = context.agent_registry.get_agent(request.agent_id)
+        ad_id = request.parameters.get("ad_id")
+
+        # Check if advertisement exists
+        if ad_id not in self.trade_advertisements:
+            return ActionResponse(
+                action_id=request.action_id,
+                agent_id=request.agent_id,
+                action_type=request.action_type,
+                result=ActionResult.REJECTED,
+                message="Trade advertisement not found"
+            )
+
+        ad_data = self.trade_advertisements[ad_id]
+
+        # Check if agent owns this advertisement
+        if ad_data["advertiser"] != request.agent_id:
+            return ActionResponse(
+                action_id=request.action_id,
+                agent_id=request.agent_id,
+                action_type=request.action_type,
+                result=ActionResult.REJECTED,
+                message="You can only cancel your own trade advertisements"
+            )
+
+        # Cancel the advertisement
+        self.trade_advertisements[ad_id]["status"] = "cancelled"
+
+        # Remove from agent's advertisement list
+        if request.agent_id in self.agent_advertisements:
+            agent_ads = self.agent_advertisements[request.agent_id]
+            if ad_id in agent_ads:
+                agent_ads.remove(ad_id)
+
+        logger.info(f"❌ Trade advertisement {ad_id} cancelled by {request.agent_id[:8]}")
+
+        return ActionResponse(
+            action_id=request.action_id,
+            agent_id=request.agent_id,
+            action_type=request.action_type,
+            result=ActionResult.APPROVED,
+            message=f"Trade advertisement {ad_id} cancelled successfully",
+            approved_parameters={
+                "ad_id": ad_id,
+                "cancelled": True
+            }
+        )
+
+    def _cleanup_expired_trade_ads(self):
+        """Clean up expired trade advertisements"""
+        current_time = time.time()
+        expired_ads = []
+
+        for ad_id, ad_data in self.trade_advertisements.items():
+            if ad_data["expires_time"] < current_time and ad_data["status"] == "active":
+                expired_ads.append(ad_id)
+
+        for ad_id in expired_ads:
+            ad_data = self.trade_advertisements[ad_id]
+            ad_data["status"] = "expired"
+
+            # Remove from agent's advertisement list
+            advertiser = ad_data["advertiser"]
+            if advertiser in self.agent_advertisements:
+                agent_ads = self.agent_advertisements[advertiser]
+                if ad_id in agent_ads:
+                    agent_ads.remove(ad_id)
+
+        if expired_ads:
+            logger.info(f"🧹 Cleaned up {len(expired_ads)} expired trade advertisements")
+
+    def get_active_trade_ads_for_agent(self, agent_id: str) -> List[Dict[str, Any]]:
+        """Get active trade advertisements for a specific agent"""
+        current_time = time.time()
+        active_ads = []
+
+        if agent_id in self.agent_advertisements:
+            for ad_id in self.agent_advertisements[agent_id]:
+                if ad_id in self.trade_advertisements:
+                    ad_data = self.trade_advertisements[ad_id]
+                    if (ad_data["status"] == "active" and
+                        ad_data["expires_time"] > current_time):
+                        active_ads.append(ad_data)
+
+        return active_ads
+
+    def get_trade_market_stats(self) -> Dict[str, Any]:
+        """Get market statistics for trade advertisements"""
+        current_time = time.time()
+        active_ads = 0
+        expired_ads = 0
+        cancelled_ads = 0
+        total_value = 0
+
+        for ad_data in self.trade_advertisements.values():
+            if ad_data["status"] == "active" and ad_data["expires_time"] > current_time:
+                active_ads += 1
+                # Simple value calculation based on item counts
+                total_value += len(ad_data["offering_items"]) + len(ad_data["requesting_items"])
+            elif ad_data["status"] == "expired":
+                expired_ads += 1
+            elif ad_data["status"] == "cancelled":
+                cancelled_ads += 1
+
+        return {
+            "active_advertisements": active_ads,
+            "expired_advertisements": expired_ads,
+            "cancelled_advertisements": cancelled_ads,
+            "total_advertisements": len(self.trade_advertisements),
+            "estimated_market_value": total_value,
+            "active_negotiations": len(self.trade_negotiations)
+        }
 
     def get_stats(self) -> Dict[str, Any]:
         """Get processing statistics"""

@@ -96,6 +96,16 @@ class BaseAgent(ABC):
         # Movement validation system to prevent server conflicts
         self.movement_validator: Optional["MovementValidator"] = None
 
+        # Opportunity system for dynamic behavior
+        self.opportunity_system: Optional["OpportunitySystem"] = None
+
+        # Context manager for environmental awareness
+        self.context_manager: Optional["ContextManager"] = None
+
+        # Signal system for agent communication
+        self.signal_queue: Optional["SignalQueue"] = None
+        self.signal_filter: Optional["SignalFilter"] = None
+
     @abstractmethod
     def update(self, delta_time: float):
         pass
@@ -682,3 +692,131 @@ class BaseAgent(ABC):
             self._initialize_movement_validator()
 
         return self.movement_validator.validate_behavior_tree_movement(self, target_x, target_y)
+
+    def _initialize_opportunity_system(self):
+        """Initialize the opportunity system for this agent"""
+        if not self.opportunity_system:
+            from client.opportunity_system import OpportunitySystem
+            self.opportunity_system = OpportunitySystem(self.id)
+            logger.debug(f"Agent {self.id[:8]} initialized opportunity system")
+
+    def get_opportunity_system(self):
+        """Get the opportunity system, initializing if needed"""
+        if not self.opportunity_system:
+            self._initialize_opportunity_system()
+        return self.opportunity_system
+
+    def get_current_opportunities(self, terrain_data: Optional[Dict[Tuple[int, int], Any]] = None):
+        """Get current opportunities detected by the agent"""
+        if not self.opportunity_system:
+            self._initialize_opportunity_system()
+
+        return self.opportunity_system.update(self, self.visible_entities, terrain_data)
+
+    def get_best_opportunity(self, terrain_data: Optional[Dict[Tuple[int, int], Any]] = None):
+        """Get the best opportunity available to the agent"""
+        if not self.opportunity_system:
+            self._initialize_opportunity_system()
+
+        return self.opportunity_system.get_best_opportunity(self, self.visible_entities, terrain_data)
+
+    def _initialize_context_manager(self):
+        """Initialize the context manager for this agent"""
+        if not self.context_manager:
+            from client.context_manager import ContextManager
+            self.context_manager = ContextManager(self.id)
+            logger.debug(f"Agent {self.id[:8]} initialized context manager")
+
+    def get_context_manager(self):
+        """Get the context manager, initializing if needed"""
+        if not self.context_manager:
+            self._initialize_context_manager()
+        return self.context_manager
+
+    def get_current_context(self, terrain_data: Optional[Dict[Tuple[int, int], Any]] = None):
+        """Get current environmental context"""
+        if not self.context_manager:
+            self._initialize_context_manager()
+
+        return self.context_manager.update_context(self.x, self.y, self.visible_entities, terrain_data)
+
+    def assess_danger_at(self, target_x: float, target_y: float):
+        """Assess danger level at a specific position"""
+        if not self.context_manager:
+            self._initialize_context_manager()
+
+        return self.context_manager.get_danger_assessment(target_x, target_y)
+
+    def get_movement_recommendation(self, target_x: float, target_y: float):
+        """Get movement recommendation considering environmental context"""
+        if not self.context_manager:
+            self._initialize_context_manager()
+
+        return self.context_manager.get_movement_recommendation(target_x, target_y)
+
+    def get_context_factors_for_behavior(self, behavior_name: str):
+        """Get context factors that should influence a specific behavior"""
+        if not self.context_manager:
+            self._initialize_context_manager()
+
+        return self.context_manager.get_context_factors_for_behavior(behavior_name)
+
+    def _initialize_signal_system(self):
+        """Initialize the signal system for this agent"""
+        if not self.signal_queue:
+            from server.signal_broadcaster import SignalQueue
+            from shared.signals import SignalFilter
+            self.signal_queue = SignalQueue(self.id)
+            self.signal_filter = SignalFilter(self.id)
+            logger.debug(f"Agent {self.id[:8]} initialized signal system")
+
+    def get_signal_queue(self):
+        """Get the signal queue, initializing if needed"""
+        if not self.signal_queue:
+            self._initialize_signal_system()
+        return self.signal_queue
+
+    def get_signal_filter(self):
+        """Get the signal filter, initializing if needed"""
+        if not self.signal_filter:
+            self._initialize_signal_system()
+        return self.signal_filter
+
+    def receive_signal(self, signal):
+        """Receive a signal from another agent"""
+        if not self.signal_queue:
+            self._initialize_signal_system()
+
+        # Check if agent should receive this signal
+        if self.signal_filter and self.signal_filter.should_receive_signal(signal, self.personality):
+            self.signal_queue.add_signal(signal)
+            logger.debug(f"Agent {self.id[:8]} received signal: {signal.signal_type.value}")
+
+    def send_signal(self, signal):
+        """Send a signal to other agents (requires server integration)"""
+        # This would need to be connected to the server's signal broadcaster
+        # For now, just log the intent
+        logger.debug(f"Agent {self.id[:8]} wants to send signal: {signal.signal_type.value}")
+
+    def get_next_signal(self):
+        """Get the next highest priority signal from queue"""
+        if not self.signal_queue:
+            return None
+        return self.signal_queue.get_next_signal()
+
+    def get_signals_by_type(self, signal_type):
+        """Get all signals of a specific type"""
+        if not self.signal_queue:
+            return []
+        return self.signal_queue.get_signals_by_type(signal_type)
+
+    def process_signals(self):
+        """Process incoming signals (call this in agent update loop)"""
+        if not self.signal_queue:
+            return
+
+        # Clean up expired signals
+        self.signal_queue.clear_expired()
+
+        # Process signals could be handled by behavior trees or agent logic
+        # This is a hook for signal-driven behavior
