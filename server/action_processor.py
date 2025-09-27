@@ -679,13 +679,29 @@ class ActionProcessor:
 
         current_x, current_y = agent.position[0], agent.position[1]
 
-        # Calculate movement direction and distance
-        dx = target_x - current_x
-        dy = target_y - current_y
+        # Check if client position is provided and validate sync
+        client_x = params.get("current_x", current_x)
+        client_y = params.get("current_y", current_y)
+
+        # Check for position desync between client and server
+        position_diff = ((client_x - current_x) ** 2 + (client_y - current_y) ** 2) ** 0.5
+        if position_diff > 2.0:  # Significant desync
+            logger.warning(f"Position desync detected for agent {request.agent_id[:8]}: "
+                         f"client ({client_x:.2f}, {client_y:.2f}) vs server ({current_x:.2f}, {current_y:.2f}) "
+                         f"- diff: {position_diff:.2f}")
+            # Use server position as authoritative
+            start_x, start_y = current_x, current_y
+        else:
+            # Use client position for smooth movement
+            start_x, start_y = client_x, client_y
+
+        # Calculate movement direction and distance from actual starting position
+        dx = target_x - start_x
+        dy = target_y - start_y
         distance = (dx * dx + dy * dy) ** 0.5
 
-        # Maximum movement distance per step to prevent jumping (units per action)
-        max_step_distance = 1.5 * speed_multiplier  # Reasonable movement speed
+        # Reduced maximum movement distance per step to prevent position corrections
+        max_step_distance = 1.0 * speed_multiplier  # More conservative movement speed
 
         if distance <= max_step_distance:
             # Close enough, move directly to target
@@ -693,8 +709,8 @@ class ActionProcessor:
         else:
             # Move a limited distance towards the target
             step_factor = max_step_distance / distance
-            new_x = current_x + dx * step_factor
-            new_y = current_y + dy * step_factor
+            new_x = start_x + dx * step_factor
+            new_y = start_y + dy * step_factor
 
         # Calculate rotation towards movement direction
         rotation = 0.0
@@ -728,12 +744,22 @@ class ActionProcessor:
                 },
             )
         else:
+            # Get current agent position for rejection response
+            agent = context.agent_registry.get_agent(request.agent_id)
+            current_x, current_y = agent.position[0], agent.position[1] if agent else (0, 0)
+
             return ActionResponse(
                 action_id=request.action_id,
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message="Movement failed - position not reachable",
+                message="Movement rejected - invalid position, collision, or terrain blocking",
+                approved_parameters={
+                    "server_position_x": current_x,
+                    "server_position_y": current_y,
+                    "target_x": target_x,
+                    "target_y": target_y,
+                },
             )
 
     async def _execute_attack_target(self, request: ActionRequest, context: ActionContext) -> ActionResponse:

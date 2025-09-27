@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Any
 from unittest.mock import MagicMock
 
 from shared.messages import AgentData, Message, MessageType
+from shared.actions import ActionResponse, ActionResult, ActionType
 from world.tiles import TileType
 
 
@@ -201,6 +202,68 @@ class MockGameServer:
         return len([m for m in self.sent_messages if m['type'] == message_type])
 
 
+class MockActionManager:
+    """Mock action manager for testing"""
+
+    def __init__(self, client):
+        self.client = client
+        self.pending_actions = {}
+        self.callbacks = {}
+
+    async def request_action(self, action_type: ActionType, parameters: Dict[str, Any],
+                           priority=None, predict: bool = True) -> str:
+        """Mock action request - simulates successful movement"""
+        import uuid
+        action_id = str(uuid.uuid4())
+
+        # For MOVE_TO actions, simulate the movement in the mock world
+        if action_type == ActionType.MOVE_TO:
+            target_x = parameters.get("target_x", self.client.agent.x)
+            target_y = parameters.get("target_y", self.client.agent.y)
+
+            # Simulate successful movement for test purposes
+            self.client.agent.x = target_x
+            self.client.agent.y = target_y
+
+            # Create success response
+            response = ActionResponse(
+                action_id=action_id,
+                agent_id=self.client.agent_id,
+                action_type=action_type,
+                result=ActionResult.APPROVED,
+                message="Movement successful"
+            )
+        else:
+            # Default successful response for other actions
+            response = ActionResponse(
+                action_id=action_id,
+                agent_id=self.client.agent_id,
+                action_type=action_type,
+                result=ActionResult.APPROVED,
+                message="Action successful"
+            )
+
+        # Simulate callback
+        if action_type in self.callbacks:
+            # Create mock request
+            from shared.actions import ActionRequest
+            request = ActionRequest(
+                action_id=action_id,
+                agent_id=self.client.agent_id,
+                action_type=action_type,
+                parameters=parameters
+            )
+
+            # Call registered callback
+            self.callbacks[action_type](request, response, None)
+
+        return action_id
+
+    def register_action_callback(self, action_type: ActionType, callback):
+        """Register callback for action responses"""
+        self.callbacks[action_type] = callback
+
+
 class MockClient:
     """Mock client for testing"""
 
@@ -240,10 +303,28 @@ class MockClient:
         from shared.collision import CollisionDetector
         self.agent.collision_detector = CollisionDetector(20, 20)
 
+        # Set up mock action manager for the new action system
+        self.agent.action_manager = MockActionManager(self)
+
         # Ensure behavior trees are initialized for all agent types
         if hasattr(self.agent, '_initialize_behavior_tree'):
             if not getattr(self.agent, 'behavior_tree_initialized', True):
                 self.agent._initialize_behavior_tree()
+
+        # Set up agent for behavior tree execution
+        self.agent.has_initial_map_data = True  # Allow behavior tree to run in tests
+        self.agent.use_behavior_tree = True     # Ensure behavior tree is enabled
+
+        # Override agent's move method to actually update position based on velocity
+        original_move = self.agent.move
+        def mock_move(delta_time: float):
+            # Apply velocity to position
+            if hasattr(self.agent, 'velocity_x') and hasattr(self.agent, 'velocity_y'):
+                self.agent.x += self.agent.velocity_x * delta_time
+                self.agent.y += self.agent.velocity_y * delta_time
+            # Call original move for other processing
+            return original_move(delta_time)
+        self.agent.move = mock_move
 
     async def send_tcp_message(self, message: Message):
         """Mock message sending"""

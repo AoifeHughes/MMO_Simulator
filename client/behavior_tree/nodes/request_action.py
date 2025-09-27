@@ -182,6 +182,30 @@ class RequestMoveTo(RequestAction):
             predict=True,
         )
 
+    def _make_response_callback(self):
+        """Create callback for movement action response with position sync handling"""
+        def callback(request, response, prediction):
+            # Only handle responses for our specific action
+            if request.action_id == self.action_id:
+                self.response_received = True
+
+                if response.result.value in ['approved', 'modified']:
+                    self.final_result = NodeStatus.SUCCESS
+                    logger.debug(f"Movement {self.action_id} succeeded: {response.message}")
+                else:
+                    self.final_result = NodeStatus.FAILURE
+                    logger.debug(f"Movement {self.action_id} rejected: {response.message}")
+
+                    # Handle position sync for rejected movements
+                    if hasattr(response, 'approved_parameters') and response.approved_parameters:
+                        server_x = response.approved_parameters.get('server_position_x')
+                        server_y = response.approved_parameters.get('server_position_y')
+                        if server_x is not None and server_y is not None:
+                            logger.debug(f"Server reports agent position as ({server_x:.2f}, {server_y:.2f})")
+                            # Note: Position reconciliation will happen through normal position sync
+
+        return callback
+
     def _build_parameters(self, agent) -> Optional[Dict[str, Any]]:
         """Build movement parameters"""
         if self.dynamic_target:
@@ -202,6 +226,8 @@ class RequestMoveTo(RequestAction):
         return {
             "target_x": float(target_x),
             "target_y": float(target_y),
+            "current_x": float(agent.x),
+            "current_y": float(agent.y),
             "speed_multiplier": self.speed_multiplier,
         }
 

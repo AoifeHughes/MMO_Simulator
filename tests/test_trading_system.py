@@ -7,7 +7,8 @@ from unittest.mock import Mock, AsyncMock
 from shared.actions import ActionType, create_trade_request_action, create_trade_accept_action, create_trade_decline_action
 from shared.items import create_wood, create_fish, ItemType
 from server.action_processor import ActionProcessor, ActionRequest, ActionContext
-from server.agent_state import ServerAgentState, Inventory, InventorySlot
+from server.agent_state import ServerAgentState
+from shared.inventory import Inventory, InventorySlot
 from server.database import DatabaseManager
 
 

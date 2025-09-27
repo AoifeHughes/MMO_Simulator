@@ -94,66 +94,66 @@ class ServerWorld:
         # Don't allow dead agents to move
         if not agent.is_alive:
             return False
+
         current_pos = (agent.x, agent.y)
         intended_pos = (new_x, new_y)
 
-        # Get positions of other agents for collision checking
-        other_agents = [(a.x, a.y) for aid, a in self.agents.items() if aid != agent_id]
+        # Check if movement is valid before making any changes
+        if not self.is_movement_valid(agent_id, current_pos, intended_pos):
+            return False
 
-        # Resolve collisions and get safe position
-        safe_x, safe_y = self.collision_detector.resolve_movement_collision(
-            current_pos, intended_pos, other_agents
-        )
-
-        # Enhanced terrain validation
-        if not self.validate_movement_path(current_pos, (safe_x, safe_y)):
-            # Calculate intended movement direction to prefer corrections in that direction
-            intended_direction = (safe_x - current_pos[0], safe_y - current_pos[1])
-            direction_length = (intended_direction[0] ** 2 + intended_direction[1] ** 2) ** 0.5
-
-            if direction_length > 0.01:  # Avoid division by zero for very small movements
-                normalized_direction = (intended_direction[0] / direction_length, intended_direction[1] / direction_length)
-            else:
-                normalized_direction = None
-
-            # Movement blocked by terrain - try to find nearby walkable position
-            safe_x, safe_y = self.find_nearest_walkable_position(safe_x, safe_y, preferred_direction=normalized_direction)
-
-            # If still not walkable, reject movement
-            if not self.world_map.is_walkable(round(safe_x), round(safe_y)):
-                return False
-
-        # Apply movement cost penalty for difficult terrain
-        movement_cost = self.get_movement_cost_penalty(safe_x, safe_y)
-
-        # Reduce velocity based on terrain difficulty
-        adjusted_velocity_x = velocity_x * movement_cost
-        adjusted_velocity_y = velocity_y * movement_cost
-
-        # Track potential position jumps for debugging
-        old_x, old_y = agent.x, agent.y
-        position_change = ((safe_x - old_x) ** 2 + (safe_y - old_y) ** 2) ** 0.5
-
-        # Update agent position and velocity
-        agent.x = safe_x
-        agent.y = safe_y
+        # If movement is valid, apply it directly
+        agent.x = new_x
+        agent.y = new_y
         agent.rotation = rotation
-        agent.velocity_x = adjusted_velocity_x
-        agent.velocity_y = adjusted_velocity_y
+        agent.velocity_x = velocity_x
+        agent.velocity_y = velocity_y
 
-        # Update server position authority with authoritative position
-        update_agent_server_position(agent_id, safe_x, safe_y, rotation, adjusted_velocity_x, adjusted_velocity_y)
+        # Update server position authority
+        update_agent_server_position(agent_id, new_x, new_y, rotation, velocity_x, velocity_y)
 
         # Track the position change for debugging
-        track_agent_position(agent_id, safe_x, safe_y, "movement")
-
-        # Log significant position corrections
-        if position_change > 1.0:
-            logger.warning(f"🚨 POSITION CORRECTION: Agent {agent_id[:8]} moved from "
-                         f"({old_x:.2f}, {old_y:.2f}) to ({safe_x:.2f}, {safe_y:.2f}) "
-                         f"- change: {position_change:.2f} units")
+        track_agent_position(agent_id, new_x, new_y, "movement")
 
         return True
+
+    def is_movement_valid(self, agent_id: str, current_pos: Tuple[float, float], intended_pos: Tuple[float, float]) -> bool:
+        """
+        Validate if a movement from current_pos to intended_pos is allowed.
+        Returns True if valid, False if should be rejected.
+        """
+        # Check movement distance - reject if too large (indicates desync)
+        distance = ((intended_pos[0] - current_pos[0]) ** 2 + (intended_pos[1] - current_pos[1]) ** 2) ** 0.5
+        max_movement_distance = 2.0  # Maximum units per movement request
+
+        if distance > max_movement_distance:
+            logger.warning(f"🚫 MOVEMENT REJECTED: Agent {agent_id[:8]} attempted to move {distance:.2f} units "
+                         f"from ({current_pos[0]:.2f}, {current_pos[1]:.2f}) to ({intended_pos[0]:.2f}, {intended_pos[1]:.2f})")
+            return False
+
+        # Check collision with other agents
+        other_agents = [(a.x, a.y) for aid, a in self.agents.items() if aid != agent_id]
+        if self._would_collide_with_agents(intended_pos, other_agents):
+            logger.debug(f"🚫 MOVEMENT REJECTED: Agent {agent_id[:8]} would collide with other agents at ({intended_pos[0]:.2f}, {intended_pos[1]:.2f})")
+            return False
+
+        # Check boundary collision
+        if not self.collision_detector.is_position_valid(intended_pos[0], intended_pos[1]):
+            logger.debug(f"🚫 MOVEMENT REJECTED: Agent {agent_id[:8]} would exit world bounds at ({intended_pos[0]:.2f}, {intended_pos[1]:.2f})")
+            return False
+
+        # Check terrain validity
+        if not self.validate_movement_path(current_pos, intended_pos):
+            logger.debug(f"🚫 MOVEMENT REJECTED: Agent {agent_id[:8]} movement blocked by terrain to ({intended_pos[0]:.2f}, {intended_pos[1]:.2f})")
+            return False
+
+        return True
+
+    def _would_collide_with_agents(self, pos: Tuple[float, float], other_agents: List[Tuple[float, float]]) -> bool:
+        """Check if position would collide with other agents"""
+        collision_result = self.collision_detector.check_multiple_agent_collisions(pos, other_agents)
+        return collision_result.collided
+
 
     def get_visible_agents(
         self,
