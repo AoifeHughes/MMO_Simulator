@@ -306,32 +306,197 @@ class InventoryManagedAction:
         super().__init__(*args, **kwargs)
 
     def check_inventory_space(self, agent, item_name: str, quantity: int = 1) -> bool:
-        """Check if agent has inventory space for items"""
+        """
+        Check if agent has inventory space for items.
+
+        Args:
+            agent: Agent to check inventory for
+            item_name: Name of item to add
+            quantity: Quantity of items to add
+
+        Returns:
+            True if agent has space, False otherwise
+        """
         if not hasattr(agent, 'inventory'):
             return True  # Assume space if no inventory system
 
-        # TODO: Implement proper inventory space checking
-        # For now, do basic check
-        return True
+        try:
+            # Check if inventory has space for the specified quantity
+            available_space = agent.inventory.get_available_space()
+            total_space_needed = quantity
+
+            # If item is stackable, check if we can stack with existing items
+            if hasattr(agent.inventory, 'can_stack_item'):
+                existing_quantity = agent.inventory.get_item_count(item_name)
+                if existing_quantity > 0 and agent.inventory.can_stack_item(item_name):
+                    max_stack = getattr(agent.inventory, 'max_stack_size', 64)
+                    space_in_existing_stacks = max_stack - (existing_quantity % max_stack)
+                    if space_in_existing_stacks >= quantity:
+                        return True  # Can fit in existing stacks
+                    total_space_needed = quantity - space_in_existing_stacks
+
+            return available_space >= total_space_needed
+
+        except (AttributeError, TypeError):
+            # Fallback for basic inventory systems
+            if hasattr(agent.inventory, 'is_full'):
+                return not agent.inventory.is_full()
+            elif hasattr(agent.inventory, 'slots'):
+                used_slots = len([slot for slot in agent.inventory.slots if slot is not None])
+                total_slots = len(agent.inventory.slots)
+                return used_slots < total_slots
+            else:
+                # No known inventory interface, assume space available
+                return True
 
     def check_required_tools(self, agent, tool_type: str) -> bool:
-        """Check if agent has required tools for the action"""
+        """
+        Check if agent has required tools for the action.
+
+        Args:
+            agent: Agent to check tools for
+            tool_type: Type of tool required (e.g., 'fishing_rod', 'axe')
+
+        Returns:
+            True if agent has the required tool, False otherwise
+        """
         if not hasattr(agent, 'inventory'):
-            return True  # Assume tools available if no inventory system
+            # Fallback: assume tools are available based on agent type
+            if tool_type == "fishing_rod":
+                return agent.agent_type == "explorer"
+            elif tool_type == "axe":
+                return agent.agent_type == "explorer"
+            return True
 
-        # TODO: Implement proper tool checking
-        # For now, assume tools are available based on agent type
-        if tool_type == "fishing_rod":
-            return agent.agent_type == "explorer"
-        elif tool_type == "axe":
-            return agent.agent_type == "explorer"
+        try:
+            # Check if tool is in inventory
+            if hasattr(agent.inventory, 'has_item'):
+                return agent.inventory.has_item(tool_type)
 
-        return True
+            # Check equipped tools if equipment system exists
+            if hasattr(agent.inventory, 'get_equipped_item'):
+                equipped_tool = agent.inventory.get_equipped_item('tool')
+                if equipped_tool and equipped_tool.item_type == tool_type:
+                    return True
+
+            # Check all inventory slots for the tool
+            if hasattr(agent.inventory, 'items'):
+                for item in agent.inventory.items:
+                    if item and hasattr(item, 'item_type') and item.item_type == tool_type:
+                        return True
+            elif hasattr(agent.inventory, 'slots'):
+                for slot in agent.inventory.slots:
+                    if slot and hasattr(slot, 'item') and slot.item:
+                        if hasattr(slot.item, 'item_type') and slot.item.item_type == tool_type:
+                            return True
+
+            # Tool not found in inventory
+            return False
+
+        except (AttributeError, TypeError):
+            # Fallback for basic systems - use agent type heuristics
+            if tool_type == "fishing_rod":
+                return agent.agent_type in ["explorer", "fisher"]
+            elif tool_type == "axe":
+                return agent.agent_type in ["explorer", "lumberjack"]
+            elif tool_type == "pickaxe":
+                return agent.agent_type in ["explorer", "miner"]
+            return True  # Assume available for unknown tools
 
     def get_tool_efficiency(self, agent, tool_type: str) -> float:
-        """Get efficiency multiplier based on equipped tools"""
-        # TODO: Implement tool efficiency system
-        return 1.0
+        """
+        Get efficiency multiplier based on equipped tools.
+
+        Args:
+            agent: Agent to check tools for
+            tool_type: Type of tool to check efficiency for
+
+        Returns:
+            Efficiency multiplier (1.0 = normal, >1.0 = better, <1.0 = worse)
+        """
+        if not hasattr(agent, 'inventory'):
+            return 1.0  # Default efficiency without inventory
+
+        try:
+            # Check for equipped tools with efficiency ratings
+            if hasattr(agent.inventory, 'get_equipped_item'):
+                equipped_tool = agent.inventory.get_equipped_item('tool')
+                if equipped_tool and hasattr(equipped_tool, 'item_type') and equipped_tool.item_type == tool_type:
+                    # Check for efficiency attribute
+                    if hasattr(equipped_tool, 'efficiency'):
+                        return equipped_tool.efficiency
+                    elif hasattr(equipped_tool, 'quality'):
+                        # Convert quality to efficiency (basic mapping)
+                        quality_map = {
+                            'poor': 0.8,
+                            'common': 1.0,
+                            'good': 1.2,
+                            'excellent': 1.5,
+                            'legendary': 2.0
+                        }
+                        return quality_map.get(equipped_tool.quality.lower(), 1.0)
+
+            # Search inventory for best tool of this type
+            best_efficiency = 1.0
+            found_tool = False
+
+            if hasattr(agent.inventory, 'items'):
+                for item in agent.inventory.items:
+                    if item and hasattr(item, 'item_type') and item.item_type == tool_type:
+                        found_tool = True
+                        efficiency = 1.0
+                        if hasattr(item, 'efficiency'):
+                            efficiency = item.efficiency
+                        elif hasattr(item, 'quality'):
+                            quality_map = {
+                                'poor': 0.8,
+                                'common': 1.0,
+                                'good': 1.2,
+                                'excellent': 1.5,
+                                'legendary': 2.0
+                            }
+                            efficiency = quality_map.get(item.quality.lower(), 1.0)
+                        best_efficiency = max(best_efficiency, efficiency)
+
+            # Agent type efficiency modifiers
+            if found_tool:
+                agent_bonus = self._get_agent_type_efficiency_bonus(agent.agent_type, tool_type)
+                return best_efficiency * agent_bonus
+            else:
+                # No tool found - check if agent type can work without tools
+                return self._get_agent_type_efficiency_bonus(agent.agent_type, tool_type)
+
+        except (AttributeError, TypeError):
+            # Fallback to agent type efficiency
+            return self._get_agent_type_efficiency_bonus(agent.agent_type, tool_type)
+
+    def _get_agent_type_efficiency_bonus(self, agent_type: str, tool_type: str) -> float:
+        """Get efficiency bonus based on agent type and tool type."""
+        # Agent type specialization bonuses
+        specializations = {
+            "explorer": {
+                "fishing_rod": 1.1,  # Explorers are versatile
+                "axe": 1.1,
+                "pickaxe": 1.1
+            },
+            "fisher": {
+                "fishing_rod": 1.5,  # Fishers excel at fishing
+                "axe": 0.8,
+                "pickaxe": 0.8
+            },
+            "lumberjack": {
+                "fishing_rod": 0.8,
+                "axe": 1.5,  # Lumberjacks excel at woodcutting
+                "pickaxe": 0.9
+            },
+            "miner": {
+                "fishing_rod": 0.8,
+                "axe": 0.9,
+                "pickaxe": 1.5  # Miners excel at mining
+            }
+        }
+
+        return specializations.get(agent_type, {}).get(tool_type, 1.0)
 
 
 class ResourceActionBase(ServerQueryMixin, DistanceValidatedAction, InventoryManagedAction, ActionNode, ABC):

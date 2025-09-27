@@ -9,6 +9,28 @@ logger = logging.getLogger(__name__)
 
 
 class ExplorerAgent(BaseAgent):
+    """
+    Autonomous exploration agent with intelligent world discovery capabilities.
+
+    ExplorerAgents are designed to autonomously discover and map game worlds
+    through various exploration strategies. They feature:
+
+    Exploration Modes:
+    - "spiral": Systematic outward spiral exploration from home base
+    - "random": Randomized exploration with bias toward unexplored areas
+    - "frontier": Edge-based exploration prioritizing unknown boundaries
+    - "fishing": Resource-focused exploration seeking water bodies
+
+    Key Features:
+    - Adaptive behavior trees based on exploration mode
+    - Tile-based exploration tracking and mapping
+    - Intelligent pathfinding around obstacles
+    - Resource discovery and interaction
+    - Home base navigation and memory
+
+    The agent maintains exploration history and can dynamically switch
+    between exploration strategies based on environmental conditions.
+    """
     def __init__(self, agent_id: str, x: float, y: float):
         super().__init__(agent_id, x, y, "explorer")
 
@@ -31,7 +53,22 @@ class ExplorerAgent(BaseAgent):
                 self._initialize_behavior_tree()
 
     def _initialize_behavior_tree(self):
-        """Initialize the behavior tree for this Explorer agent"""
+        """
+        Initialize the behavior tree for this Explorer agent.
+
+        Uses a two-phase initialization strategy:
+        1. Provider-based: Attempts to use custom behavior tree provider
+           if available, allowing for dynamic behavior customization
+        2. Factory fallback: Uses TreeFactory with standard exploration
+           patterns if provider fails or is unavailable
+
+        The initialization process adapts based on exploration_mode:
+        - "fishing": Creates specialized resource-seeking behavior trees
+        - Other modes: Creates standard exploration behavior trees
+
+        Sets behavior_tree_initialized=True on success, enabling the
+        agent to begin autonomous operation.
+        """
         # Try provider-based initialization first
         if self.behavior_tree_provider:
             success = self.initialize_behavior_tree_from_provider(

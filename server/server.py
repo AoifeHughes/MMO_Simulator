@@ -20,6 +20,28 @@ logger = logging.getLogger(__name__)
 
 
 class GameServer:
+    """
+    Core MMO game server providing authoritative game state management.
+
+    The GameServer orchestrates all game systems including:
+    - World state and physics simulation
+    - Client connection management (TCP/UDP)
+    - Action processing and validation
+    - AI agent management
+    - Combat and attack systems
+    - Position authority and synchronization
+
+    Features:
+    - Server-authoritative game state
+    - Real-time client synchronization
+    - Scalable action processing
+    - Integrated AI systems
+    - Comprehensive audit logging
+
+    Network Architecture:
+    - TCP for reliable messages (connections, actions)
+    - UDP for high-frequency updates (positions, world state)
+    """
     def __init__(
         self,
         world_width: int = 100,
