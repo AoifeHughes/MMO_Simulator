@@ -12,7 +12,7 @@ from client.opportunity_system import OpportunityType
 from shared.personality import Personality
 
 
-class TestAgent(BaseAgent):
+class Agent(BaseAgent):
     """Simple test agent implementation"""
 
     def update(self, delta_time: float):
@@ -38,7 +38,7 @@ class TestOpportunityIntegration:
             exploration=4.0
         )
 
-        self.agent = TestAgent("test_agent", 10.0, 10.0, "test", self.personality)
+        self.agent = Agent("test_agent", 10.0, 10.0, "test", self.personality)
 
     def test_opportunity_system_initialization(self):
         """Test that opportunity system initializes properly"""
@@ -131,11 +131,11 @@ class TestOpportunityIntegration:
         """Test that opportunity scoring respects agent personality"""
         # Create agent with high combat preference
         combat_personality = Personality(combat=9.0, fishing=2.0)
-        combat_agent = TestAgent("combat_agent", 10.0, 10.0, "test", combat_personality)
+        combat_agent = Agent("combat_agent", 10.0, 10.0, "test", combat_personality)
 
         # Create agent with high fishing preference
         fishing_personality = Personality(combat=2.0, fishing=9.0)
-        fishing_agent = TestAgent("fishing_agent", 10.0, 10.0, "test", fishing_personality)
+        fishing_agent = Agent("fishing_agent", 10.0, 10.0, "test", fishing_personality)
 
         visible_entities = [
             {

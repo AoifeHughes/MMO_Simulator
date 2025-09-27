@@ -13,7 +13,7 @@ from client.context_manager import DangerLevel, ContextType
 from shared.personality import Personality
 
 
-class TestContextAgent(BaseAgent):
+class ContextAgent(BaseAgent):
     """Simple test agent implementation for context testing"""
 
     def update(self, delta_time: float):
@@ -37,7 +37,7 @@ class TestContextIntegration:
             cooperativeness=5.0
         )
 
-        self.agent = TestContextAgent("test_agent", 10.0, 10.0, "test", self.personality)
+        self.agent = ContextAgent("test_agent", 10.0, 10.0, "test", self.personality)
 
     def test_context_manager_initialization(self):
         """Test that context manager initializes properly"""

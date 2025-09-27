@@ -23,7 +23,7 @@ from shared.collision import CollisionDetector
 
 
 @dataclass
-class TestServerConfig:
+class ServerConfig:
     """Configuration for test server"""
     world_width: int = 20
     world_height: int = 20
@@ -34,7 +34,7 @@ class TestServerConfig:
     max_agents: int = 50
 
 
-class TestGameServer:
+class GameServer:
     """
     Lightweight game server optimized for integration testing.
 
@@ -46,8 +46,8 @@ class TestGameServer:
     - Optional database integration
     """
 
-    def __init__(self, config: TestServerConfig = None):
-        self.config = config or TestServerConfig()
+    def __init__(self, config: ServerConfig = None):
+        self.config = config or ServerConfig()
         self.server: Optional[GameServer] = None
         self.world: Optional[ServerWorld] = None
         self.action_processor: Optional[ActionProcessor] = None
@@ -161,9 +161,9 @@ class TestGameServer:
                 logging.error(f"Test server update error: {e}")
                 break
 
-    def create_test_client(self, agent_type: str = "player") -> 'TestGameClient':
+    def create_test_client(self, agent_type: str = "player") -> 'GameClient':
         """Create a test client connected to this server"""
-        return TestGameClient(self, agent_type)
+        return GameClient(self, agent_type)
 
     def spawn_agent(self, agent_type: str, x: float, y: float, agent_id: str = None) -> str:
         """Spawn agent directly in the server world"""
@@ -206,13 +206,13 @@ class TestGameServer:
             self.world.world_map = world_map
 
 
-class TestGameClient:
+class GameClient:
     """
-    Test client that connects to TestGameServer in-process.
+    Test client that connects to GameServer in-process.
     Provides real client behavior without network overhead.
     """
 
-    def __init__(self, test_server: TestGameServer, agent_type: str = "player"):
+    def __init__(self, test_server: GameServer, agent_type: str = "player"):
         self.test_server = test_server
         self.agent_type = agent_type
         self.agent_id: Optional[str] = None
@@ -264,7 +264,7 @@ class TestGameClient:
         self.agent.use_behavior_tree = True
 
         # Create action manager that communicates with test server
-        self.agent.action_manager = TestClientActionManager(
+        self.agent.action_manager = ClientActionManager(
             self.test_server, self.agent_id
         )
 
@@ -289,10 +289,10 @@ class TestGameClient:
                 self.agent.x, self.agent.y = server_pos
 
 
-class TestClientActionManager:
-    """Action manager for test clients that communicates with TestGameServer"""
+class ClientActionManager:
+    """Action manager for test clients that communicates with GameServer"""
 
-    def __init__(self, test_server: TestGameServer, agent_id: str):
+    def __init__(self, test_server: GameServer, agent_id: str):
         self.test_server = test_server
         self.agent_id = agent_id
         self.callbacks = {}
@@ -328,10 +328,10 @@ class TestClientActionManager:
 
 # Convenience functions for integration testing
 
-async def create_test_environment(config: TestServerConfig = None,
-                                world_builder=None) -> TestGameServer:
+async def create_test_environment(config: ServerConfig = None,
+                                world_builder=None) -> GameServer:
     """Create complete test environment with server and world"""
-    server = TestGameServer(config)
+    server = GameServer(config)
 
     if world_builder:
         # Use custom world from builder (no terrain generation)
@@ -350,7 +350,7 @@ async def create_test_environment(config: TestServerConfig = None,
 
 
 async def create_client_server_test(agent_types: List[str],
-                                   world_builder=None) -> tuple[TestGameServer, List[TestGameClient]]:
+                                   world_builder=None) -> tuple[GameServer, List[GameClient]]:
     """Create server with multiple test clients"""
     server = await create_test_environment(world_builder=world_builder)
 
@@ -369,11 +369,11 @@ async def create_client_server_test(agent_types: List[str],
 class IntegrationTestContext:
     """Context manager for integration tests with automatic cleanup"""
 
-    def __init__(self, config: TestServerConfig = None, world_builder=None):
+    def __init__(self, config: ServerConfig = None, world_builder=None):
         self.config = config
         self.world_builder = world_builder
-        self.server: Optional[TestGameServer] = None
-        self.clients: List[TestGameClient] = []
+        self.server: Optional[GameServer] = None
+        self.clients: List[GameClient] = []
 
     async def __aenter__(self):
         self.server = await create_test_environment(self.config, self.world_builder)
@@ -388,7 +388,7 @@ class IntegrationTestContext:
         if self.server:
             await self.server.stop()
 
-    async def add_client(self, agent_type: str, x: float = 10.0, y: float = 10.0) -> TestGameClient:
+    async def add_client(self, agent_type: str, x: float = 10.0, y: float = 10.0) -> GameClient:
         """Add client to test environment"""
         if not self.server:
             raise RuntimeError("Server not started")

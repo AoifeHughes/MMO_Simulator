@@ -250,7 +250,7 @@ async def test_my_behavior():
 ```python
 @pytest.mark.integration
 async def test_my_integration():
-    config = TestServerConfig(time_acceleration=5.0)
+    config = ServerConfig(time_acceleration=5.0)
     world_builder = PredefinedWorlds.water_navigation_test()
 
     async with IntegrationTestContext(config, world_builder) as ctx:

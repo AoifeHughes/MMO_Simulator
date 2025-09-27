@@ -31,7 +31,7 @@ class IntegrationTestLevel(Enum):
     END_TO_END = "end_to_end"       # Complete user workflow
 
 
-class TestResult(Enum):
+class Result(Enum):
     """Test result status"""
     PASS = "pass"
     FAIL = "fail"
@@ -44,7 +44,7 @@ class IntegrationTestReport:
     """Report for a single integration test"""
     test_name: str
     test_level: IntegrationTestLevel
-    result: TestResult
+    result: Result
     duration: float
     components_tested: List[str]
     error_message: Optional[str] = None
@@ -192,10 +192,10 @@ class AgentIntegrationTester:
         # Calculate results
         end_time = time.time()
         total_tests = len(self.test_reports)
-        passed = len([r for r in self.test_reports if r.result == TestResult.PASS])
-        failed = len([r for r in self.test_reports if r.result == TestResult.FAIL])
-        skipped = len([r for r in self.test_reports if r.result == TestResult.SKIP])
-        errors = len([r for r in self.test_reports if r.result == TestResult.ERROR])
+        passed = len([r for r in self.test_reports if r.result == Result.PASS])
+        failed = len([r for r in self.test_reports if r.result == Result.FAIL])
+        skipped = len([r for r in self.test_reports if r.result == Result.SKIP])
+        errors = len([r for r in self.test_reports if r.result == Result.ERROR])
 
         # Overall performance metrics
         overall_performance = self._calculate_overall_performance()
@@ -232,15 +232,15 @@ class AgentIntegrationTester:
 
             # Determine result
             if result_data.get("success", True):
-                result = TestResult.PASS
+                result = Result.PASS
                 error_message = None
             else:
-                result = TestResult.FAIL
+                result = Result.FAIL
                 error_message = result_data.get("error", "Test failed")
 
         except Exception as e:
             duration = time.time() - start_time
-            result = TestResult.ERROR
+            result = Result.ERROR
             error_message = str(e)
             result_data = {}
 
@@ -265,7 +265,7 @@ class AgentIntegrationTester:
         report = IntegrationTestReport(
             test_name=test_name,
             test_level=test_level,
-            result=TestResult.ERROR,
+            result=Result.ERROR,
             duration=0.0,
             components_tested=components,
             error_message=error_message

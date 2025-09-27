@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch
 
 from tests.integration.agent_integration import (
     AgentIntegrationTester, IntegrationTestReport, IntegrationTestSuite,
-    IntegrationTestLevel, TestResult, run_quick_integration_test,
+    IntegrationTestLevel, Result, run_quick_integration_test,
     run_comprehensive_integration_test
 )
 
@@ -27,7 +27,7 @@ class TestIntegrationTestReport:
         report = IntegrationTestReport(
             test_name="test_component_integration",
             test_level=IntegrationTestLevel.COMPONENT,
-            result=TestResult.PASS,
+            result=Result.PASS,
             duration=1.5,
             components_tested=["ComponentA", "ComponentB"],
             performance_metrics={"metric1": 0.8},
@@ -37,7 +37,7 @@ class TestIntegrationTestReport:
 
         assert report.test_name == "test_component_integration"
         assert report.test_level == IntegrationTestLevel.COMPONENT
-        assert report.result == TestResult.PASS
+        assert report.result == Result.PASS
         assert report.duration == 1.5
         assert len(report.components_tested) == 2
 
@@ -46,7 +46,7 @@ class TestIntegrationTestReport:
         report = IntegrationTestReport(
             test_name="test_serialization",
             test_level=IntegrationTestLevel.SYSTEM,
-            result=TestResult.FAIL,
+            result=Result.FAIL,
             duration=2.0,
             components_tested=["System"],
             error_message="Test failed",
@@ -72,8 +72,8 @@ class TestIntegrationTestSuite:
     def test_suite_creation(self):
         """Test creating integration test suites"""
         reports = [
-            IntegrationTestReport("test1", IntegrationTestLevel.UNIT, TestResult.PASS, 1.0, ["A"]),
-            IntegrationTestReport("test2", IntegrationTestLevel.COMPONENT, TestResult.FAIL, 2.0, ["B"])
+            IntegrationTestReport("test1", IntegrationTestLevel.UNIT, Result.PASS, 1.0, ["A"]),
+            IntegrationTestReport("test2", IntegrationTestLevel.COMPONENT, Result.FAIL, 2.0, ["B"])
         ]
 
         suite = IntegrationTestSuite(
@@ -119,7 +119,7 @@ class TestIntegrationTestSuite:
     def test_save_to_file(self):
         """Test saving suite to file"""
         reports = [
-            IntegrationTestReport("test1", IntegrationTestLevel.UNIT, TestResult.PASS, 1.0, ["A"])
+            IntegrationTestReport("test1", IntegrationTestLevel.UNIT, Result.PASS, 1.0, ["A"])
         ]
 
         suite = IntegrationTestSuite(
@@ -184,7 +184,7 @@ class TestAgentIntegrationTester:
         )
 
         assert report.test_name == "test_success"
-        assert report.result == TestResult.PASS
+        assert report.result == Result.PASS
         assert report.error_message is None
         assert report.performance_metrics["test_metric"] == 0.9
         assert report.details["test_info"] == "completed"
@@ -205,7 +205,7 @@ class TestAgentIntegrationTester:
         )
 
         assert report.test_name == "test_failure"
-        assert report.result == TestResult.FAIL
+        assert report.result == Result.FAIL
         assert report.error_message == "Test failed for some reason"
 
     def test_run_test_exception(self):
@@ -221,7 +221,7 @@ class TestAgentIntegrationTester:
         )
 
         assert report.test_name == "test_exception"
-        assert report.result == TestResult.ERROR
+        assert report.result == Result.ERROR
         assert "Unexpected error in test" in report.error_message
 
     def test_memory_behavior_integration(self):
@@ -318,11 +318,11 @@ class TestAgentIntegrationTester:
         # Add some mock test reports
         self.tester.test_reports = [
             IntegrationTestReport(
-                "test1", IntegrationTestLevel.UNIT, TestResult.PASS, 1.0, ["A"],
+                "test1", IntegrationTestLevel.UNIT, Result.PASS, 1.0, ["A"],
                 performance_metrics={"metric1": 0.8, "metric2": 1.2}
             ),
             IntegrationTestReport(
-                "test2", IntegrationTestLevel.COMPONENT, TestResult.PASS, 2.0, ["B"],
+                "test2", IntegrationTestLevel.COMPONENT, Result.PASS, 2.0, ["B"],
                 performance_metrics={"metric1": 0.9, "metric3": 0.7}
             )
         ]
@@ -428,7 +428,7 @@ class TestAgentIntegrationTester:
 
             # Should have some errors recorded - either in error count or individual reports
             has_errors = (suite.errors > 0 or
-                         any(report.result == TestResult.ERROR for report in suite.test_reports))
+                         any(report.result == Result.ERROR for report in suite.test_reports))
             # Note: The error might be caught and handled, so we just verify the suite completes
 
 
@@ -549,7 +549,7 @@ class TestIntegrationResults:
 
             # Check if any error was captured (either in error count or in reports)
             has_error_info = (suite.errors > 0 or
-                            any(r.result == TestResult.ERROR for r in suite.test_reports) or
+                            any(r.result == Result.ERROR for r in suite.test_reports) or
                             any(r.error_message and "Intentional test failure" in r.error_message
                                 for r in suite.test_reports))
 
@@ -571,7 +571,7 @@ class TestIntegrationScenarios:
         self.tester._run_memory_behavior_integration()
 
         report = self.tester.test_reports[-1]
-        assert report.result in [TestResult.PASS, TestResult.FAIL]  # Should complete
+        assert report.result in [Result.PASS, Result.FAIL]  # Should complete
         assert "memory_influence" in report.performance_metrics or report.performance_metrics is None
 
     def test_interrupt_behavior_coordination(self):
@@ -579,7 +579,7 @@ class TestIntegrationScenarios:
         self.tester._run_behavior_interrupt_integration()
 
         report = self.tester.test_reports[-1]
-        assert report.result in [TestResult.PASS, TestResult.FAIL]  # Should complete
+        assert report.result in [Result.PASS, Result.FAIL]  # Should complete
         # Should test interrupt system accessibility
 
     def test_end_to_end_agent_workflow(self):
@@ -587,7 +587,7 @@ class TestIntegrationScenarios:
         self.tester._run_complete_scenario_integration()
 
         report = self.tester.test_reports[-1]
-        assert report.result in [TestResult.PASS, TestResult.FAIL]  # Should complete
+        assert report.result in [Result.PASS, Result.FAIL]  # Should complete
 
         # Should have detailed scenario steps
         if report.details and "scenario_steps" in report.details:

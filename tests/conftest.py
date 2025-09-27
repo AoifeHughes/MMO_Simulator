@@ -12,7 +12,7 @@ from typing import Dict, Any
 
 from tests.framework.world_builder import WorldBuilder, PredefinedWorlds
 from tests.framework.agent_harness import AgentTestHarness
-from tests.framework.test_server import TestGameServer, TestServerConfig, IntegrationTestContext
+from tests.framework.test_server import GameServer, ServerConfig, IntegrationTestContext
 
 
 # Configure test logging
@@ -59,13 +59,13 @@ def agent_harness(empty_world_builder):
 @pytest.fixture
 async def test_server():
     """Create lightweight test server for integration tests"""
-    config = TestServerConfig(
+    config = ServerConfig(
         world_width=15,
         world_height=15,
         time_acceleration=10.0,  # Speed up tests
         log_level="ERROR"  # Minimal logging
     )
-    server = TestGameServer(config)
+    server = GameServer(config)
     await server.start()
 
     yield server
@@ -76,7 +76,7 @@ async def test_server():
 @pytest.fixture
 async def integration_context():
     """Create integration test context with automatic cleanup"""
-    config = TestServerConfig(
+    config = ServerConfig(
         world_width=20,
         world_height=20,
         time_acceleration=5.0,
@@ -92,7 +92,7 @@ async def integration_context():
 @pytest.fixture
 async def complex_scenario_context():
     """Create complex scenario for end-to-end tests"""
-    config = TestServerConfig(
+    config = ServerConfig(
         world_width=30,
         world_height=30,
         time_acceleration=2.0,  # Slower for complex scenarios
@@ -108,7 +108,7 @@ async def complex_scenario_context():
 @pytest.fixture
 async def resource_scenario_context():
     """Create resource gathering scenario"""
-    config = TestServerConfig(
+    config = ServerConfig(
         world_width=25,
         world_height=25,
         time_acceleration=3.0
@@ -149,7 +149,7 @@ def agent_count(request):
 @pytest.fixture
 def performance_config():
     """Configuration for performance tests"""
-    return TestServerConfig(
+    return ServerConfig(
         world_width=50,
         world_height=50,
         time_acceleration=1.0,  # Real-time for performance measurement

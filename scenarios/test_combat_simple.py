@@ -18,7 +18,7 @@ from shared.personality import PersonalityArchetype
 logger = logging.getLogger(__name__)
 
 
-class TestCombatSimpleScenario(BaseScenario):
+class CombatSimpleScenario(BaseScenario):
     def __init__(self):
         from world.terrain_generator import TerrainType
         super().__init__(

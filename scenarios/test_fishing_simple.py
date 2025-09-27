@@ -19,7 +19,7 @@ from shared.personality import PersonalityArchetype
 logger = logging.getLogger(__name__)
 
 
-class TestFishingSimpleScenario(BaseScenario):
+class FishingSimpleScenario(BaseScenario):
     def __init__(self):
         from world.terrain_generator import TerrainType
         super().__init__(
