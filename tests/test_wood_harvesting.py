@@ -99,16 +99,22 @@ class TestWoodHarvesting(ActionTestBase):
         mock_server.world.get_agent.return_value = Mock(x=5.0, y=5.0)
         mock_server.world.world_map.get_tile.return_value = TileType.WOOD
 
-        request = self.create_harvest_request("harvester1", 5.0, 5.0)
+        # Mock asyncio.sleep to make timing deterministic
+        import asyncio
+        from unittest.mock import patch
 
-        # First harvest should succeed
-        response1 = await action_processor.submit_action(request)
-        self.assert_approved(response1)
+        with patch('asyncio.sleep', return_value=None) as mock_sleep:
+            request1 = self.create_harvest_request("harvester1", 5.0, 5.0)
 
-        # Immediate second harvest should fail due to cooldown
-        response2 = await action_processor.submit_action(request)
-        self.assert_rejected(response2)
-        assert "cooldown" in response2.message.lower()
+            # First harvest should succeed
+            response1 = await action_processor.submit_action(request1)
+            self.assert_approved(response1)
+
+            # Immediate second harvest should fail due to cooldown (new request object)
+            request2 = self.create_harvest_request("harvester1", 5.0, 5.0)
+            response2 = await action_processor.submit_action(request2)
+            self.assert_rejected(response2)
+            assert "cooldown" in response2.message.lower()
 
     @pytest.mark.asyncio
     async def test_harvest_wood_agent_not_found(self, action_processor, mock_server):

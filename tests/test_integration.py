@@ -334,21 +334,23 @@ class TestIntegration:
         # Make sure world.server points to the mock_server for database calls
         mock_server.world.server = mock_server
 
-        # Test harvest cooldown
-        harvest_request1 = create_harvest_wood_action(30.0, 30.0)
-        harvest_request1.agent_id = "cooldown_agent"
+        # Test harvest cooldown with mocked timing
+        import asyncio
+        from unittest.mock import patch
 
-        response1 = await action_processor.submit_action(harvest_request1)
-        assert response1.result == ActionResult.APPROVED
+        with patch('asyncio.sleep', return_value=None):
+            harvest_request1 = create_harvest_wood_action(30.0, 30.0)
+            harvest_request1.agent_id = "cooldown_agent"
 
-        # Immediate second request should be rejected due to cooldown (new request object)
-        import time
-        time.sleep(0.1)  # Small delay to ensure timing
-        harvest_request2 = create_harvest_wood_action(30.0, 30.0)
-        harvest_request2.agent_id = "cooldown_agent"
-        response2 = await action_processor.submit_action(harvest_request2)
-        assert response2.result == ActionResult.REJECTED
-        assert "cooldown" in response2.message.lower()
+            response1 = await action_processor.submit_action(harvest_request1)
+            assert response1.result == ActionResult.APPROVED
+
+            # Immediate second request should be rejected due to cooldown (new request object)
+            harvest_request2 = create_harvest_wood_action(30.0, 30.0)
+            harvest_request2.agent_id = "cooldown_agent"
+            response2 = await action_processor.submit_action(harvest_request2)
+            assert response2.result == ActionResult.REJECTED
+            assert "cooldown" in response2.message.lower()
 
         # Test craft cooldown (clear harvest cooldown first)
         for validator in action_processor.validators:

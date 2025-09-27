@@ -478,6 +478,117 @@ class WoodHarvestingValidator(ResourceGatheringValidator):
         return True, ""
 
 
+class TradeRequestValidator(ActionValidator):
+    """Validates trade request actions"""
+
+    def validate(self, request: ActionRequest, context: ActionContext) -> Tuple[bool, str]:
+        if request.action_type != ActionType.TRADE_REQUEST:
+            return True, ""
+
+        agent = context.agent_registry.get_agent(request.agent_id)
+        if not agent or not agent.is_alive:
+            return False, "Agent not found or dead"
+
+        target_agent_id = request.parameters.get("target_agent_id")
+        offered_items = request.parameters.get("offering_items", [])
+
+        # Check if target agent exists
+        target_agent = context.agent_registry.get_agent(target_agent_id)
+        if not target_agent:
+            return False, "Target agent not found"
+
+        # Check distance between agents
+        agent_pos = context.world.get_agent(request.agent_id)
+        target_pos = context.world.get_agent(target_agent_id)
+        if agent_pos and target_pos:
+            distance = ((target_pos.x - agent_pos.x) ** 2 + (target_pos.y - agent_pos.y) ** 2) ** 0.5
+            if distance > 5.0:
+                return False, "Target agent too far for trading"
+
+        # Validate offered items exist in agent's inventory
+        for offered_item in offered_items:
+            item_name = offered_item.get("item_name")
+            quantity = offered_item.get("quantity", 1)
+
+            if item_name:
+                current_qty = agent.inventory.get_item_quantity(item_name)
+                if current_qty < quantity:
+                    return False, f"Insufficient {item_name} (have {current_qty}, need {quantity})"
+
+        return True, ""
+
+    def get_supported_actions(self) -> Set[ActionType]:
+        return {ActionType.TRADE_REQUEST}
+
+
+class TradeAcceptValidator(ActionValidator):
+    """Validates trade accept actions"""
+
+    def validate(self, request: ActionRequest, context: ActionContext) -> Tuple[bool, str]:
+        if request.action_type != ActionType.TRADE_ACCEPT:
+            return True, ""
+
+        agent = context.agent_registry.get_agent(request.agent_id)
+        if not agent or not agent.is_alive:
+            return False, "Agent not found or dead"
+
+        trade_id = request.parameters.get("trade_id")
+        if not trade_id:
+            return False, "Missing trade_id"
+
+        # Check if trade exists
+        if trade_id not in context.processor.active_trades:
+            return False, "Trade not found"
+
+        trade_data = context.processor.active_trades[trade_id]
+
+        # Check if agent is the target of this trade
+        if request.agent_id != trade_data.get("target_id", trade_data.get("target")):
+            return False, "You are not the target of this trade"
+
+        # Check if trade is still pending
+        if trade_data.get("status", "pending") != "pending":
+            return False, f"Trade is no longer pending"
+
+        return True, ""
+
+    def get_supported_actions(self) -> Set[ActionType]:
+        return {ActionType.TRADE_ACCEPT}
+
+
+class TradeDeclineValidator(ActionValidator):
+    """Validates trade decline actions"""
+
+    def validate(self, request: ActionRequest, context: ActionContext) -> Tuple[bool, str]:
+        if request.action_type != ActionType.TRADE_DECLINE:
+            return True, ""
+
+        agent = context.agent_registry.get_agent(request.agent_id)
+        if not agent or not agent.is_alive:
+            return False, "Agent not found or dead"
+
+        trade_id = request.parameters.get("trade_id")
+        if not trade_id:
+            return False, "Missing trade_id"
+
+        # Check if trade exists
+        if trade_id not in context.processor.active_trades:
+            return False, "Trade not found"
+
+        trade_data = context.processor.active_trades[trade_id]
+
+        # Check if agent is involved in this trade
+        initiator_id = trade_data.get("initiator_id", trade_data.get("initiator"))
+        target_id = trade_data.get("target_id", trade_data.get("target"))
+        if request.agent_id not in [initiator_id, target_id]:
+            return False, "You are not involved in this trade"
+
+        return True, ""
+
+    def get_supported_actions(self) -> Set[ActionType]:
+        return {ActionType.TRADE_DECLINE}
+
+
 class ActionProcessor:
     """Main action processing engine"""
 
@@ -504,6 +615,9 @@ class ActionProcessor:
             InventoryValidator(),
             FishingValidator(),
             WoodHarvestingValidator(),
+            TradeRequestValidator(),
+            TradeAcceptValidator(),
+            TradeDeclineValidator(),
         ]
 
         # Processing queues by priority
@@ -1081,33 +1195,38 @@ class ActionProcessor:
         harvest_time = random.uniform(2.0, 4.0)
         await asyncio.sleep(harvest_time)
 
-        # Create wood item and try to add to inventory
+        # Generate random amount of wood (1-3 pieces)
+        wood_amount = random.randint(1, 3)
         wood_item = create_item("wood")
-        if wood_item and agent.inventory.has_space_for_item(wood_item, 1):
-            added_count = agent.inventory.add_item(wood_item, 1)
 
-            # If add_item failed, try manual slot assignment
-            if added_count == 0:
+        if wood_item and agent.inventory.has_space_for_item(wood_item, wood_amount):
+            added_count = agent.inventory.add_item(wood_item, wood_amount)
+
+            # If add_item failed, try manual slot assignment for remaining amount
+            if added_count < wood_amount:
+                remaining = wood_amount - added_count
                 for slot in agent.inventory.slots:
-                    if slot.is_empty():
-                        slot.set_item(wood_item, 1)
-                        added_count = 1
-                        logger.info(f"🌲 Manually added wood to empty slot for agent {agent.agent_id[:8]}")
+                    if slot.is_empty() and remaining > 0:
+                        slot.set_item(wood_item, remaining)
+                        added_count += remaining
+                        remaining = 0
+                        logger.info(f"🌲 Manually added {remaining} wood to empty slot for agent {agent.agent_id[:8]}")
                         break
 
         if wood_item and added_count > 0:
             # Calculate tile coordinates from target position
             tile_x, tile_y = int(target_x), int(target_y)
-            logger.info(f"🌲 Agent {agent.agent_id[:8]} harvested wood at ({tile_x}, {tile_y})")
+            logger.info(f"🌲 Agent {agent.agent_id[:8]} harvested {added_count} wood at ({tile_x}, {tile_y})")
 
             return ActionResponse(
                 action_id=request.action_id,
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.APPROVED,
-                message=f"Successfully harvested wood (took {harvest_time:.1f} seconds)",
+                message=f"Successfully harvested {added_count} wood (took {harvest_time:.1f} seconds)",
                 approved_parameters={
                     "harvested_item": wood_item.to_dict(),
+                    "harvested_amount": added_count,
                     "harvest_time": harvest_time,
                     "location": (tile_x, tile_y)
                 }
@@ -1235,8 +1354,8 @@ class ActionProcessor:
         """Execute TRADE_REQUEST action - initiate a trade with another agent"""
         agent = context.agent_registry.get_agent(request.agent_id)
         target_agent_id = request.parameters.get("target_agent_id")
-        offered_items = request.parameters.get("offered_items", [])
-        requested_items = request.parameters.get("requested_items", [])
+        offered_items = request.parameters.get("offering_items", [])
+        requested_items = request.parameters.get("requesting_items", [])
 
         # Check if target agent exists
         target_agent = context.agent_registry.get_agent(target_agent_id)
@@ -1275,18 +1394,30 @@ class ActionProcessor:
         # Validate offered items exist in agent's inventory
         for offered_item in offered_items:
             item_id = offered_item.get("item_id")
+            item_name = offered_item.get("item_name")
             quantity = offered_item.get("quantity", 1)
 
-            # Find item in inventory
-            found_item = agent.inventory.get_item_by_id(item_id)
-            if not found_item:
-                return ActionResponse(
-                    action_id=request.action_id,
-                    agent_id=request.agent_id,
-                    action_type=request.action_type,
-                    result=ActionResult.REJECTED,
-                    message=f"Offered item {item_id} not found in inventory"
-                )
+            # Find item in inventory by ID or name
+            if item_id:
+                found_item = agent.inventory.get_item_by_id(item_id)
+                if not found_item:
+                    return ActionResponse(
+                        action_id=request.action_id,
+                        agent_id=request.agent_id,
+                        action_type=request.action_type,
+                        result=ActionResult.REJECTED,
+                        message=f"Offered item {item_id} not found in inventory"
+                    )
+            elif item_name:
+                current_qty = agent.inventory.get_item_quantity(item_name)
+                if current_qty < quantity:
+                    return ActionResponse(
+                        action_id=request.action_id,
+                        agent_id=request.agent_id,
+                        action_type=request.action_type,
+                        result=ActionResult.REJECTED,
+                        message=f"Insufficient {item_name} (have {current_qty}, need {quantity})"
+                    )
 
         # Create trade session
         trade_id = str(uuid.uuid4())[:8]
@@ -1339,7 +1470,8 @@ class ActionProcessor:
         trade_data = self.active_trades[trade_id]
 
         # Check if agent is the target of this trade
-        if request.agent_id != trade_data["target"]:
+        target_id = trade_data.get("target_id", trade_data.get("target"))
+        if request.agent_id != target_id:
             return ActionResponse(
                 action_id=request.action_id,
                 agent_id=request.agent_id,
@@ -1349,18 +1481,21 @@ class ActionProcessor:
             )
 
         # Check if trade is still pending
-        if trade_data["status"] != "pending":
+        status = trade_data.get("status", "pending")
+        if status != "pending":
             return ActionResponse(
                 action_id=request.action_id,
                 agent_id=request.agent_id,
                 action_type=request.action_type,
                 result=ActionResult.REJECTED,
-                message=f"Trade is no longer pending (status: {trade_data['status']})"
+                message=f"Trade is no longer pending (status: {status})"
             )
 
         # Get both agents
-        initiator_agent = context.agent_registry.get_agent(trade_data["initiator"])
-        target_agent = context.agent_registry.get_agent(trade_data["target"])
+        initiator_id = trade_data.get("initiator_id", trade_data.get("initiator"))
+        target_id = trade_data.get("target_id", trade_data.get("target"))
+        initiator_agent = context.agent_registry.get_agent(initiator_id)
+        target_agent = context.agent_registry.get_agent(target_id)
 
         if not initiator_agent or not target_agent:
             self._cleanup_trade(trade_id)
@@ -1373,44 +1508,99 @@ class ActionProcessor:
             )
 
         # Execute the trade - transfer items
-        offered_items = trade_data["offered_items"]
-        requested_items = trade_data["requested_items"]
+        offered_items = trade_data.get("offered_items", trade_data.get("initiator_items", []))
+        requested_items = trade_data.get("requested_items", trade_data.get("target_items", []))
 
         # Remove offered items from initiator
         for offered_item in offered_items:
-            item_id = offered_item["item_id"]
-            quantity = offered_item["quantity"]
-            removed_item = initiator_agent.inventory.remove_item_by_id(item_id)
-            if removed_item:
-                # Add to target's inventory
-                target_agent.inventory.add_item(removed_item, quantity)
+            item_id = offered_item.get("item_id")
+            item_name = offered_item.get("item_name")
+            quantity = offered_item.get("quantity", 1)
 
-        # For requested items, we need to find them in target's inventory by name
+            if item_id:
+                # Remove by ID
+                removed_item = initiator_agent.inventory.remove_item_by_id(item_id)
+                if removed_item:
+                    target_agent.inventory.add_item(removed_item, quantity)
+            elif item_name:
+                # Remove by name
+                removed_qty = initiator_agent.inventory.remove_item(item_name, quantity)
+                if removed_qty > 0:
+                    # Create the item and add to target's inventory
+                    # Try to map common item names to create_item parameters
+                    item_param = item_name.lower().replace(" ", "_")
+                    if item_name.lower() == "fresh fish":
+                        item_param = "fish"
+
+                    new_item = create_item(item_param)
+                    if new_item:
+                        target_agent.inventory.add_item(new_item, removed_qty)
+
+        # For requested items, we need to find them in target's inventory
         for requested_item in requested_items:
-            item_name = requested_item["item_name"]
-            quantity = requested_item["quantity"]
-            removed_qty = target_agent.inventory.remove_item(item_name, quantity)
-            if removed_qty > 0:
-                # Create the item and add to initiator's inventory
-                new_item = create_item(item_name.lower().replace(" ", "_"))
-                if new_item:
-                    initiator_agent.inventory.add_item(new_item, removed_qty)
+            item_id = requested_item.get("item_id")
+            item_name = requested_item.get("item_name")
+            quantity = requested_item.get("quantity", 1)
+
+            if item_id:
+                # Remove by ID
+                removed_item = target_agent.inventory.remove_item_by_id(item_id)
+                if removed_item:
+                    initiator_agent.inventory.add_item(removed_item, quantity)
+            elif item_name:
+                # Remove by name
+                removed_qty = target_agent.inventory.remove_item(item_name, quantity)
+                if removed_qty > 0:
+                    # Create the item and add to initiator's inventory
+                    # Try to map common item names to create_item parameters
+                    item_param = item_name.lower().replace(" ", "_")
+                    if item_name.lower() == "fresh fish":
+                        item_param = "fish"
+
+                    new_item = create_item(item_param)
+                    if new_item:
+                        initiator_agent.inventory.add_item(new_item, removed_qty)
 
         # Record trade in database if available
-        if hasattr(context.world, 'server') and hasattr(context.world.server, 'database_manager'):
-            initiator_items = [{"item_name": context.agent_registry.get_agent(trade_data["initiator"]).inventory.get_item_by_id(item["item_id"]).name, "quantity": item["quantity"]} for item in offered_items]
-            target_items = [{"item_name": item["item_name"], "quantity": item["quantity"]} for item in requested_items]
+        try:
+            if hasattr(context.world, 'server') and hasattr(context.world.server, 'database_manager'):
+                initiator_items = []
+                for item in offered_items:
+                    item_name = item.get("item_name")
+                    if not item_name and item.get("item_id"):
+                        # Try to get name from item_id
+                        try:
+                            found_item = initiator_agent.inventory.get_item_by_id(item["item_id"])
+                            item_name = found_item.name if found_item else "unknown"
+                        except:
+                            item_name = "unknown"
+                    initiator_items.append({"item_name": item_name or "unknown", "quantity": item.get("quantity", 1)})
 
-            await context.world.server.database_manager.record_trade(
-                trade_data["initiator"], trade_data["target"],
-                initiator_items, target_items, trade_data["location"]
-            )
+                target_items = []
+                for item in requested_items:
+                    item_name = item.get("item_name")
+                    if not item_name and item.get("item_id"):
+                        # Try to get name from item_id
+                        try:
+                            found_item = target_agent.inventory.get_item_by_id(item["item_id"])
+                            item_name = found_item.name if found_item else "unknown"
+                        except:
+                            item_name = "unknown"
+                    target_items.append({"item_name": item_name or "unknown", "quantity": item.get("quantity", 1)})
+
+                await context.world.server.database_manager.record_trade(
+                    initiator_id, target_id,
+                    initiator_items, target_items, trade_data.get("location", (0, 0))
+                )
+        except Exception as e:
+            # Database recording failed, but don't fail the trade
+            logger.warning(f"Failed to record trade in database: {e}")
 
         # Mark trade as completed and cleanup
         trade_data["status"] = "completed"
         self._cleanup_trade(trade_id)
 
-        logger.info(f"💱 Trade {trade_id} completed between {trade_data['initiator'][:8]} and {trade_data['target'][:8]}")
+        logger.info(f"💱 Trade {trade_id} completed between {initiator_id[:8]} and {target_id[:8]}")
 
         return ActionResponse(
             action_id=request.action_id,
@@ -1442,7 +1632,9 @@ class ActionProcessor:
         trade_data = self.active_trades[trade_id]
 
         # Check if agent is involved in this trade
-        if request.agent_id not in [trade_data["initiator"], trade_data["target"]]:
+        initiator_id = trade_data.get("initiator_id", trade_data.get("initiator"))
+        target_id = trade_data.get("target_id", trade_data.get("target"))
+        if request.agent_id not in [initiator_id, target_id]:
             return ActionResponse(
                 action_id=request.action_id,
                 agent_id=request.agent_id,
@@ -1503,10 +1695,12 @@ class ActionProcessor:
             trade_data = self.active_trades[trade_id]
 
             # Remove agent trade assignments
-            if trade_data["initiator"] in self.agent_trades:
-                del self.agent_trades[trade_data["initiator"]]
-            if trade_data["target"] in self.agent_trades:
-                del self.agent_trades[trade_data["target"]]
+            initiator_id = trade_data.get("initiator_id", trade_data.get("initiator"))
+            target_id = trade_data.get("target_id", trade_data.get("target"))
+            if initiator_id and initiator_id in self.agent_trades:
+                del self.agent_trades[initiator_id]
+            if target_id and target_id in self.agent_trades:
+                del self.agent_trades[target_id]
 
             # Remove trade
             del self.active_trades[trade_id]
@@ -1805,6 +1999,23 @@ class ActionProcessor:
 
         if expired_ads:
             logger.info(f"🧹 Cleaned up {len(expired_ads)} expired trade advertisements")
+
+    def _cleanup_expired_trades(self):
+        """Clean up expired trade sessions (older than 60 seconds)"""
+        current_time = time.time()
+        expired_trades = []
+
+        for trade_id, trade_data in self.active_trades.items():
+            created_time = trade_data.get("created_time", 0)
+            if current_time - created_time > 60.0:  # 60 seconds timeout
+                expired_trades.append(trade_id)
+
+        for trade_id in expired_trades:
+            self._cleanup_trade(trade_id)
+            logger.info(f"🧹 Expired trade {trade_id} cleaned up")
+
+        if expired_trades:
+            logger.info(f"🧹 Cleaned up {len(expired_trades)} expired trades")
 
     def get_active_trade_ads_for_agent(self, agent_id: str) -> List[Dict[str, Any]]:
         """Get active trade advertisements for a specific agent"""
