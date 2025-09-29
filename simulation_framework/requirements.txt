@@ -1,0 +1,5 @@
+pytest>=7.0.0
+pytest-cov>=4.0.0
+opensimplex>=0.4.0
+pathfinding>=1.0.0
+numpy>=1.20.0

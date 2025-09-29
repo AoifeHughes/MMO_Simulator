@@ -1,0 +1,445 @@
+from __future__ import annotations
+import logging
+import time
+from typing import List, Optional, Dict, Any, Callable
+from datetime import datetime
+
+from .world import World
+from ..entities.agent import Agent
+from ..entities.npc import NPC
+from ..systems.fog_of_war import FogOfWar
+from ..systems.trading import TradingSystem
+from ..systems.respawn import RespawnManager
+from ..systems.trading import Market
+from ..database.database import Database
+from ..database.models import SimulationRun, AgentSnapshot, WorldSnapshot, ActionLog
+from ..database.analytics_engine import AnalyticsEngine
+from .time_manager import TimeManager
+from .config import SimulationConfig
+
+
+logger = logging.getLogger(__name__)
+
+
+class Simulation:
+    """Main simulation orchestrator that manages the game loop and all systems"""
+
+    def __init__(self, config: SimulationConfig):
+        self.config = config
+        self.time_manager = TimeManager()
+
+        # Initialize database and analytics
+        self.db = Database(config.database_path)
+        self.analytics = AnalyticsEngine(self.db)
+
+        # Initialize world
+        self.world = World(
+            width=config.world_width,
+            height=config.world_height,
+            seed=config.world_seed
+        )
+
+        # Initialize systems
+        self.fog_of_war = FogOfWar(self.world.width, self.world.height)
+        self.trading_system = TradingSystem()
+        self.respawn_manager = RespawnManager(self.world.width, self.world.height)
+        self.market = Market()
+
+        # Entity containers
+        self.agents: List[Agent] = []
+        self.npcs: List[NPC] = []
+
+        # Simulation state
+        self.running = False
+        self.paused = False
+        self.simulation_run: Optional[SimulationRun] = None
+        self.simulation_id: Optional[int] = None
+
+        # Performance tracking
+        self.tick_times: List[float] = []
+        self.last_save_tick = 0
+
+        # Event handlers
+        self.on_tick_complete: Optional[Callable[[int], None]] = None
+        self.on_simulation_complete: Optional[Callable[[Simulation], None]] = None
+
+    def initialize_simulation(self, name: str, description: str = "") -> None:
+        """Initialize a new simulation run in the database"""
+        self.simulation_run = SimulationRun(
+            name=name,
+            description=description,
+            world_seed=self.config.world_seed,
+            world_width=self.config.world_width,
+            world_height=self.config.world_height,
+            start_time=datetime.now(),
+            total_agents=len(self.agents),
+            config={
+                'max_ticks': self.config.max_ticks,
+                'save_interval': self.config.save_interval,
+                'analytics_interval': self.config.analytics_interval,
+                'tick_rate': self.config.tick_rate
+            }
+        )
+
+        self.simulation_id = self.db.create_simulation_run(self.simulation_run)
+        self.simulation_run.id = self.simulation_id
+
+        logger.info(f"Initialized simulation '{name}' with ID {self.simulation_id}")
+
+    def add_agent(self, agent: Agent) -> None:
+        """Add an agent to the simulation"""
+        agent.world = self.world
+        agent.fog_of_war = self.fog_of_war
+        self.agents.append(agent)
+
+        # Update fog of war for new agent
+        if hasattr(self.fog_of_war, 'update_agent_vision'):
+            self.fog_of_war.update_agent_vision(agent, self.world)
+
+    def add_agents(self, agents: List[Agent]) -> None:
+        """Add multiple agents to the simulation"""
+        for agent in agents:
+            self.add_agent(agent)
+
+    def add_npc(self, npc: NPC) -> None:
+        """Add an NPC to the simulation"""
+        npc.world = self.world
+        self.npcs.append(npc)
+
+        # Register with respawn manager if it has respawn data
+        if hasattr(npc, 'respawn_delay') and npc.respawn_delay > 0:
+            self.respawn_manager.register_entity(npc)
+
+    def add_npcs(self, npcs: List[NPC]) -> None:
+        """Add multiple NPCs to the simulation"""
+        for npc in npcs:
+            self.add_npc(npc)
+
+    def step(self) -> None:
+        """Execute one simulation tick"""
+        if not self.running or self.paused:
+            return
+
+        start_time = time.time()
+        current_tick = self.time_manager.current_tick
+
+        try:
+            # 1. Update NPC controllers
+            self._update_npcs()
+
+            # 2. Agent perception updates
+            self._update_agent_perception()
+
+            # 3. Agent decision-making and action planning
+            self._update_agent_decisions()
+
+            # 4. Execute all queued actions
+            self._execute_actions()
+
+            # 5. Update game systems
+            self._update_systems()
+
+            # 6. Handle respawns
+            self._process_respawns()
+
+            # 7. Update market prices
+            self._update_market()
+
+            # 8. Periodic saves and analytics
+            self._periodic_tasks()
+
+            # Advance time
+            self.time_manager.tick()
+            self.world.current_tick = self.time_manager.current_tick
+
+            # Track performance
+            tick_duration = time.time() - start_time
+            self.tick_times.append(tick_duration)
+
+            # Keep only last 100 tick times for rolling average
+            if len(self.tick_times) > 100:
+                self.tick_times.pop(0)
+
+            # Call tick completion handler
+            if self.on_tick_complete:
+                self.on_tick_complete(current_tick)
+
+            logger.debug(f"Tick {current_tick} completed in {tick_duration:.4f}s")
+
+        except Exception as e:
+            logger.error(f"Error in simulation step {current_tick}: {e}")
+            self.stop_simulation()
+            raise
+
+    def _update_npcs(self) -> None:
+        """Update NPC AI and behaviors"""
+        for npc in self.npcs:
+            if npc.stats.is_alive():
+                # Update NPC AI decision making
+                if hasattr(npc, 'update'):
+                    npc.update(self.world)
+
+                # Handle aggro and combat for hostile NPCs
+                if hasattr(npc, 'aggro_range') and npc.aggro_range > 0:
+                    self._check_npc_aggro(npc)
+
+    def _check_npc_aggro(self, npc: NPC) -> None:
+        """Check if NPC should become aggressive towards nearby agents"""
+        for agent in self.agents:
+            if agent.stats.is_alive():
+                # Calculate distance manually since positions are tuples
+                dx = npc.position[0] - agent.position[0]
+                dy = npc.position[1] - agent.position[1]
+                distance = (dx * dx + dy * dy) ** 0.5
+
+                if hasattr(npc, 'aggro_range') and distance <= npc.aggro_range:
+                    # NPC becomes aggressive - this would trigger combat logic
+                    if hasattr(npc, 'set_target'):
+                        npc.set_target(agent)
+
+    def _update_agent_perception(self) -> None:
+        """Update agent vision and perception"""
+        for agent in self.agents:
+            if agent.stats.is_alive():
+                # Update fog of war
+                self.fog_of_war.update_agent_vision(agent, self.world)
+
+    def _update_agent_decisions(self) -> None:
+        """Update agent AI decision making"""
+        for agent in self.agents:
+            if agent.stats.is_alive():
+                agent.update(self.world)
+
+    def _execute_actions(self) -> None:
+        """Execute all queued actions for all entities"""
+        all_entities = self.agents + self.npcs
+
+        for entity in all_entities:
+            if entity.stats.is_alive() and hasattr(entity, 'current_action'):
+                action = entity.current_action
+
+                if action and action.is_complete(self.time_manager.current_tick):
+                    try:
+                        result = action.execute(entity, self.world)
+
+                        # Log the action
+                        if self.simulation_id:
+                            action_log = ActionLog(
+                                simulation_id=self.simulation_id,
+                                tick=self.time_manager.current_tick,
+                                agent_id=entity.id,
+                                action_type=action.__class__.__name__,
+                                action_data=action.to_dict() if hasattr(action, 'to_dict') else {},
+                                success=result.success,
+                                result_message=result.message,
+                                duration=action.duration
+                            )
+                            self.db.log_action(action_log)
+
+                        # Clear completed action
+                        entity.current_action = None
+
+                    except Exception as e:
+                        logger.error(f"Error executing action {action} for entity {entity.id}: {e}")
+                        entity.current_action = None
+
+    def _update_systems(self) -> None:
+        """Update all game systems"""
+        # Update trading system
+        self.trading_system.update(self.time_manager.current_tick)
+
+        # Process any completed trades
+        completed_trades = self.trading_system.get_completed_trades()
+        for trade in completed_trades:
+            # Log trades to database
+            if self.simulation_id:
+                # This would log trade details - simplified for now
+                pass
+
+    def _process_respawns(self) -> None:
+        """Process entity respawns"""
+        respawned_entities = self.respawn_manager.process_respawns(self.world)
+
+        for entity in respawned_entities:
+            if isinstance(entity, NPC):
+                self.npcs.append(entity)
+                entity.world = self.world
+                logger.info(f"Respawned NPC {entity.name} at {entity.position}")
+
+    def _update_market(self) -> None:
+        """Update market prices based on recent trades"""
+        if self.time_manager.current_tick % 50 == 0:  # Update every 50 ticks
+            # Get recent trade data and update market prices
+            self.market.update_prices(self.time_manager.current_tick)
+
+    def _periodic_tasks(self) -> None:
+        """Handle periodic database saves and analytics"""
+        current_tick = self.time_manager.current_tick
+
+        # Save snapshots periodically
+        if current_tick - self.last_save_tick >= self.config.save_interval:
+            self._save_snapshots()
+            self.last_save_tick = current_tick
+
+        # Calculate analytics periodically
+        if current_tick % self.config.analytics_interval == 0 and self.simulation_id:
+            self.analytics.calculate_all_metrics(self.simulation_id, current_tick)
+
+    def _save_snapshots(self) -> None:
+        """Save agent and world snapshots to database"""
+        if not self.simulation_id:
+            return
+
+        current_tick = self.time_manager.current_tick
+
+        # Save agent snapshots
+        agent_snapshots = []
+        for agent in self.agents:
+            snapshot = AgentSnapshot(
+                simulation_id=self.simulation_id,
+                agent_id=agent.id,
+                tick=current_tick,
+                name=agent.name,
+                position_x=agent.position[0],
+                position_y=agent.position[1],
+                health=agent.stats.health,
+                max_health=agent.stats.max_health,
+                stamina=agent.stats.stamina,
+                max_stamina=agent.stats.max_stamina,
+                personality=agent.personality.to_dict() if hasattr(agent, 'personality') else {},
+                character_class=agent.character_class.name if hasattr(agent, 'character_class') else "",
+                skills=agent.skills if hasattr(agent, 'skills') else {},
+                current_goals=[str(goal) for goal in agent.current_goals] if hasattr(agent, 'current_goals') else [],
+                relationships=agent.relationships if hasattr(agent, 'relationships') else {},
+                inventory_items=len(agent.inventory.items) if hasattr(agent, 'inventory') else 0,
+                gold=0  # TODO: Implement gold system
+            )
+            agent_snapshots.append(snapshot)
+
+        if agent_snapshots:
+            self.db.save_agent_snapshots_batch(agent_snapshots)
+
+        # Save world snapshot
+        world_snapshot = WorldSnapshot(
+            simulation_id=self.simulation_id,
+            tick=current_tick,
+            total_entities=len(self.agents) + len(self.npcs),
+            active_agents=len([a for a in self.agents if a.stats.is_alive()]),
+            active_npcs=len([n for n in self.npcs if n.stats.is_alive()]),
+            resource_nodes=0,  # TODO: Implement resource node counting
+            world_events=[],  # TODO: Implement world events
+            market_prices=self.market.get_current_prices()
+        )
+        self.db.save_world_snapshot(world_snapshot)
+
+        logger.debug(f"Saved snapshots for tick {current_tick}")
+
+    def run(self, num_ticks: Optional[int] = None) -> None:
+        """Run the simulation for a specified number of ticks"""
+        if not self.simulation_id:
+            raise RuntimeError("Simulation not initialized. Call initialize_simulation() first.")
+
+        self.running = True
+        target_tick = None
+
+        if num_ticks:
+            target_tick = self.time_manager.current_tick + num_ticks
+
+        logger.info(f"Starting simulation run for {num_ticks or 'unlimited'} ticks")
+
+        try:
+            while self.running:
+                if target_tick and self.time_manager.current_tick >= target_tick:
+                    break
+
+                if self.time_manager.current_tick >= self.config.max_ticks:
+                    logger.info(f"Reached maximum ticks ({self.config.max_ticks})")
+                    break
+
+                self.step()
+
+                # Optional tick rate limiting
+                if self.config.tick_rate > 0:
+                    time.sleep(1.0 / self.config.tick_rate)
+
+        except KeyboardInterrupt:
+            logger.info("Simulation interrupted by user")
+        finally:
+            self.stop_simulation()
+
+    def run_until(self, condition: Callable[[Simulation], bool]) -> None:
+        """Run the simulation until a condition is met"""
+        if not self.simulation_id:
+            raise RuntimeError("Simulation not initialized. Call initialize_simulation() first.")
+
+        self.running = True
+        logger.info("Starting simulation with custom condition")
+
+        try:
+            while self.running and not condition(self):
+                if self.time_manager.current_tick >= self.config.max_ticks:
+                    logger.info(f"Reached maximum ticks ({self.config.max_ticks})")
+                    break
+
+                self.step()
+
+                if self.config.tick_rate > 0:
+                    time.sleep(1.0 / self.config.tick_rate)
+
+        except KeyboardInterrupt:
+            logger.info("Simulation interrupted by user")
+        finally:
+            self.stop_simulation()
+
+    def pause_simulation(self) -> None:
+        """Pause the simulation"""
+        self.paused = True
+        logger.info("Simulation paused")
+
+    def resume_simulation(self) -> None:
+        """Resume the simulation"""
+        self.paused = False
+        logger.info("Simulation resumed")
+
+    def stop_simulation(self) -> None:
+        """Stop the simulation and finalize"""
+        self.running = False
+
+        if self.simulation_run and self.simulation_id:
+            # Update simulation end time
+            self.simulation_run.end_time = datetime.now()
+            self.simulation_run.current_tick = self.time_manager.current_tick
+            self.db.update_simulation_run(self.simulation_run)
+
+            # Final save
+            self._save_snapshots()
+
+            # Final analytics calculation
+            self.analytics.calculate_all_metrics(self.simulation_id, self.time_manager.current_tick)
+
+        # Call completion handler
+        if self.on_simulation_complete:
+            self.on_simulation_complete(self)
+
+        logger.info(f"Simulation stopped at tick {self.time_manager.current_tick}")
+
+    def get_statistics(self) -> Dict[str, Any]:
+        """Get current simulation statistics"""
+        return {
+            'current_tick': self.time_manager.current_tick,
+            'total_agents': len(self.agents),
+            'active_agents': len([a for a in self.agents if a.stats.is_alive()]),
+            'total_npcs': len(self.npcs),
+            'active_npcs': len([n for n in self.npcs if n.stats.is_alive()]),
+            'average_tick_time': sum(self.tick_times) / len(self.tick_times) if self.tick_times else 0,
+            'simulation_id': self.simulation_id,
+            'running': self.running,
+            'paused': self.paused
+        }
+
+    def get_analytics_report(self) -> Optional[Dict[str, Any]]:
+        """Get comprehensive analytics report"""
+        if not self.simulation_id:
+            return None
+
+        return self.analytics.generate_simulation_report(self.simulation_id)
