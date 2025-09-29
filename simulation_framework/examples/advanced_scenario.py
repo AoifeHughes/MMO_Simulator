@@ -18,7 +18,7 @@ from src.core.simulation import Simulation
 from src.core.config import SimulationConfig
 from src.entities.agent import Agent
 from src.entities.npc import NPC
-from src.ai.personality import Personality, PersonalityArchetype
+from src.ai.personality import Personality
 from src.ai.character_class import get_character_class
 from src.ai.goal import ExploreGoal, GatherResourceGoal
 
@@ -49,12 +49,12 @@ def create_diverse_population(num_agents: int = 20) -> list[Agent]:
 
     # Character class distribution
     class_names = ["Explorer", "Warrior", "Explorer", "Warrior", "Explorer"]  # More explorers
-    archetypes = [
-        PersonalityArchetype.BALANCED,
-        PersonalityArchetype.AGGRESSIVE,
-        PersonalityArchetype.CAUTIOUS,
-        PersonalityArchetype.SOCIAL,
-        PersonalityArchetype.CURIOUS
+    archetype_names = [
+        "balanced",
+        "aggressive",
+        "cautious",
+        "social",
+        "curious"
     ]
 
     for i in range(num_agents):
@@ -64,20 +64,20 @@ def create_diverse_population(num_agents: int = 20) -> list[Agent]:
 
         # Select character class and personality
         char_class = class_names[i % len(class_names)]
-        archetype = archetypes[i % len(archetypes)]
+        archetype = archetype_names[i % len(archetype_names)]
 
         # Create agent
         agent = Agent(
             position=(x, y),
             name=f"Agent_{i+1:02d}",
-            personality=Personality.from_archetype(archetype),
+            personality=Personality.create_archetype(archetype),
             character_class=get_character_class(char_class)
         )
 
         # Assign varied goals based on personality
-        if archetype == PersonalityArchetype.CURIOUS:
+        if archetype == "curious":
             agent.current_goals = [ExploreGoal()]
-        elif archetype == PersonalityArchetype.AGGRESSIVE:
+        elif archetype == "aggressive":
             agent.current_goals = [ExploreGoal()]  # Would use attack goals if we had targets
         else:
             if random.random() < 0.6:
