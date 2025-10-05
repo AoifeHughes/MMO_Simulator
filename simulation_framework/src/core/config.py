@@ -5,6 +5,16 @@ import json
 import os
 
 
+def get_default_database_path() -> str:
+    """Get default database path with automatic cleanup"""
+    try:
+        from ..utils.database_manager import get_database_path
+        return get_database_path(auto_cleanup=True)
+    except ImportError:
+        # Fallback if database_manager is not available
+        return "simulation_data.db"
+
+
 @dataclass
 class SimulationConfig:
     """Configuration for simulation parameters"""
@@ -19,7 +29,7 @@ class SimulationConfig:
     tick_rate: float = 0.0  # 0 = unlimited speed, >0 = ticks per second
 
     # Database and persistence
-    database_path: str = "simulation.db"
+    database_path: str = field(default_factory=get_default_database_path)
     save_interval: int = 100  # Save snapshots every N ticks
     analytics_interval: int = 50  # Calculate analytics every N ticks
 
@@ -41,6 +51,12 @@ class SimulationConfig:
     enable_pathfinding_cache: bool = True
     max_pathfinding_distance: int = 50
     fog_of_war_enabled: bool = True
+
+    # Visualization settings
+    enable_visualizer: bool = False
+    visualizer_width: int = 1024
+    visualizer_height: int = 768
+    visualizer_tile_size: int = 20
 
     # Logging and debugging
     log_level: str = "INFO"

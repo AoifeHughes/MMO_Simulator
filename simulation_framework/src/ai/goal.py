@@ -272,11 +272,11 @@ class AttackEnemyGoal(Goal):
                 return RangedAttack(agent.id, self.target_id)
             elif weapon.get_attack_type() == "magic" and distance <= weapon.get_range():
                 return MagicAttack(agent.id, self.target_id)
-            elif distance <= 1.5:
+            elif distance <= 1.5:  # Changed from 2.0 to match MeleeAttack range
                 return MeleeAttack(agent.id, self.target_id)
         else:
             # Unarmed combat
-            if distance <= 1.5:
+            if distance <= 1.5:  # Changed from 2.0 to match MeleeAttack range
                 return MeleeAttack(agent.id, self.target_id)
 
         # Move closer to target
@@ -390,3 +390,115 @@ class RestGoal(Goal):
         utility = (2.0 - stamina_ratio - health_ratio) * 0.5
 
         return max(0.1, min(0.9, utility))
+
+
+class TradeGoal(Goal):
+    """Goal for trading items with other entities"""
+    def __init__(self, target_id: Optional[int] = None, offered_items: Optional[List[Tuple[str, int]]] = None,
+                 requested_items: Optional[List[Tuple[str, int]]] = None, priority: int = 5):
+        super().__init__(priority, "Trade")
+        self.target_id = target_id
+        self.offered_items = offered_items or []
+        self.requested_items = requested_items or []
+        self.trade_offer_id: Optional[int] = None
+        self.waiting_for_response = False
+        self.waiting_since_tick = 0
+
+    def is_complete(self, agent: Entity, world: World) -> bool:
+        # Check if we successfully obtained the requested items
+        if self.requested_items:
+            for item_name, quantity in self.requested_items:
+                if agent.inventory.get_item_count(item_name) < quantity:
+                    return False
+            return True
+        # If no specific request, complete after making any trade
+        return self.trade_offer_id is not None and not self.waiting_for_response
+
+    def is_valid(self, agent: Entity, world: World) -> bool:
+        # Check if we still have the offered items
+        for item_name, quantity in self.offered_items:
+            if not agent.inventory.has_item(item_name, quantity):
+                return False
+
+        # Check if target still exists and is nearby
+        if self.target_id:
+            target = world.entities.get(self.target_id)
+            if not target or not target.stats.is_alive():
+                return False
+            if agent.distance_to(target) > 10:
+                return False
+
+        return True
+
+    def get_next_action(self, agent: Entity, world: World) -> Optional[Action]:
+        from ..actions.movement import PathfindAction
+
+        # If we don't have a target, find a nearby agent to trade with
+        if not self.target_id:
+            self._find_trade_partner(agent, world)
+
+        if not self.target_id:
+            return None
+
+        target = world.entities.get(self.target_id)
+        if not target:
+            return None
+
+        # If too far away, move closer
+        distance = agent.distance_to(target)
+        if distance > 2:
+            return PathfindAction(agent.id, target.position)
+
+        # If we're close enough and not waiting for response, create trade offer
+        if not self.waiting_for_response and not self.trade_offer_id:
+            # This would integrate with the trading system
+            # For now, we just mark that we're ready to trade
+            self.waiting_for_response = True
+            self.waiting_since_tick = world.current_tick
+            # In a full implementation, this would create a TradeOffer through the TradingSystem
+
+        # If waiting too long, give up
+        if self.waiting_for_response and (world.current_tick - self.waiting_since_tick) > 50:
+            self.waiting_for_response = False
+            self.target_id = None
+
+        return None  # Trading itself doesn't require an action, just proximity
+
+    def _find_trade_partner(self, agent: Entity, world: World) -> None:
+        """Find a nearby entity to trade with"""
+        min_distance = float('inf')
+        best_target = None
+
+        for entity_id, entity in world.entities.items():
+            if entity_id == agent.id:
+                continue
+            if not entity.stats.is_alive():
+                continue
+            # Only trade with other agents, not hostile NPCs
+            if hasattr(entity, 'npc_type') and entity.npc_type in ['hostile', 'aggressive']:
+                continue
+
+            distance = agent.distance_to(entity)
+            if distance < min_distance and distance < 15:
+                min_distance = distance
+                best_target = entity_id
+
+        if best_target:
+            self.target_id = best_target
+
+    def get_utility(self, agent: Entity, world: World) -> float:
+        base_utility = 0.4
+
+        # Higher utility for social agents
+        if hasattr(agent, 'personality'):
+            base_utility *= (agent.personality.sociability * 0.8 + 0.4)
+
+        # Higher utility if we have excess items to trade
+        if self.offered_items:
+            base_utility *= 1.2
+
+        # Higher utility if we need the requested items
+        if self.requested_items:
+            base_utility *= 1.3
+
+        return min(1.0, base_utility)

@@ -174,6 +174,7 @@ class WanderAction(Action):
         self.center = center
         self.max_distance = max_distance
         self.target_position: Optional[Tuple[int, int]] = None
+        self.pathfind_action: Optional[PathfindAction] = None
 
     def can_execute(self, actor: Entity, world: World) -> bool:
         center = self.center if self.center else actor.position
@@ -203,18 +204,22 @@ class WanderAction(Action):
             if not self.can_execute(actor, world):
                 return ActionResult.failure("No valid wandering destination")
 
-        pathfind_action = PathfindAction(self.actor_id, self.target_position)
-        return pathfind_action.execute(actor, world)
+        # Create pathfind action once and reuse it
+        if not self.pathfind_action:
+            self.pathfind_action = PathfindAction(self.actor_id, self.target_position)
+            self.pathfind_action.start(self.start_tick)
+            self.pathfind_action.is_active = True
+
+        return self.pathfind_action.execute(actor, world)
 
     def get_duration(self) -> int:
-        if self.target_position:
-            current_pos = (0, 0)
-            distance = math.sqrt(
-                (self.target_position[0] - current_pos[0])**2 +
-                (self.target_position[1] - current_pos[1])**2
-            )
-            return int(distance) + 1
-        return 3
+        # Duration is dynamic based on pathfinding, but we need a reasonable estimate
+        if self.pathfind_action:
+            return self.pathfind_action.get_duration()
+        elif self.target_position:
+            # Rough estimate based on max distance
+            return self.max_distance + 2
+        return 5  # Default estimate
 
     def get_cost(self) -> ResourceCost:
         return ResourceCost(stamina=2)

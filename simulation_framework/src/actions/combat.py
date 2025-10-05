@@ -33,7 +33,8 @@ class CombatAction(Action):
             return False
 
         distance = actor.distance_to(target)
-        if distance > self.base_range:
+        # Add small epsilon for floating-point tolerance
+        if distance > self.base_range + 0.01:
             return False
 
         return self.get_cost().can_afford(actor)
@@ -152,7 +153,7 @@ class MeleeAttack(CombatAction):
             actor_id=actor_id,
             target_id=target_id,
             damage_type=DamageType.PHYSICAL,
-            base_range=1.0
+            base_range=1.5  # Changed from 1.0 to allow diagonal attacks
         )
 
     def can_execute(self, actor: Entity, world: World) -> bool:

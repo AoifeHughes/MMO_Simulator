@@ -88,13 +88,13 @@ class WorldGenerator:
                 tile.add_resource(ResourceDeposit("fish", 20))
 
         elif tile.terrain_type == TerrainType.FOREST:
-            if random.random() < 0.5:
+            if random.random() < 0.5:  # Balanced probability for realistic distribution
                 tile.add_resource(ResourceDeposit("wood", 30))
             if random.random() < 0.3:
                 tile.add_resource(ResourceDeposit("berries", 10))
 
         elif tile.terrain_type == TerrainType.MOUNTAIN:
-            if random.random() < 0.4:
+            if random.random() < 0.4:  # Balanced probability for realistic distribution
                 tile.add_resource(ResourceDeposit("stone", 50))
             if random.random() < 0.2:
                 tile.add_resource(ResourceDeposit("iron_ore", 15))
@@ -102,7 +102,7 @@ class WorldGenerator:
                 tile.add_resource(ResourceDeposit("gold_ore", 5))
 
         elif tile.terrain_type == TerrainType.GRASS:
-            if random.random() < 0.2:
+            if random.random() < 0.2:  # Balanced probability for realistic distribution
                 tile.add_resource(ResourceDeposit("herbs", 15))
 
     def generate_world(

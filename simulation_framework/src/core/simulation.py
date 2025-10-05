@@ -12,7 +12,7 @@ from ..systems.trading import TradingSystem
 from ..systems.respawn import RespawnManager
 from ..systems.trading import Market
 from ..database.database import Database
-from ..database.models import SimulationRun, AgentSnapshot, WorldSnapshot, ActionLog
+from ..database.models import SimulationRun, AgentSnapshot, WorldSnapshot, ActionLog, CombatLog
 from ..database.analytics_engine import AnalyticsEngine
 from .time_manager import TimeManager
 from .config import SimulationConfig
@@ -92,6 +92,9 @@ class Simulation:
         agent.fog_of_war = self.fog_of_war
         self.agents.append(agent)
 
+        # Add agent to world entities for threat detection and interactions
+        self.world.add_entity(agent)
+
         # Update fog of war for new agent
         if hasattr(self.fog_of_war, 'update_agent_vision'):
             self.fog_of_war.update_agent_vision(agent, self.world)
@@ -106,9 +109,11 @@ class Simulation:
         npc.world = self.world
         self.npcs.append(npc)
 
-        # Register with respawn manager if it has respawn data
-        if hasattr(npc, 'respawn_delay') and npc.respawn_delay > 0:
-            self.respawn_manager.register_entity(npc)
+        # Add NPC to world entities for threat detection and interactions
+        self.world.add_entity(npc)
+
+        # Note: NPCs with respawn_delay will be handled by respawn manager when they die
+        # The RespawnManager.schedule_respawn method will be called when needed
 
     def add_npcs(self, npcs: List[NPC]) -> None:
         """Add multiple NPCs to the simulation"""
@@ -185,6 +190,17 @@ class Simulation:
 
     def _check_npc_aggro(self, npc: NPC) -> None:
         """Check if NPC should become aggressive towards nearby agents"""
+        # Only check aggro if NPC doesn't already have a target
+        if hasattr(npc, 'target_id') and npc.target_id is not None:
+            return  # Already has a target
+
+        if not (hasattr(npc, 'aggro_range') and npc.aggro_range > 0):
+            return  # No aggro range
+
+        # Find nearest agent within aggro range
+        nearest_agent = None
+        nearest_distance = float('inf')
+
         for agent in self.agents:
             if agent.stats.is_alive():
                 # Calculate distance manually since positions are tuples
@@ -192,10 +208,14 @@ class Simulation:
                 dy = npc.position[1] - agent.position[1]
                 distance = (dx * dx + dy * dy) ** 0.5
 
-                if hasattr(npc, 'aggro_range') and distance <= npc.aggro_range:
-                    # NPC becomes aggressive - this would trigger combat logic
-                    if hasattr(npc, 'set_target'):
-                        npc.set_target(agent)
+                if distance <= npc.aggro_range and distance < nearest_distance:
+                    nearest_agent = agent
+                    nearest_distance = distance
+
+        # Set target to nearest agent in range
+        if nearest_agent:
+            npc.target_id = nearest_agent.id
+            logger.info(f"NPC {npc.name} acquired target: Agent {nearest_agent.name} at distance {nearest_distance:.1f}")
 
     def _update_agent_perception(self) -> None:
         """Update agent vision and perception"""
@@ -218,12 +238,13 @@ class Simulation:
             if entity.stats.is_alive() and hasattr(entity, 'current_action'):
                 action = entity.current_action
 
-                if action and action.is_complete(self.time_manager.current_tick):
+                if action and action.is_active:
                     try:
+                        # Execute the action (progressive execution)
                         result = action.execute(entity, self.world)
 
-                        # Log the action
-                        if self.simulation_id:
+                        # Log the action if it completed or failed
+                        if self.simulation_id and (not result.success or action.is_complete(self.time_manager.current_tick)):
                             action_log = ActionLog(
                                 simulation_id=self.simulation_id,
                                 tick=self.time_manager.current_tick,
@@ -232,12 +253,36 @@ class Simulation:
                                 action_data=action.to_dict() if hasattr(action, 'to_dict') else {},
                                 success=result.success,
                                 result_message=result.message,
-                                duration=action.duration
+                                duration=action.get_duration()
                             )
                             self.db.log_action(action_log)
 
-                        # Clear completed action
-                        entity.current_action = None
+                            # Log combat-specific events to combat_logs table
+                            if hasattr(result, 'events') and result.events:
+                                for event in result.events:
+                                    if event.event_type in ["attack_hit", "attack_miss"]:
+                                        combat_log = CombatLog(
+                                            simulation_id=self.simulation_id,
+                                            tick=self.time_manager.current_tick,
+                                            attacker_id=event.actor_id,
+                                            target_id=event.target_id if event.target_id else 0,
+                                            damage_dealt=event.data.get('damage', 0) if event.event_type == "attack_hit" else 0,
+                                            damage_type=event.data.get('damage_type', 'physical'),
+                                            was_critical=event.data.get('is_critical', False) if event.event_type == "attack_hit" else False,
+                                            weapon_used=action.__class__.__name__,
+                                            target_died=event.data.get('target_died', False) if event.event_type == "attack_hit" else False
+                                        )
+                                        self.db.log_combat(combat_log)
+
+                        # Clear action if completed or failed
+                        if not result.success or action.is_complete(self.time_manager.current_tick):
+                            entity.current_action = None
+
+                            # Notify the goal that the action completed
+                            if hasattr(entity, 'current_goals') and entity.current_goals:
+                                active_goal = entity.current_goals[0]
+                                if hasattr(active_goal, 'on_action_completed'):
+                                    active_goal.on_action_completed(action, result.success, entity, self.world)
 
                     except Exception as e:
                         logger.error(f"Error executing action {action} for entity {entity.id}: {e}")
@@ -253,8 +298,19 @@ class Simulation:
         for trade in completed_trades:
             # Log trades to database
             if self.simulation_id:
-                # This would log trade details - simplified for now
-                pass
+                from ..database.models import TradeLog
+                trade_log = TradeLog(
+                    simulation_id=self.simulation_id,
+                    tick=self.time_manager.current_tick,
+                    initiator_id=trade.get('initiator_id', 0),
+                    target_id=trade.get('target_id', 0),
+                    offered_items={item: qty for item, qty in trade.get('offered_items', [])},
+                    requested_items={item: qty for item, qty in trade.get('requested_items', [])},
+                    offered_gold=trade.get('offered_gold', 0),
+                    requested_gold=trade.get('requested_gold', 0),
+                    completed=True
+                )
+                self.db.log_trade(trade_log)
 
     def _process_respawns(self) -> None:
         """Process entity respawns"""
@@ -265,6 +321,47 @@ class Simulation:
                 self.npcs.append(entity)
                 entity.world = self.world
                 logger.info(f"Respawned NPC {entity.name} at {entity.position}")
+
+                # Log respawn event to database
+                if self.simulation_id:
+                    action_log = ActionLog(
+                        simulation_id=self.simulation_id,
+                        tick=self.time_manager.current_tick,
+                        agent_id=entity.id,
+                        action_type="Respawn",
+                        action_data={
+                            "entity_type": "NPC",
+                            "npc_type": getattr(entity, 'npc_type', 'unknown'),
+                            "position": entity.position
+                        },
+                        success=True,
+                        result_message=f"Respawned {entity.name} at {entity.position}",
+                        duration=0
+                    )
+                    self.db.log_action(action_log)
+            elif isinstance(entity, Agent):
+                self.agents.append(entity)
+                entity.world = self.world
+                entity.fog_of_war = self.fog_of_war
+                logger.info(f"Respawned Agent {entity.name} at {entity.position}")
+
+                # Log respawn event to database
+                if self.simulation_id:
+                    action_log = ActionLog(
+                        simulation_id=self.simulation_id,
+                        tick=self.time_manager.current_tick,
+                        agent_id=entity.id,
+                        action_type="Respawn",
+                        action_data={
+                            "entity_type": "Agent",
+                            "character_class": getattr(entity.character_class, 'name', 'unknown') if hasattr(entity, 'character_class') else 'unknown',
+                            "position": entity.position
+                        },
+                        success=True,
+                        result_message=f"Respawned {entity.name} at {entity.position}",
+                        duration=0
+                    )
+                    self.db.log_action(action_log)
 
     def _update_market(self) -> None:
         """Update market prices based on recent trades"""
@@ -292,8 +389,10 @@ class Simulation:
 
         current_tick = self.time_manager.current_tick
 
-        # Save agent snapshots
+        # Save agent snapshots (including NPCs for testing purposes)
         agent_snapshots = []
+
+        # Save agent snapshots
         for agent in self.agents:
             snapshot = AgentSnapshot(
                 simulation_id=self.simulation_id,
@@ -313,6 +412,29 @@ class Simulation:
                 relationships=agent.relationships if hasattr(agent, 'relationships') else {},
                 inventory_items=len(agent.inventory.items) if hasattr(agent, 'inventory') else 0,
                 gold=0  # TODO: Implement gold system
+            )
+            agent_snapshots.append(snapshot)
+
+        # Also save NPC snapshots (treat as agents for tracking purposes)
+        for npc in self.npcs:
+            snapshot = AgentSnapshot(
+                simulation_id=self.simulation_id,
+                agent_id=npc.id,
+                tick=current_tick,
+                name=npc.name,
+                position_x=npc.position[0],
+                position_y=npc.position[1],
+                health=npc.stats.health,
+                max_health=npc.stats.max_health,
+                stamina=npc.stats.stamina,
+                max_stamina=npc.stats.max_stamina,
+                personality={},  # NPCs don't have personality
+                character_class=npc.npc_type,  # Use NPC type as class
+                skills={},
+                current_goals=[],
+                relationships={},
+                inventory_items=0,
+                gold=0
             )
             agent_snapshots.append(snapshot)
 
@@ -389,6 +511,111 @@ class Simulation:
         except KeyboardInterrupt:
             logger.info("Simulation interrupted by user")
         finally:
+            self.stop_simulation()
+
+    def run_with_visualizer(self, num_ticks: Optional[int] = None) -> None:
+        """Run the simulation with pygame visualization"""
+        if not self.simulation_id:
+            raise RuntimeError("Simulation not initialized. Call initialize_simulation() first.")
+
+        # Import visualizer here to avoid dependency issues if pygame is not available
+        try:
+            import sys
+            import os
+            # Add the root directory to the Python path for visualizer imports
+            root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+            if root_dir not in sys.path:
+                sys.path.insert(0, root_dir)
+
+            from visualizer.pygame_visualizer import GameVisualizer
+            from visualizer.ui import UIManager
+        except ImportError as e:
+            logger.error(f"Failed to import visualizer: {e}")
+            logger.error("Make sure pygame is installed: pip install pygame>=2.0.0")
+            return
+
+        # Initialize visualizer
+        visualizer = GameVisualizer(
+            width=self.config.visualizer_width,
+            height=self.config.visualizer_height,
+            tile_size=self.config.visualizer_tile_size
+        )
+
+        ui_manager = UIManager(self.config.visualizer_width, self.config.visualizer_height)
+
+        self.running = True
+        target_tick = None
+
+        if num_ticks:
+            target_tick = self.time_manager.current_tick + num_ticks
+
+        logger.info(f"Starting visual simulation run for {num_ticks or 'unlimited'} ticks")
+
+        try:
+            clock = None
+            try:
+                import pygame
+                clock = pygame.time.Clock()
+            except ImportError:
+                pass
+
+            while self.running and visualizer.running:
+                # Handle visualizer events
+                if not visualizer.handle_events(self):
+                    break
+
+                # Check tick limit
+                if target_tick and self.time_manager.current_tick >= target_tick:
+                    break
+
+                if self.time_manager.current_tick >= self.config.max_ticks:
+                    logger.info(f"Reached maximum ticks ({self.config.max_ticks})")
+                    break
+
+                # Update UI manager
+                ui_manager.update()
+
+                # Handle agent selection from visualizer
+                if visualizer.selected_agent != ui_manager.selected_entity:
+                    ui_manager.show_entity_info(visualizer.selected_agent)
+
+                # Step simulation
+                if not self.paused:
+                    self.step()
+
+                # Render visualization
+                visualizer.render(self)
+
+                # Prepare simulation data for UI
+                simulation_data = {
+                    'current_tick': self.time_manager.current_tick,
+                    'total_agents': len(self.agents),
+                    'alive_agents': len([a for a in self.agents if a.stats.is_alive]),
+                    'total_npcs': len(self.npcs),
+                    'alive_npcs': len([n for n in self.npcs if n.stats.is_alive]),
+                    'zoom': visualizer.camera.zoom
+                }
+
+                # Render UI
+                ui_manager.render(visualizer.screen, simulation_data)
+
+                # Update display
+                try:
+                    import pygame
+                    pygame.display.flip()
+                except ImportError:
+                    pass
+
+                # Frame rate limiting for smooth visualization
+                if clock and self.config.tick_rate > 0:
+                    clock.tick(min(60, self.config.tick_rate))
+                elif clock:
+                    clock.tick(60)  # Default to 60 FPS
+
+        except KeyboardInterrupt:
+            logger.info("Visual simulation interrupted by user")
+        finally:
+            visualizer.quit()
             self.stop_simulation()
 
     def pause_simulation(self) -> None:

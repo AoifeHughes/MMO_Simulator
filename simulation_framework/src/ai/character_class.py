@@ -47,6 +47,7 @@ class CharacterClass:
         """Get list of starting items for this class"""
         equipment = []
 
+        # Weapons (only one primary weapon)
         if "sword" in self.equipment_preferences:
             equipment.append(Weapon.create_sword())
         elif "bow" in self.equipment_preferences:
@@ -54,11 +55,12 @@ class CharacterClass:
         elif "staff" in self.equipment_preferences:
             equipment.append(Weapon.create_staff())
 
+        # Tools (can have multiple tools - changed from elif to if)
         if "pickaxe" in self.equipment_preferences:
             equipment.append(Tool.create_pickaxe())
-        elif "axe" in self.equipment_preferences:
+        if "axe" in self.equipment_preferences:
             equipment.append(Tool.create_axe())
-        elif "fishing_rod" in self.equipment_preferences:
+        if "fishing_rod" in self.equipment_preferences:
             equipment.append(Tool.create_fishing_rod())
 
         # Add some basic consumables
@@ -76,7 +78,8 @@ class CharacterClass:
                 "combat": 1.5,
                 "defense": 1.3,
                 "athletics": 1.2,
-                "smithing": 1.1
+                "smithing": 1.1,
+                "mining": 1.1
             },
             preferred_actions=["combat", "melee", "defend", "patrol"],
             starting_stats_bonus={
@@ -84,7 +87,7 @@ class CharacterClass:
                 "attack_power": 5,
                 "defense": 3
             },
-            equipment_preferences=["sword", "shield", "heavy_armor"]
+            equipment_preferences=["sword", "shield", "heavy_armor", "pickaxe"]
         )
 
     @classmethod
@@ -126,7 +129,7 @@ class CharacterClass:
                 "stamina": 10,
                 "max_stamina": 10
             },
-            equipment_preferences=["bow", "leather_armor", "hunting_knife"]
+            equipment_preferences=["bow", "leather_armor", "hunting_knife", "axe", "fishing_rod"]
         )
 
     @classmethod
@@ -167,7 +170,7 @@ class CharacterClass:
                 "max_stamina": 15,
                 "stamina": 15
             },
-            equipment_preferences=["hammer", "anvil", "pickaxe", "apron"]
+            equipment_preferences=["hammer", "anvil", "pickaxe", "axe", "apron"]
         )
 
     @classmethod

@@ -190,7 +190,7 @@ class MineAction(GatherAction):
         super().__init__(
             actor_id=actor_id,
             resource_type=resource_type,
-            required_tool="pickaxe",
+            required_tool="pickaxe",  # Restored tool requirement
             required_terrain="mountain",
             skill_name="mining"
         )
@@ -221,7 +221,7 @@ class WoodcutAction(GatherAction):
         super().__init__(
             actor_id=actor_id,
             resource_type="wood",
-            required_tool="axe",
+            required_tool="axe",  # Restored tool requirement
             required_terrain="forest",
             skill_name="woodcutting"
         )

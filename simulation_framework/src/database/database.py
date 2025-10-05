@@ -27,8 +27,10 @@ class Database:
     def _initialize_database(self) -> None:
         """Initialize database and create tables if they don't exist"""
         try:
-            # Create database file if it doesn't exist
-            os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+            # Create database directory if it doesn't exist
+            db_dir = os.path.dirname(self.db_path)
+            if db_dir:  # Only create directory if path has a directory component
+                os.makedirs(db_dir, exist_ok=True)
 
             with self.get_connection() as conn:
                 # Enable foreign keys

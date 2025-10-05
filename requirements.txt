@@ -11,5 +11,8 @@ opensimplex>=0.4.0
 # Pathfinding
 pathfinding>=1.0.0
 
+# Visualization
+pygame>=2.0.0
+
 # Development and testing dependencies
 # (pytest already included above)

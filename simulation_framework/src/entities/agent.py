@@ -1,7 +1,10 @@
 from __future__ import annotations
 from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
 import random
+import logging
 from queue import PriorityQueue
+
+logger = logging.getLogger(__name__)
 
 from .base import Entity
 from .stats import Stats
@@ -37,6 +40,7 @@ class Agent(Entity):
         self.decision_maker = DecisionMaker()
         self.current_goals: List[Goal] = []
         self.current_action: Optional[Action] = None
+        self.current_action_goal: Optional[Goal] = None  # Track which goal generated current action
         self.action_queue: List[Action] = []
 
         # Experience and relationships
@@ -108,7 +112,31 @@ class Agent(Entity):
 
     def act(self, world: World) -> None:
         """Execute actions based on current goals"""
-        # Check if current action is still running
+        # Check if current action should be interrupted by higher priority goal
+        if (self.current_action and self.current_action.is_active and
+            not self.current_action.is_complete(world.current_tick) and
+            self.current_goals and self.current_action_goal):
+
+            highest_priority_goal = self.current_goals[0]
+
+            # If highest priority goal is different and has higher priority, interrupt
+            if (highest_priority_goal != self.current_action_goal and
+                highest_priority_goal.priority > self.current_action_goal.priority and
+                self.current_action.can_interrupt()):
+
+                # Interrupt current action
+                interrupt_result = self.current_action.interrupt()
+                logger.info(f"Agent {self.name} interrupted {type(self.current_action).__name__} for {highest_priority_goal}")
+
+                # Notify the old goal that its action was interrupted
+                if hasattr(self.current_action_goal, 'on_action_completed'):
+                    self.current_action_goal.on_action_completed(self.current_action, False, self, world)
+
+                # Clear interrupted action
+                self.current_action = None
+                self.current_action_goal = None
+
+        # Check if current action is still running (and wasn't interrupted)
         if (self.current_action and
             hasattr(self.current_action, 'is_active') and
             self.current_action.is_active and
@@ -117,14 +145,17 @@ class Agent(Entity):
 
         # Get next action from highest priority goal
         new_action = None
+        action_goal = None
 
         if self.action_queue:
             # Execute queued actions first
             new_action = self.action_queue.pop(0)
+            # Queued actions don't have associated goals
         elif self.current_goals:
             # Get action from current goal
             active_goal = self.current_goals[0]
             new_action = active_goal.get_next_action(self, world)
+            action_goal = active_goal
 
             if new_action:
                 # Start the action
@@ -142,6 +173,7 @@ class Agent(Entity):
                 else:
                     # Multi-tick action - store for later completion
                     self.current_action = new_action
+                    self.current_action_goal = action_goal
 
         if new_action:
             self.last_action_tick = world.current_tick

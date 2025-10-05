@@ -33,6 +33,7 @@ class NPC(Entity):
         self.current_patrol_index = 0
         self.idle_timer = 0
         self.aggro_cooldown = 0
+        self.current_action = None  # Track current action like agents do
 
     def update(self, world: World) -> None:
         self.update_status_effects()
@@ -90,16 +91,24 @@ class NPC(Entity):
             return
 
         self.last_seen_target_pos = target.position
-
         distance = self.distance_to(target)
 
-        if distance <= 1.0:
-            pass
-        else:
-            from ..actions.movement import PathfindAction
-            pathfind = PathfindAction(self.id, target.position)
-            if pathfind.can_execute(self, world):
-                pathfind.execute(self, world)
+        # Only set new action if we don't have one already
+        if not self.current_action or not self.current_action.is_active:
+            # Initiate combat if in range
+            if distance <= 1.5:
+                from ..actions.combat import MeleeAttack
+                attack = MeleeAttack(self.id, self.target_id)
+                if attack.can_execute(self, world):
+                    self.current_action = attack
+                    self.current_action.start(world.current_tick)  # Start the action
+            else:
+                # Move closer to target
+                from ..actions.movement import PathfindAction
+                pathfind = PathfindAction(self.id, target.position)
+                if pathfind.can_execute(self, world):
+                    self.current_action = pathfind
+                    self.current_action.start(world.current_tick)  # Start the action
 
     def _scan_for_targets(self, world: World) -> None:
         if self.aggro_cooldown > 0:
@@ -149,10 +158,13 @@ class NPC(Entity):
                 pathfind.execute(self, world)
 
     def _wander(self, world: World) -> None:
-        from ..actions.movement import WanderAction
-        wander = WanderAction(self.id, self.spawn_point, max_distance=3)
-        if wander.can_execute(self, world):
-            wander.execute(self, world)
+        # Only set new action if we don't have one already
+        if not self.current_action or not self.current_action.is_active:
+            from ..actions.movement import WanderAction
+            wander = WanderAction(self.id, self.spawn_point, max_distance=3)
+            if wander.can_execute(self, world):
+                self.current_action = wander
+                self.current_action.start(world.current_tick)  # Start the action
 
     def set_patrol_route(self, points: List[Tuple[int, int]]) -> None:
         self.patrol_points = points
@@ -163,6 +175,13 @@ class NPC(Entity):
 
     def set_aggressive(self, aggressive: bool = True) -> None:
         self.npc_type = "aggressive" if aggressive else "neutral"
+
+    def set_target(self, target: Entity) -> None:
+        """Set a target for combat - called by simulation when agent comes within aggro range"""
+        if target and target.stats.is_alive():
+            self.target_id = target.id
+            self.last_seen_target_pos = target.position
+            self.aggro_cooldown = 5
 
     def on_death(self, killer: Optional[Entity] = None) -> None:
         if killer and self.loot_table:
