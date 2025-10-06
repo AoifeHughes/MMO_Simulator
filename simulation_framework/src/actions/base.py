@@ -125,7 +125,9 @@ class Action(ABC):
 
     def interrupt(self) -> ActionResult:
         self.is_active = False
-        return ActionResult.interrupted(f"{self.__class__.__name__} was interrupted")
+        return ActionResult.create_interrupted(
+            f"{self.__class__.__name__} was interrupted"
+        )
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(actor_id={self.actor_id})"
