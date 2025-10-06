@@ -1,10 +1,11 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
-from typing import Tuple, Optional, List, Dict, TYPE_CHECKING
-import math
 
-from .stats import Stats
+import math
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, List, Optional, Tuple
+
 from .inventory import Inventory
+from .stats import Stats
 
 if TYPE_CHECKING:
     from ..core.world import World
@@ -18,7 +19,7 @@ class Entity(ABC):
         position: Tuple[int, int],
         name: str = "Entity",
         stats: Optional[Stats] = None,
-        inventory_capacity: int = 50
+        inventory_capacity: int = 50,
     ):
         self.id = Entity._next_id
         Entity._next_id += 1
@@ -45,7 +46,9 @@ class Entity(ABC):
         max_range = range_override if range_override is not None else self.vision_range
         return self.distance_to(other) <= max_range
 
-    def can_see_position(self, x: int, y: int, range_override: Optional[float] = None) -> bool:
+    def can_see_position(
+        self, x: int, y: int, range_override: Optional[float] = None
+    ) -> bool:
         max_range = range_override if range_override is not None else self.vision_range
         return self.distance_to_position(x, y) <= max_range
 
@@ -58,8 +61,7 @@ class Entity(ABC):
 
     def update_status_effects(self) -> None:
         self.status_effects = [
-            effect for effect in self.status_effects
-            if effect.update(self)
+            effect for effect in self.status_effects if effect.update(self)
         ]
 
     def has_status_effect(self, effect_name: str) -> bool:
@@ -67,8 +69,7 @@ class Entity(ABC):
 
     def remove_status_effect(self, effect_name: str) -> None:
         self.status_effects = [
-            effect for effect in self.status_effects
-            if effect.name != effect_name
+            effect for effect in self.status_effects if effect.name != effect_name
         ]
 
     @abstractmethod
@@ -93,11 +94,7 @@ class Entity(ABC):
 
 class StatusEffect:
     def __init__(
-        self,
-        name: str,
-        duration: int,
-        effect_type: str = "neutral",
-        power: float = 0
+        self, name: str, duration: int, effect_type: str = "neutral", power: float = 0
     ):
         self.name = name
         self.duration = duration

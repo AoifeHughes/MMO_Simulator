@@ -1,12 +1,13 @@
 """Deterministic agent and NPC classes for controlled testing"""
 
-from typing import Optional, Tuple, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional, Tuple
+
+from src.ai.character_class import CharacterClass
+from src.ai.goal import Goal
+from src.ai.personality import Personality
 from src.entities.agent import Agent
 from src.entities.npc import NPC
 from src.entities.stats import Stats
-from src.ai.personality import Personality
-from src.ai.character_class import CharacterClass
-from src.ai.goal import Goal
 from src.items.loot_table import LootTable
 
 if TYPE_CHECKING:
@@ -28,12 +29,13 @@ class ForcedBehaviorAgent(Agent):
         personality: Optional[Personality] = None,
         character_class: Optional[CharacterClass] = None,
         stats: Optional[Stats] = None,
-        goals: Optional[List[Goal]] = None
+        goals: Optional[List[Goal]] = None,
     ):
         super().__init__(
             position=position,
             name=name,
-            personality=personality or Personality(
+            personality=personality
+            or Personality(
                 curiosity=0.5,
                 bravery=0.5,
                 sociability=0.5,
@@ -41,17 +43,17 @@ class ForcedBehaviorAgent(Agent):
                 patience=0.5,
                 aggression=0.5,
                 industriousness=0.5,
-                caution=0.5
+                caution=0.5,
             ),
             character_class=character_class or CharacterClass.create_warrior(),
-            stats=stats
+            stats=stats,
         )
 
         # Set initial goals if provided
         if goals:
             self.current_goals = goals
 
-    def update(self, world: 'World') -> None:
+    def update(self, world: "World") -> None:
         """
         Update agent without decision-making - only execute assigned goals.
 
@@ -66,8 +68,10 @@ class ForcedBehaviorAgent(Agent):
 
         # Remove completed or invalid goals
         self.current_goals = [
-            goal for goal in self.current_goals
-            if not goal.is_complete(self, world) and not goal.should_abandon(self, world)
+            goal
+            for goal in self.current_goals
+            if not goal.is_complete(self, world)
+            and not goal.should_abandon(self, world)
         ]
 
         if not self.current_goals:
@@ -100,29 +104,30 @@ class ControlledNPC(NPC):
         stats: Optional[Stats] = None,
         loot_table: Optional[LootTable] = None,
         aggro_range: int = 10,
-        forced_target_id: Optional[int] = None
+        forced_target_id: Optional[int] = None,
     ):
         super().__init__(
             position=position,
             name=name,
             npc_type=npc_type,
-            stats=stats or Stats(
+            stats=stats
+            or Stats(
                 max_health=50,
                 health=50,
                 max_stamina=100,
                 stamina=100,
                 attack_power=10,
-                defense=5
+                defense=5,
             ),
             loot_table=loot_table or LootTable(),
             spawn_point=position,
-            tether_radius=999  # Effectively unlimited for testing
+            tether_radius=999,  # Effectively unlimited for testing
         )
 
         self.aggro_range = aggro_range
         self.forced_target_id = forced_target_id  # If set, always target this entity
 
-    def update(self, world: 'World') -> None:
+    def update(self, world: "World") -> None:
         """
         Simplified update - just attack target or wander.
 
@@ -162,23 +167,19 @@ class StaticNPC(NPC):
         self,
         position: Tuple[int, int],
         name: str = "StaticNPC",
-        stats: Optional[Stats] = None
+        stats: Optional[Stats] = None,
     ):
         super().__init__(
             position=position,
             name=name,
             npc_type="neutral",
-            stats=stats or Stats(
-                max_health=100,
-                health=100,
-                max_stamina=100,
-                stamina=100
-            ),
+            stats=stats
+            or Stats(max_health=100, health=100, max_stamina=100, stamina=100),
             spawn_point=position,
-            tether_radius=0  # Won't move from spawn
+            tether_radius=0,  # Won't move from spawn
         )
 
-    def update(self, world: 'World') -> None:
+    def update(self, world: "World") -> None:
         """Do nothing - stay static"""
         self.update_status_effects()
         # Don't move, don't attack, don't do anything
@@ -187,7 +188,7 @@ class StaticNPC(NPC):
 def create_test_warrior(
     position: Tuple[int, int],
     name: str = "TestWarrior",
-    goals: Optional[List[Goal]] = None
+    goals: Optional[List[Goal]] = None,
 ) -> ForcedBehaviorAgent:
     """Create a warrior agent optimized for combat testing"""
     return ForcedBehaviorAgent(
@@ -200,16 +201,16 @@ def create_test_warrior(
             max_stamina=100,
             stamina=100,
             attack_power=15,
-            defense=10
+            defense=10,
         ),
-        goals=goals
+        goals=goals,
     )
 
 
 def create_test_archer(
     position: Tuple[int, int],
     name: str = "TestArcher",
-    goals: Optional[List[Goal]] = None
+    goals: Optional[List[Goal]] = None,
 ) -> ForcedBehaviorAgent:
     """Create an archer agent optimized for ranged combat testing"""
     return ForcedBehaviorAgent(
@@ -222,16 +223,16 @@ def create_test_archer(
             max_stamina=100,
             stamina=100,
             attack_power=12,
-            defense=5
+            defense=5,
         ),
-        goals=goals
+        goals=goals,
     )
 
 
 def create_test_gatherer(
     position: Tuple[int, int],
     name: str = "TestGatherer",
-    goals: Optional[List[Goal]] = None
+    goals: Optional[List[Goal]] = None,
 ) -> ForcedBehaviorAgent:
     """Create a gatherer agent optimized for resource testing"""
     return ForcedBehaviorAgent(
@@ -244,15 +245,14 @@ def create_test_gatherer(
             max_stamina=120,
             stamina=120,
             attack_power=5,
-            defense=3
+            defense=3,
         ),
-        goals=goals
+        goals=goals,
     )
 
 
 def create_weak_goblin(
-    position: Tuple[int, int],
-    name: str = "WeakGoblin"
+    position: Tuple[int, int], name: str = "WeakGoblin"
 ) -> ControlledNPC:
     """Create a weak goblin for guaranteed kill testing"""
     return ControlledNPC(
@@ -265,15 +265,14 @@ def create_weak_goblin(
             max_stamina=50,
             stamina=50,
             attack_power=3,
-            defense=1
+            defense=1,
         ),
-        aggro_range=5
+        aggro_range=5,
     )
 
 
 def create_strong_enemy(
-    position: Tuple[int, int],
-    name: str = "StrongEnemy"
+    position: Tuple[int, int], name: str = "StrongEnemy"
 ) -> ControlledNPC:
     """Create a strong enemy for testing agent death scenarios"""
     return ControlledNPC(
@@ -286,7 +285,7 @@ def create_strong_enemy(
             max_stamina=150,
             stamina=150,
             attack_power=50,
-            defense=20
+            defense=20,
         ),
-        aggro_range=10
+        aggro_range=10,
     )

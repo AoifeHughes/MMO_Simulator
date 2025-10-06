@@ -1,14 +1,16 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Dict, Any, Optional
+
 import json
 import os
+from dataclasses import dataclass, field
+from typing import Any, Dict, Optional
 
 
 def get_default_database_path() -> str:
     """Get default database path with automatic cleanup"""
     try:
         from ..utils.database_manager import get_database_path
+
         return get_database_path(auto_cleanup=True)
     except ImportError:
         # Fallback if database_manager is not available
@@ -68,18 +70,18 @@ class SimulationConfig:
     custom_params: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def from_file(cls, config_path: str) -> 'SimulationConfig':
+    def from_file(cls, config_path: str) -> "SimulationConfig":
         """Load configuration from JSON file"""
         if not os.path.exists(config_path):
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
-        with open(config_path, 'r') as f:
+        with open(config_path, "r") as f:
             data = json.load(f)
 
         return cls.from_dict(data)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'SimulationConfig':
+    def from_dict(cls, data: Dict[str, Any]) -> "SimulationConfig":
         """Create configuration from dictionary"""
         # Extract known fields
         known_fields = {field.name for field in cls.__dataclass_fields__.values()}
@@ -92,7 +94,7 @@ class SimulationConfig:
             else:
                 custom_params[key] = value
 
-        config_data['custom_params'] = custom_params
+        config_data["custom_params"] = custom_params
         return cls(**config_data)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -101,7 +103,7 @@ class SimulationConfig:
 
         # Add all known fields except custom_params
         for field_name, field_def in self.__dataclass_fields__.items():
-            if field_name != 'custom_params':
+            if field_name != "custom_params":
                 result[field_name] = getattr(self, field_name)
 
         # Add custom parameters
@@ -111,7 +113,7 @@ class SimulationConfig:
 
     def to_file(self, config_path: str) -> None:
         """Save configuration to JSON file"""
-        with open(config_path, 'w') as f:
+        with open(config_path, "w") as f:
             json.dump(self.to_dict(), f, indent=2)
 
     def get(self, key: str, default: Any = None) -> Any:
@@ -166,7 +168,7 @@ class SimulationConfig:
         if errors:
             raise ValueError(f"Configuration validation failed: {'; '.join(errors)}")
 
-    def copy(self) -> 'SimulationConfig':
+    def copy(self) -> "SimulationConfig":
         """Create a copy of this configuration"""
         return SimulationConfig.from_dict(self.to_dict())
 
@@ -174,5 +176,7 @@ class SimulationConfig:
         return f"SimulationConfig(world={self.world_width}x{self.world_height}, max_ticks={self.max_ticks})"
 
     def __repr__(self) -> str:
-        return (f"SimulationConfig(world_size=({self.world_width}, {self.world_height}), "
-                f"seed={self.world_seed}, max_ticks={self.max_ticks})")
+        return (
+            f"SimulationConfig(world_size=({self.world_width}, {self.world_height}), "
+            f"seed={self.world_seed}, max_ticks={self.max_ticks})"
+        )

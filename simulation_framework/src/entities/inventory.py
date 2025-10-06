@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import Dict, Optional, List, TYPE_CHECKING
-from dataclasses import dataclass, field
+
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 if TYPE_CHECKING:
     from ..items.item import Item
@@ -49,7 +50,9 @@ class Inventory:
             if self.get_total_items() >= self.capacity:
                 return quantity
 
-            self.items[item.name] = InventorySlot(item, min(quantity, item.max_stack_size))
+            self.items[item.name] = InventorySlot(
+                item, min(quantity, item.max_stack_size)
+            )
             return max(0, quantity - item.max_stack_size)
 
     def remove_item(self, item_name: str, quantity: int = 1) -> bool:
@@ -135,11 +138,12 @@ class Inventory:
                 key: {"item_name": slot.item.name, "quantity": slot.quantity}
                 for key, slot in self.items.items()
             },
-            "equipped_weapon": self.equipped_weapon.name if self.equipped_weapon else None,
+            "equipped_weapon": (
+                self.equipped_weapon.name if self.equipped_weapon else None
+            ),
             "equipped_tools": {
-                tool_type: tool.name
-                for tool_type, tool in self.equipped_tools.items()
-            }
+                tool_type: tool.name for tool_type, tool in self.equipped_tools.items()
+            },
         }
 
     @classmethod

@@ -2,17 +2,16 @@
 Movement and pathfinding micro-simulation tests.
 """
 
-import pytest
-from src.core.simulation import Simulation
 from src.ai.goal import ExploreGoal
+from src.core.simulation import Simulation
 
 from ..helpers import (
+    assert_movement_occurred,
+    assert_stamina_decreased,
+    cleanup_test_database,
     create_controlled_world,
     create_test_config,
     create_test_warrior,
-    assert_movement_occurred,
-    assert_stamina_decreased,
-    cleanup_test_database
 )
 
 

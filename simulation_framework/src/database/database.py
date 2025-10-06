@@ -1,17 +1,22 @@
 from __future__ import annotations
-import sqlite3
-import os
-from typing import List, Optional, Dict, Any, Tuple, Union
-from contextlib import contextmanager
+
 import logging
-from datetime import datetime
+import os
+import sqlite3
+from contextlib import contextmanager
+from typing import Any, Dict, List, Optional, Tuple
 
 from .models import (
-    SimulationRun, AgentSnapshot, WorldSnapshot, ActionLog,
-    TradeLog, CombatLog, Analytics, DatabaseHelper
+    ActionLog,
+    AgentSnapshot,
+    Analytics,
+    CombatLog,
+    DatabaseHelper,
+    SimulationRun,
+    TradeLog,
+    WorldSnapshot,
 )
 from .schema import DatabaseSchema
-
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +48,12 @@ class Database:
                 current_version = self._get_schema_version(conn)
 
                 if current_version < DatabaseSchema.SCHEMA_VERSION:
-                    logger.info(f"Migrating database from version {current_version} to {DatabaseSchema.SCHEMA_VERSION}")
-                    self._migrate_schema(conn, current_version, DatabaseSchema.SCHEMA_VERSION)
+                    logger.info(
+                        f"Migrating database from version {current_version} to {DatabaseSchema.SCHEMA_VERSION}"
+                    )
+                    self._migrate_schema(
+                        conn, current_version, DatabaseSchema.SCHEMA_VERSION
+                    )
 
                 logger.info(f"Database initialized at {self.db_path}")
 
@@ -62,7 +71,9 @@ class Database:
             # Table doesn't exist, assume version 0
             return 0
 
-    def _migrate_schema(self, conn: sqlite3.Connection, from_version: int, to_version: int) -> None:
+    def _migrate_schema(
+        self, conn: sqlite3.Connection, from_version: int, to_version: int
+    ) -> None:
         """Migrate database schema from one version to another"""
         migration_sql = DatabaseSchema.get_migration_sql(from_version, to_version)
 
@@ -72,8 +83,7 @@ class Database:
 
         # Update schema version
         conn.execute(
-            "INSERT OR REPLACE INTO schema_version (version) VALUES (?)",
-            (to_version,)
+            "INSERT OR REPLACE INTO schema_version (version) VALUES (?)", (to_version,)
         )
         conn.commit()
 
@@ -100,12 +110,12 @@ class Database:
         with self.get_connection() as conn:
             data = DatabaseHelper.dataclass_to_dict(simulation, for_insert=True)
 
-            placeholders = ', '.join(['?' for _ in data])
-            columns = ', '.join(data.keys())
+            placeholders = ", ".join(["?" for _ in data])
+            columns = ", ".join(data.keys())
 
             cursor = conn.execute(
                 f"INSERT INTO simulation_runs ({columns}) VALUES ({placeholders})",
-                list(data.values())
+                list(data.values()),
             )
             conn.commit()
             return cursor.lastrowid
@@ -114,8 +124,7 @@ class Database:
         """Get simulation run by ID"""
         with self.get_connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM simulation_runs WHERE id = ?",
-                (simulation_id,)
+                "SELECT * FROM simulation_runs WHERE id = ?", (simulation_id,)
             )
             row = cursor.fetchone()
             return DatabaseHelper.row_to_dataclass(row, SimulationRun) if row else None
@@ -127,19 +136,20 @@ class Database:
 
         with self.get_connection() as conn:
             data = DatabaseHelper.dataclass_to_dict(simulation)
-            data.pop('id')  # Remove ID from update data
+            data.pop("id")  # Remove ID from update data
 
-            set_clause = ', '.join([f"{key} = ?" for key in data.keys()])
+            set_clause = ", ".join([f"{key} = ?" for key in data.keys()])
             values = list(data.values()) + [simulation.id]
 
             cursor = conn.execute(
-                f"UPDATE simulation_runs SET {set_clause} WHERE id = ?",
-                values
+                f"UPDATE simulation_runs SET {set_clause} WHERE id = ?", values
             )
             conn.commit()
             return cursor.rowcount > 0
 
-    def list_simulation_runs(self, limit: int = 100, offset: int = 0) -> List[SimulationRun]:
+    def list_simulation_runs(
+        self, limit: int = 100, offset: int = 0
+    ) -> List[SimulationRun]:
         """List all simulation runs"""
         with self.get_connection() as conn:
             cursor = conn.execute(
@@ -148,7 +158,7 @@ class Database:
                 ORDER BY created_at DESC
                 LIMIT ? OFFSET ?
                 """,
-                (limit, offset)
+                (limit, offset),
             )
             rows = cursor.fetchall()
             return [DatabaseHelper.row_to_dataclass(row, SimulationRun) for row in rows]
@@ -159,12 +169,12 @@ class Database:
         with self.get_connection() as conn:
             data = DatabaseHelper.dataclass_to_dict(snapshot, for_insert=True)
 
-            placeholders = ', '.join(['?' for _ in data])
-            columns = ', '.join(data.keys())
+            placeholders = ", ".join(["?" for _ in data])
+            columns = ", ".join(data.keys())
 
             cursor = conn.execute(
                 f"INSERT INTO agent_snapshots ({columns}) VALUES ({placeholders})",
-                list(data.values())
+                list(data.values()),
             )
             conn.commit()
             return cursor.lastrowid
@@ -176,18 +186,20 @@ class Database:
 
         with self.get_connection() as conn:
             # Prepare data
-            data_list = [DatabaseHelper.dataclass_to_dict(s, for_insert=True) for s in snapshots]
+            data_list = [
+                DatabaseHelper.dataclass_to_dict(s, for_insert=True) for s in snapshots
+            ]
 
             # All snapshots should have the same fields
             columns = list(data_list[0].keys())
-            placeholders = ', '.join(['?' for _ in columns])
-            columns_str = ', '.join(columns)
+            placeholders = ", ".join(["?" for _ in columns])
+            columns_str = ", ".join(columns)
 
             # Execute batch insert
             values_list = [list(data.values()) for data in data_list]
             conn.executemany(
                 f"INSERT INTO agent_snapshots ({columns_str}) VALUES ({placeholders})",
-                values_list
+                values_list,
             )
             conn.commit()
 
@@ -197,7 +209,7 @@ class Database:
         agent_id: Optional[int] = None,
         start_tick: Optional[int] = None,
         end_tick: Optional[int] = None,
-        limit: int = 1000
+        limit: int = 1000,
     ) -> List[AgentSnapshot]:
         """Get agent snapshots with filtering"""
         with self.get_connection() as conn:
@@ -226,7 +238,7 @@ class Database:
                 ORDER BY tick DESC, agent_id
                 LIMIT ?
                 """,
-                params
+                params,
             )
             rows = cursor.fetchall()
             return [DatabaseHelper.row_to_dataclass(row, AgentSnapshot) for row in rows]
@@ -237,12 +249,12 @@ class Database:
         with self.get_connection() as conn:
             data = DatabaseHelper.dataclass_to_dict(snapshot, for_insert=True)
 
-            placeholders = ', '.join(['?' for _ in data])
-            columns = ', '.join(data.keys())
+            placeholders = ", ".join(["?" for _ in data])
+            columns = ", ".join(data.keys())
 
             cursor = conn.execute(
                 f"INSERT INTO world_snapshots ({columns}) VALUES ({placeholders})",
-                list(data.values())
+                list(data.values()),
             )
             conn.commit()
             return cursor.lastrowid
@@ -252,7 +264,7 @@ class Database:
         simulation_id: int,
         start_tick: Optional[int] = None,
         end_tick: Optional[int] = None,
-        limit: int = 1000
+        limit: int = 1000,
     ) -> List[WorldSnapshot]:
         """Get world snapshots with filtering"""
         with self.get_connection() as conn:
@@ -277,7 +289,7 @@ class Database:
                 ORDER BY tick DESC
                 LIMIT ?
                 """,
-                params
+                params,
             )
             rows = cursor.fetchall()
             return [DatabaseHelper.row_to_dataclass(row, WorldSnapshot) for row in rows]
@@ -288,12 +300,12 @@ class Database:
         with self.get_connection() as conn:
             data = DatabaseHelper.dataclass_to_dict(action, for_insert=True)
 
-            placeholders = ', '.join(['?' for _ in data])
-            columns = ', '.join(data.keys())
+            placeholders = ", ".join(["?" for _ in data])
+            columns = ", ".join(data.keys())
 
             cursor = conn.execute(
                 f"INSERT INTO action_logs ({columns}) VALUES ({placeholders})",
-                list(data.values())
+                list(data.values()),
             )
             conn.commit()
             return cursor.lastrowid
@@ -305,7 +317,7 @@ class Database:
         action_type: Optional[str] = None,
         start_tick: Optional[int] = None,
         end_tick: Optional[int] = None,
-        limit: int = 1000
+        limit: int = 1000,
     ) -> List[ActionLog]:
         """Get action logs with filtering"""
         with self.get_connection() as conn:
@@ -338,7 +350,7 @@ class Database:
                 ORDER BY tick DESC, agent_id
                 LIMIT ?
                 """,
-                params
+                params,
             )
             rows = cursor.fetchall()
             return [DatabaseHelper.row_to_dataclass(row, ActionLog) for row in rows]
@@ -349,12 +361,12 @@ class Database:
         with self.get_connection() as conn:
             data = DatabaseHelper.dataclass_to_dict(trade, for_insert=True)
 
-            placeholders = ', '.join(['?' for _ in data])
-            columns = ', '.join(data.keys())
+            placeholders = ", ".join(["?" for _ in data])
+            columns = ", ".join(data.keys())
 
             cursor = conn.execute(
                 f"INSERT INTO trade_logs ({columns}) VALUES ({placeholders})",
-                list(data.values())
+                list(data.values()),
             )
             conn.commit()
             return cursor.lastrowid
@@ -365,12 +377,12 @@ class Database:
         with self.get_connection() as conn:
             data = DatabaseHelper.dataclass_to_dict(combat, for_insert=True)
 
-            placeholders = ', '.join(['?' for _ in data])
-            columns = ', '.join(data.keys())
+            placeholders = ", ".join(["?" for _ in data])
+            columns = ", ".join(data.keys())
 
             cursor = conn.execute(
                 f"INSERT INTO combat_logs ({columns}) VALUES ({placeholders})",
-                list(data.values())
+                list(data.values()),
             )
             conn.commit()
             return cursor.lastrowid
@@ -381,12 +393,12 @@ class Database:
         with self.get_connection() as conn:
             data = DatabaseHelper.dataclass_to_dict(analytics, for_insert=True)
 
-            placeholders = ', '.join(['?' for _ in data])
-            columns = ', '.join(data.keys())
+            placeholders = ", ".join(["?" for _ in data])
+            columns = ", ".join(data.keys())
 
             cursor = conn.execute(
                 f"INSERT INTO analytics ({columns}) VALUES ({placeholders})",
-                list(data.values())
+                list(data.values()),
             )
             conn.commit()
             return cursor.lastrowid
@@ -398,7 +410,7 @@ class Database:
         category: Optional[str] = None,
         start_tick: Optional[int] = None,
         end_tick: Optional[int] = None,
-        limit: int = 1000
+        limit: int = 1000,
     ) -> List[Analytics]:
         """Get analytics data with filtering"""
         with self.get_connection() as conn:
@@ -431,7 +443,7 @@ class Database:
                 ORDER BY tick DESC, metric_name
                 LIMIT ?
                 """,
-                params
+                params,
             )
             rows = cursor.fetchall()
             return [DatabaseHelper.row_to_dataclass(row, Analytics) for row in rows]
@@ -441,8 +453,7 @@ class Database:
         """Get agent summary using database view"""
         with self.get_connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM agent_summary WHERE simulation_id = ?",
-                (simulation_id,)
+                "SELECT * FROM agent_summary WHERE simulation_id = ?", (simulation_id,)
             )
             return [dict(row) for row in cursor.fetchall()]
 
@@ -451,7 +462,7 @@ class Database:
         with self.get_connection() as conn:
             cursor = conn.execute(
                 "SELECT * FROM action_summary WHERE simulation_id = ? ORDER BY total_actions DESC",
-                (simulation_id,)
+                (simulation_id,),
             )
             return [dict(row) for row in cursor.fetchall()]
 
@@ -459,8 +470,7 @@ class Database:
         """Get trade summary using database view"""
         with self.get_connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM trade_summary WHERE simulation_id = ?",
-                (simulation_id,)
+                "SELECT * FROM trade_summary WHERE simulation_id = ?", (simulation_id,)
             )
             row = cursor.fetchone()
             return dict(row) if row else None
@@ -469,8 +479,7 @@ class Database:
         """Get combat summary using database view"""
         with self.get_connection() as conn:
             cursor = conn.execute(
-                "SELECT * FROM combat_summary WHERE simulation_id = ?",
-                (simulation_id,)
+                "SELECT * FROM combat_summary WHERE simulation_id = ?", (simulation_id,)
             )
             row = cursor.fetchone()
             return dict(row) if row else None
@@ -495,8 +504,13 @@ class Database:
 
             # Table row counts
             tables = [
-                'simulation_runs', 'agent_snapshots', 'world_snapshots',
-                'action_logs', 'trade_logs', 'combat_logs', 'analytics'
+                "simulation_runs",
+                "agent_snapshots",
+                "world_snapshots",
+                "action_logs",
+                "trade_logs",
+                "combat_logs",
+                "analytics",
             ]
 
             for table in tables:
@@ -508,11 +522,13 @@ class Database:
             page_count = cursor.fetchone()[0]
             cursor = conn.execute("PRAGMA page_size")
             page_size = cursor.fetchone()[0]
-            stats['database_size_bytes'] = page_count * page_size
+            stats["database_size_bytes"] = page_count * page_size
 
             return stats
 
-    def execute_custom_query(self, query: str, params: Tuple = ()) -> List[Dict[str, Any]]:
+    def execute_custom_query(
+        self, query: str, params: Tuple = ()
+    ) -> List[Dict[str, Any]]:
         """Execute custom SQL query (use with caution)"""
         with self.get_connection() as conn:
             cursor = conn.execute(query, params)

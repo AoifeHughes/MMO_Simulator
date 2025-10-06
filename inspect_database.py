@@ -6,9 +6,9 @@ Usage:
     python inspect_database.py simulation_data.db
 """
 
-import sys
-import sqlite3
 import os
+import sqlite3
+import sys
 from datetime import datetime
 
 
@@ -16,8 +16,8 @@ def format_timestamp(timestamp):
     """Format timestamp for readable display"""
     if timestamp:
         try:
-            return datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:%M:%S')
-        except:
+            return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
             return str(timestamp)
     return "N/A"
 
@@ -37,7 +37,9 @@ def inspect_database(db_path):
         cursor = conn.cursor()
 
         # Show all tables
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+        )
         tables = cursor.fetchall()
         print(f"📊 Tables ({len(tables)}): {', '.join([table[0] for table in tables])}")
         print()
@@ -45,16 +47,28 @@ def inspect_database(db_path):
         # Simulation runs
         print("🎯 SIMULATION RUNS")
         print("-" * 50)
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT id, name, description, world_width, world_height,
                    current_tick, total_agents, start_time, end_time
             FROM simulation_runs ORDER BY id DESC
-        """)
+        """
+        )
         runs = cursor.fetchall()
 
         if runs:
             for run in runs:
-                run_id, name, description, width, height, tick, agents, start_time, end_time = run
+                (
+                    run_id,
+                    name,
+                    description,
+                    width,
+                    height,
+                    tick,
+                    agents,
+                    start_time,
+                    end_time,
+                ) = run
                 print(f"Run ID: {run_id}")
                 print(f"Name: {name}")
                 print(f"Description: {description}")
@@ -77,33 +91,43 @@ def inspect_database(db_path):
 
         if total_actions > 0:
             # Action types breakdown
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT action_type, COUNT(*) as count,
                        SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful
                 FROM action_logs
                 GROUP BY action_type
                 ORDER BY count DESC
-            """)
+            """
+            )
             action_types = cursor.fetchall()
 
             print("\\nAction breakdown:")
             for action_type, count, successful in action_types:
                 success_rate = (successful / count * 100) if count > 0 else 0
-                print(f"  {action_type}: {count} total, {successful} successful ({success_rate:.1f}%)")
+                print(
+                    f"  {action_type}: {count} total, {successful} successful ({success_rate:.1f}%)"
+                )
 
             # Recent actions
             print("\\nRecent actions:")
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT tick, agent_id, action_type, success, result_message
                 FROM action_logs
                 ORDER BY tick DESC
                 LIMIT 10
-            """)
+            """
+            )
             recent_actions = cursor.fetchall()
 
             for tick, agent_id, action_type, success, message in recent_actions:
                 status = "✅" if success else "❌"
-                print(f"  Tick {tick:3d}: Agent {agent_id} - {action_type:15s} {status} {message[:50]}")
+                msg_preview = message[:50]
+                print(
+                    f"  Tick {tick:3d}: Agent {agent_id} - "
+                    f"{action_type:15s} {status} {msg_preview}"
+                )
         print()
 
         # Agent snapshots
@@ -115,20 +139,26 @@ def inspect_database(db_path):
 
         if total_snapshots > 0:
             # Latest snapshot for each agent
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT agent_id, name, MAX(tick) as last_tick,
                        health, max_health, position_x, position_y
                 FROM agent_snapshots
                 GROUP BY agent_id
                 ORDER BY agent_id
-            """)
+            """
+            )
             latest_agents = cursor.fetchall()
 
             print("\\nFinal agent states:")
             for agent_id, name, tick, health, max_health, x, y in latest_agents:
                 health_pct = (health / max_health * 100) if max_health > 0 else 0
                 status = "💚" if health > 0 else "💀"
-                print(f"  Agent {agent_id:2d} ({name:15s}): {status} {health:3d}/{max_health:3d} HP ({health_pct:5.1f}%) at ({x:2d},{y:2d}) [Tick {tick}]")
+                print(
+                    f"  Agent {agent_id:2d} ({name:15s}): {status} "
+                    f"{health:3d}/{max_health:3d} HP ({health_pct:5.1f}%) "
+                    f"at ({x:2d},{y:2d}) [Tick {tick}]"
+                )
         print()
 
         # World snapshots
@@ -139,16 +169,21 @@ def inspect_database(db_path):
         print(f"World snapshots: {world_snapshots}")
 
         if world_snapshots > 0:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT tick, active_agents, active_npcs
                 FROM world_snapshots
                 ORDER BY tick DESC
                 LIMIT 1
-            """)
+            """
+            )
             latest_world = cursor.fetchone()
             if latest_world:
                 tick, active_agents, active_npcs = latest_world
-                print(f"Latest (Tick {tick}): {active_agents} agents, {active_npcs} NPCs active")
+                print(
+                    f"Latest (Tick {tick}): {active_agents} agents, "
+                    f"{active_npcs} NPCs active"
+                )
         print()
 
         # Combat logs
@@ -159,17 +194,21 @@ def inspect_database(db_path):
         print(f"Combat events: {combat_count}")
 
         if combat_count > 0:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT tick, attacker_id, defender_id, damage_dealt, combat_result
                 FROM combat_logs
                 ORDER BY tick DESC
                 LIMIT 5
-            """)
+            """
+            )
             recent_combat = cursor.fetchall()
 
             print("\\nRecent combat:")
             for tick, attacker, defender, damage, result in recent_combat:
-                print(f"  Tick {tick:3d}: Agent {attacker} vs Agent {defender} - {damage} damage, {result}")
+                print(
+                    f"  Tick {tick:3d}: Agent {attacker} vs Agent {defender} - {damage} damage, {result}"
+                )
         print()
 
         # Trade logs
@@ -180,17 +219,22 @@ def inspect_database(db_path):
         print(f"Trade events: {trade_count}")
 
         if trade_count > 0:
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT tick, buyer_id, seller_id, item_name, quantity, price
                 FROM trade_logs
                 ORDER BY tick DESC
                 LIMIT 5
-            """)
+            """
+            )
             recent_trades = cursor.fetchall()
 
             print("\\nRecent trades:")
             for tick, buyer, seller, item, qty, price in recent_trades:
-                print(f"  Tick {tick:3d}: Agent {buyer} bought {qty}x {item} from Agent {seller} for {price}")
+                print(
+                    f"  Tick {tick:3d}: Agent {buyer} bought {qty}x {item} "
+                    f"from Agent {seller} for {price}"
+                )
         print()
 
         conn.close()

@@ -5,30 +5,31 @@
 
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../'))
+
+sys.path.insert(0, os.path.abspath("../../"))
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'MMO Simulator'
-copyright = '2024, Aoife Hughes'
-author = 'Aoife Hughes'
-release = '0.1.0'
+project = "MMO Simulator"
+copyright = "2024, Aoife Hughes"
+author = "Aoife Hughes"
+release = "0.1.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.autosummary',
-    'sphinx.ext.todo',
-    'myst_parser',
+    "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.todo",
+    "myst_parser",
 ]
 
-templates_path = ['_templates']
+templates_path = ["_templates"]
 exclude_patterns = []
 
 # Napoleon settings for Google/NumPy style docstrings
@@ -60,33 +61,33 @@ myst_enable_extensions = [
 
 # Intersphinx mapping
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3', None),
-    'numpy': ('https://numpy.org/doc/stable/', None),
-    'pygame': ('https://www.pygame.org/docs/', None),
+    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "pygame": ("https://www.pygame.org/docs/", None),
 }
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'sphinx_rtd_theme'
-html_static_path = ['_static']
+html_theme = "sphinx_rtd_theme"
+html_static_path = ["_static"]
 html_css_files = [
-    'custom.css',
+    "custom.css",
 ]
 
 html_theme_options = {
-    'logo_only': False,
-    'display_version': True,
-    'prev_next_buttons_location': 'bottom',
-    'style_external_links': False,
-    'vcs_pageview_mode': '',
-    'style_nav_header_background': '#2980B9',
+    "logo_only": False,
+    "display_version": True,
+    "prev_next_buttons_location": "bottom",
+    "style_external_links": False,
+    "vcs_pageview_mode": "",
+    "style_nav_header_background": "#2980B9",
     # Toc options
-    'collapse_navigation': False,
-    'sticky_navigation': True,
-    'navigation_depth': 4,
-    'includehidden': True,
-    'titles_only': False
+    "collapse_navigation": False,
+    "sticky_navigation": True,
+    "navigation_depth": 4,
+    "includehidden": True,
+    "titles_only": False,
 }
 
 html_context = {
@@ -101,14 +102,17 @@ html_logo = None  # Add logo path if you have one
 html_favicon = None  # Add favicon path if you have one
 
 # -- Options for manual page output ------------------------------------------
-man_pages = [
-    ('index', 'mmosimulator', 'MMO Simulator Documentation',
-     [author], 1)
-]
+man_pages = [("index", "mmosimulator", "MMO Simulator Documentation", [author], 1)]
 
 # -- Options for Texinfo output ----------------------------------------------
 texinfo_documents = [
-    ('index', 'MMOSimulator', 'MMO Simulator Documentation',
-     author, 'MMOSimulator', 'Multi-agent simulation framework for emergent behavior research.',
-     'Miscellaneous'),
+    (
+        "index",
+        "MMOSimulator",
+        "MMO Simulator Documentation",
+        author,
+        "MMOSimulator",
+        "Multi-agent simulation framework for emergent behavior research.",
+        "Miscellaneous",
+    ),
 ]

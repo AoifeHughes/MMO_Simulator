@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import Dict, Any, Optional
+
 from dataclasses import dataclass, field
+from typing import Any, Dict
 
 
 @dataclass
@@ -33,7 +34,7 @@ class Item:
             description=data.get("description", ""),
             value=data.get("value", 0),
             weight=data.get("weight", 1.0),
-            max_stack_size=data.get("max_stack", 99)
+            max_stack_size=data.get("max_stack", 99),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -45,7 +46,7 @@ class Item:
             "description": self.description,
             "value": self.value,
             "weight": self.weight,
-            "max_stack": self.max_stack_size
+            "max_stack": self.max_stack_size,
         }
 
     def __hash__(self) -> int:

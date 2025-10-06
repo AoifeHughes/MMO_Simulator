@@ -1,9 +1,11 @@
 from __future__ import annotations
-from typing import List, Optional, Tuple, Set, Dict, TYPE_CHECKING
-import math
 
-from ..world.tile import Tile
+import math
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple
+
 from ..world.generator import WorldGenerator
+from ..world.resource_manager import ResourceManager
+from ..world.tile import Tile
 
 if TYPE_CHECKING:
     from ..entities.base import Entity
@@ -17,12 +19,16 @@ class World:
         self.tiles: List[List[Tile]] = []
         self.entities: Dict[int, Entity] = {}
         self.current_tick = 0
+        self.resource_manager: Optional[ResourceManager] = None
 
         self._initialize_world()
 
     def _initialize_world(self) -> None:
         generator = WorldGenerator(seed=self.seed)
         self.tiles = generator.generate_world(self.width, self.height)
+
+        # Initialize resource manager after world generation
+        self.resource_manager = ResourceManager(self)
 
     def get_tile(self, x: int, y: int) -> Optional[Tile]:
         if self.is_valid_position(x, y):
@@ -36,11 +42,11 @@ class World:
         tile = self.get_tile(x, y)
         return tile is not None and tile.can_pass()
 
-    def get_neighbors(self, x: int, y: int, diagonal: bool = True) -> List[Tuple[int, int]]:
+    def get_neighbors(
+        self, x: int, y: int, diagonal: bool = True
+    ) -> List[Tuple[int, int]]:
         neighbors = []
-        directions = [
-            (-1, 0), (1, 0), (0, -1), (0, 1)
-        ]
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
         if diagonal:
             directions.extend([(-1, -1), (-1, 1), (1, -1), (1, 1)])
 
@@ -51,7 +57,9 @@ class World:
 
         return neighbors
 
-    def get_passable_neighbors(self, x: int, y: int, diagonal: bool = True) -> List[Tuple[int, int]]:
+    def get_passable_neighbors(
+        self, x: int, y: int, diagonal: bool = True
+    ) -> List[Tuple[int, int]]:
         neighbors = self.get_neighbors(x, y, diagonal)
         return [(nx, ny) for nx, ny in neighbors if self.is_passable(nx, ny)]
 

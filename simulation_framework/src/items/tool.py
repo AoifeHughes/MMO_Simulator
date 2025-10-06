@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Any
+
 from .item import Item
 
 
@@ -61,12 +61,12 @@ class Tool(Item):
                 "durability": 100,
                 "max_durability": 100,
                 "efficiency": 1.5,
-                "mining_level": 2
+                "mining_level": 2,
             },
             description="A sturdy iron pickaxe for mining",
             value=30,
             weight=4.0,
-            max_stack_size=1
+            max_stack_size=1,
         )
 
     @classmethod
@@ -80,12 +80,12 @@ class Tool(Item):
                 "durability": 100,
                 "max_durability": 100,
                 "efficiency": 1.5,
-                "woodcutting_level": 2
+                "woodcutting_level": 2,
             },
             description="A sharp iron axe for woodcutting",
             value=25,
             weight=3.5,
-            max_stack_size=1
+            max_stack_size=1,
         )
 
     @classmethod
@@ -99,12 +99,12 @@ class Tool(Item):
                 "durability": 50,
                 "max_durability": 50,
                 "efficiency": 1.0,
-                "fishing_level": 1
+                "fishing_level": 1,
             },
             description="A simple fishing rod",
             value=15,
             weight=1.5,
-            max_stack_size=1
+            max_stack_size=1,
         )
 
     @classmethod
@@ -118,10 +118,10 @@ class Tool(Item):
                 "durability": 80,
                 "max_durability": 80,
                 "efficiency": 1.2,
-                "farming_level": 1
+                "farming_level": 1,
             },
             description="A hoe for tilling soil",
             value=20,
             weight=2.5,
-            max_stack_size=1
+            max_stack_size=1,
         )

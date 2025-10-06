@@ -10,22 +10,38 @@ This simulation will:
 5. Generate comprehensive logs for analysis
 """
 
-import sys
 import os
+import sys
 import time
-from datetime import datetime, timedelta
 
 # Add the simulation framework to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from simulation_framework.src.core.simulation import Simulation
-from simulation_framework.src.core.config import SimulationConfig
-from simulation_framework.src.entities.agent import Agent, create_agent_with_archetype
-from simulation_framework.src.entities.npc import NPC, create_basic_goblin, create_forest_wolf
-from simulation_framework.src.ai.personality import Personality
-from simulation_framework.src.ai.character_class import get_character_class
-from simulation_framework.src.ai.goal import ExploreGoal, GatherResourceGoal, AttackEnemyGoal, RestGoal
-from simulation_framework.src.items.starting_equipment import give_starting_equipment, equip_agent_for_task
+from simulation_framework.src.ai.character_class import (  # noqa: E402
+    get_character_class,
+)
+from simulation_framework.src.ai.goal import (  # noqa: E402
+    AttackEnemyGoal,
+    ExploreGoal,
+    GatherResourceGoal,
+    RestGoal,
+)
+from simulation_framework.src.ai.personality import Personality  # noqa: E402
+from simulation_framework.src.core.config import SimulationConfig  # noqa: E402
+from simulation_framework.src.core.simulation import Simulation  # noqa: E402
+from simulation_framework.src.entities.agent import (  # noqa: E402
+    Agent,
+    create_agent_with_archetype,
+)
+from simulation_framework.src.entities.npc import (  # noqa: E402
+    NPC,
+    create_basic_goblin,
+    create_forest_wolf,
+)
+from simulation_framework.src.items.starting_equipment import (  # noqa: E402
+    equip_agent_for_task,
+    give_starting_equipment,
+)
 
 
 def create_comprehensive_agent_population(num_agents: int = 30) -> list[Agent]:
@@ -55,15 +71,15 @@ def create_comprehensive_agent_population(num_agents: int = 30) -> list[Agent]:
         try:
             agent = create_agent_with_archetype(
                 position=(x, y),
-                name=f"Agent_{char_class}_{i+1:02d}",
-                archetype=archetype
+                name=f"Agent_{char_class}_{i + 1:02d}",
+                archetype=archetype,
             )
-        except:
+        except Exception:
             agent = Agent(
                 position=(x, y),
-                name=f"Agent_{char_class}_{i+1:02d}",
+                name=f"Agent_{char_class}_{i + 1:02d}",
                 personality=Personality.create_archetype(archetype),
-                character_class=get_character_class(char_class)
+                character_class=get_character_class(char_class),
             )
 
         # Assign diverse goals to exercise different systems
@@ -74,7 +90,11 @@ def create_comprehensive_agent_population(num_agents: int = 30) -> list[Agent]:
             # Resource gatherers
             resources = ["wood", "stone", "food"]
             resource = resources[i % len(resources)]
-            agent.current_goals = [GatherResourceGoal(resource_type=resource, target_quantity=5, priority=6)]
+            agent.current_goals = [
+                GatherResourceGoal(
+                    resource_type=resource, target_quantity=5, priority=6
+                )
+            ]
         elif i % 5 == 2:
             # Combat-ready agents (will find targets later)
             agent.current_goals = [ExploreGoal(priority=5)]
@@ -82,7 +102,7 @@ def create_comprehensive_agent_population(num_agents: int = 30) -> list[Agent]:
             # Mixed goals
             agent.current_goals = [
                 ExploreGoal(priority=4),
-                GatherResourceGoal(resource_type="wood", target_quantity=3, priority=5)
+                GatherResourceGoal(resource_type="wood", target_quantity=3, priority=5),
             ]
         else:
             # Rest-focused agents (to test low-energy scenarios)
@@ -111,11 +131,11 @@ def create_combat_ready_npc_ecosystem(num_npcs: int = 20) -> list[NPC]:
 
     # NPC types for different behaviors
     npc_types = [
-        ("goblin", True, 3),      # Aggressive, medium aggro range
-        ("wolf", True, 4),        # Aggressive, higher aggro range
-        ("goblin", True, 3),      # More goblins
-        ("merchant", False, 0),   # Peaceful, for trading
-        ("wolf", True, 4),        # More wolves
+        ("goblin", True, 3),  # Aggressive, medium aggro range
+        ("wolf", True, 4),  # Aggressive, higher aggro range
+        ("goblin", True, 3),  # More goblins
+        ("merchant", False, 0),  # Peaceful, for trading
+        ("wolf", True, 4),  # More wolves
     ]
 
     for i in range(num_npcs):
@@ -143,21 +163,21 @@ def create_combat_ready_npc_ecosystem(num_npcs: int = 20) -> list[NPC]:
         try:
             if npc_type == "goblin":
                 npc = create_basic_goblin((x, y))
-                npc.name = f"Goblin_{i+1:02d}"
+                npc.name = f"Goblin_{i + 1:02d}"
             elif npc_type == "wolf":
                 npc = create_forest_wolf((x, y))
-                npc.name = f"Wolf_{i+1:02d}"
+                npc.name = f"Wolf_{i + 1:02d}"
             else:
                 npc = NPC(
                     position=(x, y),
-                    name=f"{npc_type.title()}_{i+1:02d}",
-                    npc_type=npc_type
+                    name=f"{npc_type.title()}_{i + 1:02d}",
+                    npc_type=npc_type,
                 )
-        except:
+        except Exception:
             npc = NPC(
                 position=(x, y),
-                name=f"{npc_type.title()}_{i+1:02d}",
-                npc_type=npc_type
+                name=f"{npc_type.title()}_{i + 1:02d}",
+                npc_type=npc_type,
             )
 
         # Set aggro properties if aggressive
@@ -174,13 +194,15 @@ def create_combat_ready_npc_ecosystem(num_npcs: int = 20) -> list[NPC]:
 def setup_combat_goals_for_agents(agents: list[Agent], npcs: list[NPC]) -> None:
     """Add combat goals to some agents to trigger PvE combat"""
     # Find aggressive NPCs
-    aggressive_npcs = [npc for npc in npcs if hasattr(npc, 'aggro_range') and npc.aggro_range > 0]
+    aggressive_npcs = [
+        npc for npc in npcs if hasattr(npc, "aggro_range") and npc.aggro_range > 0
+    ]
 
     if aggressive_npcs:
         # Give combat goals to warrior agents
         warriors = [agent for agent in agents if "Warrior" in agent.name]
 
-        for i, warrior in enumerate(warriors[:len(aggressive_npcs)]):
+        for i, warrior in enumerate(warriors[: len(aggressive_npcs)]):
             target_npc = aggressive_npcs[i % len(aggressive_npcs)]
             # Add attack goal to existing goals
             warrior.current_goals.append(AttackEnemyGoal(target_npc.id, priority=8))
@@ -207,7 +229,7 @@ class SimulationLogger:
         elapsed = time.time() - self.start_time
         stats = simulation.get_statistics()
 
-        print(f"\n=== SIMULATION COMPLETED ===")
+        print("\n=== SIMULATION COMPLETED ===")
         print(f"Total time: {elapsed:.2f}s")
         print(f"Total ticks: {stats['current_tick']}")
         print(f"Final agents: {stats['active_agents']}/{stats['total_agents']}")
@@ -226,15 +248,15 @@ def main():
         world_width=30,
         world_height=30,
         world_seed=99999,  # Unique seed for this test
-        max_ticks=999999,   # Let time limit control duration
-        save_interval=25,   # Save every 25 ticks for detailed logging
+        max_ticks=999999,  # Let time limit control duration
+        save_interval=25,  # Save every 25 ticks for detailed logging
         analytics_interval=50,  # Analytics every 50 ticks
-        tick_rate=0  # Maximum speed
+        tick_rate=0,  # Maximum speed
     )
 
     print(f"Configuration: {config.world_width}x{config.world_height} world")
     print(f"Database: {config.database_path}")
-    print(f"Target duration: 5 minutes (300 seconds)")
+    print("Target duration: 5 minutes (300 seconds)")
 
     # Create simulation
     simulation = Simulation(config)
@@ -247,7 +269,7 @@ def main():
     # Initialize simulation
     simulation.initialize_simulation(
         name="Comprehensive 5-Minute Test",
-        description="Full system test exercising movement, combat, gathering, crafting, trading, respawn, and analytics"
+        description="Full system test exercising movement, combat, gathering, crafting, trading, respawn, and analytics",
     )
     logger.simulation_id = simulation.simulation_id
 
@@ -274,14 +296,14 @@ def main():
     setup_combat_goals_for_agents(agents, npcs)
 
     # Display initial state
-    print(f"\n=== INITIAL STATE ===")
+    print("\n=== INITIAL STATE ===")
     initial_stats = simulation.get_statistics()
     print(f"Total agents: {initial_stats['total_agents']}")
     print(f"Total NPCs: {initial_stats['total_npcs']}")
     print(f"Starting tick: {initial_stats['current_tick']}")
 
     # Run simulation for exactly 5 minutes
-    print(f"\n=== RUNNING SIMULATION FOR 5 MINUTES ===")
+    print("\n=== RUNNING SIMULATION FOR 5 MINUTES ===")
     start_time = time.time()
     target_duration = 5 * 60  # 5 minutes in seconds
 
@@ -305,6 +327,7 @@ def main():
     except Exception as e:
         print(f"\nError during simulation: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         # Ensure simulation is properly stopped
@@ -316,20 +339,22 @@ def main():
     elapsed_time = time.time() - start_time
     final_stats = simulation.get_statistics()
 
-    print(f"\n=== FINAL RESULTS ===")
+    print("\n=== FINAL RESULTS ===")
     print(f"Actual runtime: {elapsed_time:.2f} seconds")
     print(f"Total ticks simulated: {final_stats['current_tick']}")
     if elapsed_time > 0:
         print(f"Ticks per second: {final_stats['current_tick'] / elapsed_time:.1f}")
     else:
-        print(f"Ticks per second: N/A (no time elapsed)")
+        print("Ticks per second: N/A (no time elapsed)")
     print(f"Final active agents: {final_stats['active_agents']}")
     print(f"Final active NPCs: {final_stats['active_npcs']}")
 
-    print(f"\n=== SUCCESS ===")
-    print(f"Comprehensive simulation completed!")
-    print(f"Data saved to: {db_path}")
-    print("\nNext step: Run the database analysis script to check for expected behaviors.")
+    print("\n=== SUCCESS ===")
+    print("Comprehensive simulation completed!")
+    print(f"Data saved to: {config.database_path}")
+    print(
+        "\nNext step: Run the database analysis script to check for expected behaviors."
+    )
 
 
 if __name__ == "__main__":

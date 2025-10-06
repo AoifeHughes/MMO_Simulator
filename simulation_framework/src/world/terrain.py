@@ -1,6 +1,7 @@
 from __future__ import annotations
-from enum import Enum
+
 from dataclasses import dataclass
+from enum import Enum
 
 
 class TerrainType(Enum):
@@ -27,35 +28,35 @@ class TerrainProperties:
                 fishable=True,
                 mineable=False,
                 harvestable=False,
-                movement_cost=float('inf')
+                movement_cost=float("inf"),
             ),
             TerrainType.GRASS: cls(
                 passable=True,
                 fishable=False,
                 mineable=False,
                 harvestable=True,
-                movement_cost=1.0
+                movement_cost=1.0,
             ),
             TerrainType.FOREST: cls(
                 passable=True,
                 fishable=False,
                 mineable=False,
                 harvestable=True,
-                movement_cost=1.5
+                movement_cost=1.5,
             ),
             TerrainType.MOUNTAIN: cls(
                 passable=True,
                 fishable=False,
                 mineable=True,
                 harvestable=False,
-                movement_cost=2.0
+                movement_cost=2.0,
             ),
             TerrainType.DESERT: cls(
                 passable=True,
                 fishable=False,
                 mineable=False,
                 harvestable=False,
-                movement_cost=1.5
-            )
+                movement_cost=1.5,
+            ),
         }
         return properties[terrain_type]

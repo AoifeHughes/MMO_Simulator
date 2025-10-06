@@ -1,12 +1,12 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 if TYPE_CHECKING:
-    from ..entities.base import Entity
     from ..core.world import World
-    from ..items.item import Item
+    from ..entities.base import Entity
 
 
 @dataclass
@@ -62,15 +62,21 @@ class ActionResult:
     interrupted: bool = False
 
     @classmethod
-    def success(cls, message: str = "Action completed successfully", events: List[Event] = None) -> ActionResult:
+    def success(
+        cls, message: str = "Action completed successfully", events: List[Event] = None
+    ) -> ActionResult:
         return cls(success=True, message=message, events=events or [])
 
     @classmethod
-    def failure(cls, message: str = "Action failed", events: List[Event] = None) -> ActionResult:
+    def failure(
+        cls, message: str = "Action failed", events: List[Event] = None
+    ) -> ActionResult:
         return cls(success=False, message=message, events=events or [])
 
     @classmethod
-    def interrupted(cls, message: str = "Action was interrupted") -> ActionResult:
+    def create_interrupted(
+        cls, message: str = "Action was interrupted"
+    ) -> ActionResult:
         return cls(success=False, message=message, interrupted=True)
 
 

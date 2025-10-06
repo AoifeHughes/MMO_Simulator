@@ -9,13 +9,15 @@ Usage:
     python manage_database.py fresh     # Create fresh database
 """
 
-import sys
 import os
+import sys
 
 # Add the simulation framework to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from simulation_framework.src.utils.database_manager import DatabaseManager
+from simulation_framework.src.utils.database_manager import (  # noqa: E402
+    DatabaseManager,
+)
 
 
 def main():

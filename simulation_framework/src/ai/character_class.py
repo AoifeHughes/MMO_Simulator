@@ -1,11 +1,12 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
-from enum import Enum
 
-from ..items.weapon import Weapon
-from ..items.tool import Tool
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Dict, List, Optional
+
 from ..items.consumable import Consumable
+from ..items.tool import Tool
+from ..items.weapon import Weapon
 
 
 class SkillType(Enum):
@@ -38,7 +39,9 @@ class CharacterClass:
         """Get preference modifier for action types (0.5-1.5)"""
         if action_type in self.preferred_actions:
             return 1.3
-        elif any(preferred in action_type.lower() for preferred in self.preferred_actions):
+        elif any(
+            preferred in action_type.lower() for preferred in self.preferred_actions
+        ):
             return 1.1
         else:
             return 0.8
@@ -79,15 +82,11 @@ class CharacterClass:
                 "defense": 1.3,
                 "athletics": 1.2,
                 "smithing": 1.1,
-                "mining": 1.1
+                "mining": 1.1,
             },
             preferred_actions=["combat", "melee", "defend", "patrol"],
-            starting_stats_bonus={
-                "max_health": 20,
-                "attack_power": 5,
-                "defense": 3
-            },
-            equipment_preferences=["sword", "shield", "heavy_armor", "pickaxe"]
+            starting_stats_bonus={"max_health": 20, "attack_power": 5, "defense": 3},
+            equipment_preferences=["sword", "shield", "heavy_armor", "pickaxe"],
         )
 
     @classmethod
@@ -99,16 +98,16 @@ class CharacterClass:
                 "magic": 1.6,
                 "alchemy": 1.4,
                 "research": 1.3,
-                "crafting": 1.1
+                "crafting": 1.1,
             },
             preferred_actions=["magic", "craft", "research", "study"],
             starting_stats_bonus={
                 "max_magic": 30,
                 "magic": 30,
                 "attack_power": -2,
-                "defense": -1
+                "defense": -1,
             },
-            equipment_preferences=["staff", "robes", "spell_components"]
+            equipment_preferences=["staff", "robes", "spell_components"],
         )
 
     @classmethod
@@ -121,15 +120,17 @@ class CharacterClass:
                 "tracking": 1.4,
                 "foraging": 1.3,
                 "stealth": 1.2,
-                "woodcutting": 1.1
+                "woodcutting": 1.1,
             },
             preferred_actions=["hunt", "forage", "explore", "track"],
-            starting_stats_bonus={
-                "speed": 3,
-                "stamina": 10,
-                "max_stamina": 10
-            },
-            equipment_preferences=["bow", "leather_armor", "hunting_knife", "axe", "fishing_rod"]
+            starting_stats_bonus={"speed": 3, "stamina": 10, "max_stamina": 10},
+            equipment_preferences=[
+                "bow",
+                "leather_armor",
+                "hunting_knife",
+                "axe",
+                "fishing_rod",
+            ],
         )
 
     @classmethod
@@ -142,14 +143,11 @@ class CharacterClass:
                 "herbalism": 1.4,
                 "foraging": 1.3,
                 "crafting": 1.3,
-                "magic": 1.1
+                "magic": 1.1,
             },
             preferred_actions=["craft", "forage", "experiment", "trade"],
-            starting_stats_bonus={
-                "max_magic": 15,
-                "magic": 15
-            },
-            equipment_preferences=["staff", "alchemy_kit", "gathering_tools"]
+            starting_stats_bonus={"max_magic": 15, "magic": 15},
+            equipment_preferences=["staff", "alchemy_kit", "gathering_tools"],
         )
 
     @classmethod
@@ -161,16 +159,16 @@ class CharacterClass:
                 "smithing": 1.6,
                 "mining": 1.4,
                 "crafting": 1.4,
-                "trading": 1.2
+                "trading": 1.2,
             },
             preferred_actions=["craft", "mine", "trade", "repair"],
             starting_stats_bonus={
                 "max_health": 10,
                 "attack_power": 2,
                 "max_stamina": 15,
-                "stamina": 15
+                "stamina": 15,
             },
-            equipment_preferences=["hammer", "anvil", "pickaxe", "axe", "apron"]
+            equipment_preferences=["hammer", "anvil", "pickaxe", "axe", "apron"],
         )
 
     @classmethod
@@ -182,13 +180,11 @@ class CharacterClass:
                 "trading": 1.6,
                 "negotiation": 1.5,
                 "appraisal": 1.4,
-                "exploration": 1.2
+                "exploration": 1.2,
             },
             preferred_actions=["trade", "negotiate", "travel", "network"],
-            starting_stats_bonus={
-                "speed": 2
-            },
-            equipment_preferences=["coin_purse", "ledger", "traveling_gear"]
+            starting_stats_bonus={"speed": 2},
+            equipment_preferences=["coin_purse", "ledger", "traveling_gear"],
         )
 
     @classmethod
@@ -201,15 +197,11 @@ class CharacterClass:
                 "survival": 1.4,
                 "foraging": 1.2,
                 "climbing": 1.3,
-                "swimming": 1.2
+                "swimming": 1.2,
             },
             preferred_actions=["explore", "map", "forage", "discover"],
-            starting_stats_bonus={
-                "speed": 4,
-                "max_stamina": 20,
-                "stamina": 20
-            },
-            equipment_preferences=["compass", "rope", "rations", "map"]
+            starting_stats_bonus={"speed": 4, "max_stamina": 20, "stamina": 20},
+            equipment_preferences=["compass", "rope", "rations", "map"],
         )
 
     @classmethod
@@ -221,14 +213,11 @@ class CharacterClass:
                 "farming": 1.6,
                 "animal_handling": 1.4,
                 "herbalism": 1.2,
-                "trading": 1.1
+                "trading": 1.1,
             },
             preferred_actions=["farm", "tend", "harvest", "trade"],
-            starting_stats_bonus={
-                "max_stamina": 15,
-                "stamina": 15
-            },
-            equipment_preferences=["hoe", "seeds", "watering_can", "sickle"]
+            starting_stats_bonus={"max_stamina": 15, "stamina": 15},
+            equipment_preferences=["hoe", "seeds", "watering_can", "sickle"],
         )
 
     def get_stat_bonus(self, stat_name: str) -> int:
@@ -237,7 +226,10 @@ class CharacterClass:
 
     def is_preferred_skill(self, skill_name: str) -> bool:
         """Check if this skill is preferred by this class"""
-        return skill_name in self.skill_affinities and self.skill_affinities[skill_name] > 1.0
+        return (
+            skill_name in self.skill_affinities
+            and self.skill_affinities[skill_name] > 1.0
+        )
 
     def get_class_specialization(self) -> str:
         """Get the primary specialization of this class"""
@@ -257,11 +249,13 @@ class CharacterClass:
             "Blacksmith": "mountain",  # For mining
             "Trader": None,  # Travels everywhere
             "Explorer": None,  # Explores everywhere
-            "Farmer": "grass"  # For farming
+            "Farmer": "grass",  # For farming
         }
         return preferences.get(self.name)
 
-    def calculate_effectiveness(self, activity_type: str, skill_levels: Dict[str, int]) -> float:
+    def calculate_effectiveness(
+        self, activity_type: str, skill_levels: Dict[str, int]
+    ) -> float:
         """Calculate how effective this class is at a given activity"""
         base_effectiveness = self.get_action_preference(activity_type)
 
@@ -293,7 +287,7 @@ class CharacterClass:
             "skill_affinities": self.skill_affinities,
             "preferred_actions": self.preferred_actions,
             "starting_stats_bonus": self.starting_stats_bonus,
-            "equipment_preferences": self.equipment_preferences
+            "equipment_preferences": self.equipment_preferences,
         }
 
     @classmethod
@@ -304,7 +298,7 @@ class CharacterClass:
             skill_affinities=data.get("skill_affinities", {}),
             preferred_actions=data.get("preferred_actions", []),
             starting_stats_bonus=data.get("starting_stats_bonus", {}),
-            equipment_preferences=data.get("equipment_preferences", [])
+            equipment_preferences=data.get("equipment_preferences", []),
         )
 
     def __str__(self) -> str:
@@ -324,13 +318,14 @@ CHARACTER_CLASSES = {
     "blacksmith": CharacterClass.create_blacksmith,
     "trader": CharacterClass.create_trader,
     "explorer": CharacterClass.create_explorer,
-    "farmer": CharacterClass.create_farmer
+    "farmer": CharacterClass.create_farmer,
 }
 
 
 def get_random_character_class() -> CharacterClass:
     """Get a random character class"""
     import random
+
     class_name = random.choice(list(CHARACTER_CLASSES.keys()))
     return CHARACTER_CLASSES[class_name]()
 

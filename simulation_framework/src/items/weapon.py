@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Any
+
 from .item import Item
 
 
@@ -57,12 +57,12 @@ class Weapon(Item):
                 "damage_type": "slashing",
                 "stamina_cost": 5,
                 "critical_chance": 0.15,
-                "attack_speed": 1.2
+                "attack_speed": 1.2,
             },
             description="A basic iron sword",
             value=50,
             weight=3.0,
-            max_stack_size=1
+            max_stack_size=1,
         )
 
     @classmethod
@@ -78,12 +78,12 @@ class Weapon(Item):
                 "damage_type": "piercing",
                 "stamina_cost": 4,
                 "critical_chance": 0.2,
-                "attack_speed": 0.8
+                "attack_speed": 0.8,
             },
             description="A simple wooden bow",
             value=40,
             weight=2.0,
-            max_stack_size=1
+            max_stack_size=1,
         )
 
     @classmethod
@@ -99,10 +99,10 @@ class Weapon(Item):
                 "damage_type": "magical",
                 "magic_cost": 10,
                 "critical_chance": 0.25,
-                "attack_speed": 0.6
+                "attack_speed": 0.6,
             },
             description="A staff imbued with basic magical power",
             value=100,
             weight=2.5,
-            max_stack_size=1
+            max_stack_size=1,
         )

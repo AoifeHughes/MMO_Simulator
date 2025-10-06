@@ -2,24 +2,23 @@
 Combat micro-simulation tests that validate combat behavior and database logging.
 """
 
-import pytest
-from src.core.simulation import Simulation
 from src.ai.goal import AttackEnemyGoal, ExploreGoal
+from src.core.simulation import Simulation
 
 from ..helpers import (
-    create_controlled_world,
-    create_test_config,
-    force_agent_equipment,
-    create_test_warrior,
-    create_test_archer,
-    create_weak_goblin,
     ControlledNPC,
     StaticNPC,
+    assert_action_logged,
     assert_combat_occurred,
     assert_entity_died,
     assert_entity_health_changed,
-    assert_action_logged,
-    cleanup_test_database
+    cleanup_test_database,
+    create_controlled_world,
+    create_test_archer,
+    create_test_config,
+    create_test_warrior,
+    create_weak_goblin,
+    force_agent_equipment,
 )
 
 
@@ -53,8 +52,12 @@ class TestCombatValidation:
         sim.run(num_ticks=50)
 
         # Verify combat occurred and was logged
-        assert_combat_occurred(sim.db, sim.simulation_id, warrior.id, goblin.id, min_attacks=1)
-        assert_entity_health_changed(sim.db, sim.simulation_id, goblin.id, decreased=True)
+        assert_combat_occurred(
+            sim.db, sim.simulation_id, warrior.id, goblin.id, min_attacks=1
+        )
+        assert_entity_health_changed(
+            sim.db, sim.simulation_id, goblin.id, decreased=True
+        )
 
         # Cleanup
         cleanup_test_database(config.database_path)
@@ -84,7 +87,9 @@ class TestCombatValidation:
         sim.run(num_ticks=50)
 
         # Verify ranged attacks logged
-        assert_action_logged(sim.db, sim.simulation_id, archer.id, "RangedAttack", min_count=1)
+        assert_action_logged(
+            sim.db, sim.simulation_id, archer.id, "RangedAttack", min_count=1
+        )
 
         cleanup_test_database(config.database_path)
 
@@ -141,7 +146,9 @@ class TestCombatValidation:
         sim.run(num_ticks=80)
 
         # Verify NPC initiated combat (attacks should be logged from NPC to agent)
-        assert_combat_occurred(sim.db, sim.simulation_id, npc.id, agent.id, min_attacks=1)
+        assert_combat_occurred(
+            sim.db, sim.simulation_id, npc.id, agent.id, min_attacks=1
+        )
 
         cleanup_test_database(config.database_path)
 
@@ -170,9 +177,13 @@ class TestCombatValidation:
 
         # Verify health decreased for at least one combatant
         try:
-            assert_entity_health_changed(sim.db, sim.simulation_id, enemy.id, decreased=True)
+            assert_entity_health_changed(
+                sim.db, sim.simulation_id, enemy.id, decreased=True
+            )
         except AssertionError:
             # If enemy didn't take damage, warrior should have
-            assert_entity_health_changed(sim.db, sim.simulation_id, warrior.id, decreased=True)
+            assert_entity_health_changed(
+                sim.db, sim.simulation_id, warrior.id, decreased=True
+            )
 
         cleanup_test_database(config.database_path)

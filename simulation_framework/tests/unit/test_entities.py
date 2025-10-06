@@ -1,12 +1,9 @@
-import pytest
-from src.entities.stats import Stats
-from src.entities.inventory import Inventory, InventorySlot
+from src.core.world import World
 from src.entities.base import Entity, StatusEffect
+from src.entities.inventory import Inventory
+from src.entities.stats import Stats
 from src.items.item import Item
 from src.items.weapon import Weapon
-from src.items.tool import Tool
-from src.items.consumable import Consumable
-from src.core.world import World
 
 
 class MockEntity(Entity):
@@ -68,7 +65,14 @@ class TestStats:
         assert stats.magic == 50
 
     def test_percentages(self):
-        stats = Stats(max_health=100, health=75, max_stamina=100, stamina=50, max_magic=50, magic=25)
+        stats = Stats(
+            max_health=100,
+            health=75,
+            max_stamina=100,
+            stamina=50,
+            max_magic=50,
+            magic=25,
+        )
 
         assert stats.get_health_percentage() == 0.75
         assert stats.get_stamina_percentage() == 0.50
@@ -186,7 +190,7 @@ class TestEntity:
 
         entity.take_damage(100)
         assert not entity.stats.is_alive()
-        assert hasattr(entity, 'is_dead') and entity.is_dead
+        assert hasattr(entity, "is_dead") and entity.is_dead
 
     def test_status_effects(self):
         entity = MockEntity((0, 0))

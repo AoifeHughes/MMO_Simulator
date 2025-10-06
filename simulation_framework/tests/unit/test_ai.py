@@ -1,21 +1,20 @@
-import pytest
-from src.ai.personality import Personality
-from src.ai.character_class import CharacterClass, CHARACTER_CLASSES, get_character_class
-from src.ai.goal import ExploreGoal, GatherResourceGoal, AttackEnemyGoal, RestGoal
+from src.ai.character_class import (
+    CHARACTER_CLASSES,
+    CharacterClass,
+    get_character_class,
+)
 from src.ai.decision_maker import DecisionMaker
-from src.entities.agent import Agent, create_random_agent, create_agent_with_archetype
-from src.entities.stats import Stats
+from src.ai.goal import AttackEnemyGoal, ExploreGoal, GatherResourceGoal, RestGoal
+from src.ai.personality import Personality
 from src.core.world import World
+from src.entities.agent import Agent, create_agent_with_archetype, create_random_agent
+from src.entities.stats import Stats
 
 
 class TestPersonality:
     def test_personality_creation(self):
         personality = Personality(
-            curiosity=0.8,
-            bravery=0.6,
-            sociability=0.4,
-            greed=0.3,
-            patience=0.7
+            curiosity=0.8, bravery=0.6, sociability=0.4, greed=0.3, patience=0.7
         )
 
         assert personality.curiosity == 0.8
@@ -26,8 +25,8 @@ class TestPersonality:
         # Test that values are clamped to 0-1
         personality = Personality(
             curiosity=1.5,  # Should be clamped to 1.0
-            bravery=-0.5,   # Should be clamped to 0.0
-            greed=0.5
+            bravery=-0.5,  # Should be clamped to 0.0
+            greed=0.5,
         )
 
         assert personality.curiosity == 1.0
@@ -64,12 +63,7 @@ class TestPersonality:
         assert trader.greed > 0.6
 
     def test_dominant_traits(self):
-        personality = Personality(
-            curiosity=0.9,
-            bravery=0.4,
-            greed=0.7,
-            patience=0.2
-        )
+        personality = Personality(curiosity=0.9, bravery=0.4, greed=0.7, patience=0.2)
 
         dominant = personality.get_dominant_traits(threshold=0.6)
         assert "curious" in dominant
@@ -78,16 +72,34 @@ class TestPersonality:
 
     def test_personality_similarity(self):
         personality1 = Personality(
-            curiosity=0.8, bravery=0.6, sociability=0.7, greed=0.3,
-            patience=0.8, aggression=0.2, industriousness=0.9, caution=0.3
+            curiosity=0.8,
+            bravery=0.6,
+            sociability=0.7,
+            greed=0.3,
+            patience=0.8,
+            aggression=0.2,
+            industriousness=0.9,
+            caution=0.3,
         )
         personality2 = Personality(
-            curiosity=0.8, bravery=0.6, sociability=0.7, greed=0.3,
-            patience=0.8, aggression=0.2, industriousness=0.9, caution=0.3
+            curiosity=0.8,
+            bravery=0.6,
+            sociability=0.7,
+            greed=0.3,
+            patience=0.8,
+            aggression=0.2,
+            industriousness=0.9,
+            caution=0.3,
         )
         personality3 = Personality(
-            curiosity=0.1, bravery=0.1, sociability=0.1, greed=0.9,
-            patience=0.1, aggression=0.9, industriousness=0.1, caution=0.9
+            curiosity=0.1,
+            bravery=0.1,
+            sociability=0.1,
+            greed=0.9,
+            patience=0.1,
+            aggression=0.9,
+            industriousness=0.1,
+            caution=0.9,
         )
 
         # Identical personalities should have high similarity
@@ -101,10 +113,14 @@ class TestPersonality:
         warrior = Personality.create_archetype("warrior")
 
         # Explorer should have higher explore modifier
-        assert explorer.get_action_modifier("explore") > warrior.get_action_modifier("explore")
+        assert explorer.get_action_modifier("explore") > warrior.get_action_modifier(
+            "explore"
+        )
 
         # Warrior should have higher combat modifier
-        assert warrior.get_action_modifier("combat") > explorer.get_action_modifier("combat")
+        assert warrior.get_action_modifier("combat") > explorer.get_action_modifier(
+            "combat"
+        )
 
     def test_serialization(self):
         personality = Personality(curiosity=0.8, bravery=0.6)
@@ -190,6 +206,7 @@ class TestGoals:
 
         # Mock agent and world for testing
         from ..unit.test_entities import MockEntity
+
         agent = MockEntity((5, 5))
         world = World(10, 10, seed=42)
 
@@ -202,11 +219,12 @@ class TestGoals:
         assert goal.target_quantity == 5
 
         from ..unit.test_entities import MockEntity
+
         agent = MockEntity((5, 5))
         world = World(10, 10, seed=42)
 
         # Goal should be valid if wood exists in world
-        is_valid = goal.is_valid(agent, world)
+        goal.is_valid(agent, world)
         # Can't assert true/false due to random world generation
 
     def test_attack_enemy_goal(self):
@@ -215,6 +233,7 @@ class TestGoals:
         assert goal.target_id == 123
 
         from ..unit.test_entities import MockEntity
+
         agent = MockEntity((5, 5))
         world = World(10, 10, seed=42)
 
@@ -225,8 +244,11 @@ class TestGoals:
         goal = RestGoal()
 
         from ..unit.test_entities import MockEntity
+
         agent = MockEntity((5, 5))
-        agent.stats = Stats(stamina=10, max_stamina=100, health=30, max_health=100)  # Low stamina and health
+        agent.stats = Stats(
+            stamina=10, max_stamina=100, health=30, max_health=100
+        )  # Low stamina and health
         world = World(10, 10, seed=42)
 
         # Should be valid when agent needs rest
@@ -247,6 +269,7 @@ class TestDecisionMaker:
         dm = DecisionMaker()
 
         from ..unit.test_entities import MockEntity
+
         agent = MockEntity((5, 5))
         agent.personality = Personality.create_archetype("explorer")
         world = World(10, 10, seed=42)
@@ -267,6 +290,7 @@ class TestDecisionMaker:
         dm = DecisionMaker()
 
         from ..unit.test_entities import MockEntity
+
         agent = MockEntity((5, 5))
         agent.personality = Personality.create_archetype("explorer")
         world = World(10, 10, seed=42)

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import math
 from typing import Tuple, Union
 
@@ -81,7 +82,9 @@ class Position:
         return (int(self.x), int(self.y))
 
     @classmethod
-    def from_tuple(cls, coords: Tuple[Union[int, float], Union[int, float]]) -> Position:
+    def from_tuple(
+        cls, coords: Tuple[Union[int, float], Union[int, float]]
+    ) -> Position:
         """Create position from tuple"""
         return cls(coords[0], coords[1])
 

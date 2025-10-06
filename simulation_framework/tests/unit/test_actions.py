@@ -1,12 +1,11 @@
 import pytest
-from src.actions.base import Action, ActionResult, ResourceCost, Event
-from src.actions.movement import MoveAction, PathfindAction, WanderAction
-from src.actions.gathering import GatherAction, FishAction, MineAction, WoodcutAction
+from src.actions.base import Action, ActionResult, ResourceCost
+from src.actions.gathering import FishAction, GatherAction, MineAction, WoodcutAction
+from src.actions.movement import MoveAction, PathfindAction
+from src.core.world import World
 from src.entities.base import Entity
 from src.entities.stats import Stats
-from src.entities.inventory import Inventory
 from src.items.tool import Tool
-from src.core.world import World
 from src.world.tile import ResourceDeposit
 
 
@@ -201,7 +200,7 @@ class TestGatheringActions:
             entity.id,
             resource_type="stone",
             required_tool="pickaxe",
-            skill_name="mining"
+            skill_name="mining",
         )
 
         assert gather_action.can_execute(entity, world)
@@ -218,9 +217,7 @@ class TestGatheringActions:
         tile.add_resource(ResourceDeposit("stone", 20))
 
         gather_action = GatherAction(
-            entity.id,
-            resource_type="stone",
-            required_tool="pickaxe"
+            entity.id, resource_type="stone", required_tool="pickaxe"
         )
 
         assert not gather_action.can_execute(entity, world)
@@ -230,9 +227,7 @@ class TestGatheringActions:
         entity = MockEntity((5, 5))
 
         gather_action = GatherAction(
-            entity.id,
-            resource_type="wood",
-            required_terrain="forest"
+            entity.id, resource_type="wood", required_terrain="forest"
         )
 
         tile = world.get_tile(5, 5)
@@ -248,14 +243,14 @@ class TestGatheringActions:
         fishing_rod = Tool.create_fishing_rod()
         entity.inventory.equip_tool(fishing_rod, "fishing_rod")
 
-        tile = world.get_tile(5, 5)
+        world.get_tile(5, 5)
         neighbor = world.get_tile(6, 5)
         if neighbor:
             neighbor.terrain_type = world.tiles[0][0].terrain_type
 
         fish_action = FishAction(entity.id)
 
-        result = fish_action.can_execute(entity, world)
+        fish_action.can_execute(entity, world)
 
     def test_mine_action(self):
         world = World(10, 10, seed=42)

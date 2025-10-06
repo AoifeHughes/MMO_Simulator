@@ -1,13 +1,14 @@
 from __future__ import annotations
-from typing import List, Tuple, Optional, TYPE_CHECKING
-import math
 
-from .base import Action, ActionResult, ResourceCost, Event
+import math
+from typing import TYPE_CHECKING, List, Optional, Tuple
+
 from ..systems.pathfinding import Pathfinder
+from .base import Action, ActionResult, Event, ResourceCost
 
 if TYPE_CHECKING:
-    from ..entities.base import Entity
     from ..core.world import World
+    from ..entities.base import Entity
 
 
 class MoveAction(Action):
@@ -25,7 +26,7 @@ class MoveAction(Action):
         current_x, current_y = actor.position
         dest_x, dest_y = self.destination
 
-        distance = math.sqrt((dest_x - current_x)**2 + (dest_y - current_y)**2)
+        distance = math.sqrt((dest_x - current_x) ** 2 + (dest_y - current_y) ** 2)
         if distance > 1.5:
             return False
 
@@ -44,15 +45,9 @@ class MoveAction(Action):
             event = Event(
                 event_type="move",
                 actor_id=actor.id,
-                data={
-                    "from": actor.position,
-                    "to": self.destination
-                }
+                data={"from": actor.position, "to": self.destination},
             )
-            return ActionResult.success(
-                f"Moved to {self.destination}",
-                [event]
-            )
+            return ActionResult.success(f"Moved to {self.destination}", [event])
         else:
             return ActionResult.failure("Failed to move")
 
@@ -72,7 +67,7 @@ class PathfindAction(Action):
         actor_id: int,
         destination: Tuple[int, int],
         pathfinder: Optional[Pathfinder] = None,
-        use_fog_of_war: bool = False
+        use_fog_of_war: bool = False,
     ):
         super().__init__(actor_id)
         self.destination = destination
@@ -89,7 +84,7 @@ class PathfindAction(Action):
             return False
 
         known_tiles = None
-        if self.use_fog_of_war and hasattr(actor, 'known_map'):
+        if self.use_fog_of_war and hasattr(actor, "known_map"):
             known_tiles = actor.known_map.get_explored_tiles()
 
         self.path = self.pathfinder.find_path(
@@ -117,19 +112,16 @@ class PathfindAction(Action):
             self.current_step += 1
 
             if self.current_step >= len(self.path) - 1:
-                return ActionResult.success(
-                    "Pathfinding complete",
-                    result.events
-                )
+                return ActionResult.success("Pathfinding complete", result.events)
             else:
                 return ActionResult(
                     success=True,
                     message=f"Step {self.current_step}/{len(self.path)-1}",
-                    events=result.events
+                    events=result.events,
                 )
         else:
             known_tiles = None
-            if self.use_fog_of_war and hasattr(actor, 'known_map'):
+            if self.use_fog_of_war and hasattr(actor, "known_map"):
                 known_tiles = actor.known_map.get_explored_tiles()
 
             new_path = self.pathfinder.find_path(
@@ -140,9 +132,7 @@ class PathfindAction(Action):
                 self.path = new_path
                 self.current_step = 0
                 return ActionResult(
-                    success=True,
-                    message="Recalculating path",
-                    events=[]
+                    success=True, message="Recalculating path", events=[]
                 )
             else:
                 return ActionResult.failure("Path blocked and no alternative found")
@@ -169,7 +159,12 @@ class PathfindAction(Action):
 
 
 class WanderAction(Action):
-    def __init__(self, actor_id: int, center: Optional[Tuple[int, int]] = None, max_distance: int = 5):
+    def __init__(
+        self,
+        actor_id: int,
+        center: Optional[Tuple[int, int]] = None,
+        max_distance: int = 5,
+    ):
         super().__init__(actor_id)
         self.center = center
         self.max_distance = max_distance
@@ -196,6 +191,7 @@ class WanderAction(Action):
             return False
 
         import random
+
         self.target_position = random.choice(candidates)
         return True
 

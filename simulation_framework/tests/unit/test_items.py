@@ -1,10 +1,9 @@
-import pytest
-from src.items.item import Item
-from src.items.weapon import Weapon
-from src.items.tool import Tool
-from src.items.consumable import Consumable
 from src.entities.base import Entity
 from src.entities.stats import Stats
+from src.items.consumable import Consumable
+from src.items.item import Item
+from src.items.tool import Tool
+from src.items.weapon import Weapon
 
 
 class MockEntity(Entity):
@@ -22,7 +21,7 @@ class TestItem:
             name="Test Item",
             item_type="misc",
             properties={"color": "blue", "weight": 5},
-            value=10
+            value=10,
         )
 
         assert item.name == "Test Item"
@@ -43,7 +42,7 @@ class TestItem:
             name="Magic Potion",
             item_type="consumable",
             properties={"heal": 50, "cooldown": 5},
-            value=25
+            value=25,
         )
 
         data = original.to_dict()

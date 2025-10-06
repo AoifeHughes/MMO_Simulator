@@ -6,17 +6,10 @@ including interactive features like panning, zooming, and agent inspection.
 """
 
 try:
-    from .pygame_visualizer import GameVisualizer, Camera
-    from .ui import UIManager, InfoPanel, HUD, Button
+    from .pygame_visualizer import Camera, GameVisualizer
+    from .ui import HUD, Button, InfoPanel, UIManager
 
-    __all__ = [
-        'GameVisualizer',
-        'Camera',
-        'UIManager',
-        'InfoPanel',
-        'HUD',
-        'Button'
-    ]
+    __all__ = ["GameVisualizer", "Camera", "UIManager", "InfoPanel", "HUD", "Button"]
 
     PYGAME_AVAILABLE = True
 

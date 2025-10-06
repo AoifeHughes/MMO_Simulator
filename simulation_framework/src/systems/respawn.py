@@ -1,13 +1,14 @@
 from __future__ import annotations
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+
+import math
+import random
 from dataclasses import dataclass
 from enum import Enum
-import random
-import math
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
-    from ..entities.base import Entity
     from ..core.world import World
+    from ..entities.base import Entity
 
 
 class RespawnType(Enum):
@@ -20,6 +21,7 @@ class RespawnType(Enum):
 @dataclass
 class RespawnEntry:
     """Represents an entity scheduled for respawn"""
+
     entity_id: int
     entity_type: RespawnType
     respawn_tick: int
@@ -43,7 +45,7 @@ class RespawnManager:
 
         # Respawn settings
         self.agent_respawn_delay = 200  # Ticks to respawn agents
-        self.npc_respawn_delay = 150    # Ticks to respawn NPCs
+        self.npc_respawn_delay = 150  # Ticks to respawn NPCs
         self.resource_respawn_delay = 100  # Ticks to respawn resources
 
         # Population control
@@ -52,8 +54,12 @@ class RespawnManager:
         self.target_resource_density = 0.3  # 30% of tiles should have resources
 
         # Respawn zones
-        self.safe_zones: List[Tuple[int, int, int]] = []  # (x, y, radius) for safe respawn areas
-        self.restricted_zones: List[Tuple[int, int, int]] = []  # Areas where entities shouldn't respawn
+        self.safe_zones: List[Tuple[int, int, int]] = (
+            []
+        )  # (x, y, radius) for safe respawn areas
+        self.restricted_zones: List[Tuple[int, int, int]] = (
+            []
+        )  # Areas where entities shouldn't respawn
 
         # Statistics
         self.total_respawns = 0
@@ -61,7 +67,7 @@ class RespawnManager:
             RespawnType.AGENT: 0,
             RespawnType.NPC: 0,
             RespawnType.RESOURCE_NODE: 0,
-            RespawnType.STRUCTURE: 0
+            RespawnType.STRUCTURE: 0,
         }
 
     def add_safe_zone(self, center_x: int, center_y: int, radius: int) -> None:
@@ -77,7 +83,7 @@ class RespawnManager:
         entity: Entity,
         entity_type: RespawnType,
         world: World,
-        custom_delay: Optional[int] = None
+        custom_delay: Optional[int] = None,
     ) -> bool:
         """Schedule an entity for respawn"""
 
@@ -96,7 +102,7 @@ class RespawnManager:
             respawn_tick=world.current_tick + delay,
             original_position=entity.position,
             respawn_data=respawn_data,
-            death_tick=world.current_tick
+            death_tick=world.current_tick,
         )
 
         self.respawn_queue.append(entry)
@@ -109,7 +115,9 @@ class RespawnManager:
         respawned_entities = []
 
         # Process entries ready for respawn
-        ready_entries = [entry for entry in self.respawn_queue if entry.respawn_tick <= current_tick]
+        ready_entries = [
+            entry for entry in self.respawn_queue if entry.respawn_tick <= current_tick
+        ]
 
         for entry in ready_entries:
             respawned_entity = self._attempt_respawn(entry, world)
@@ -131,19 +139,31 @@ class RespawnManager:
 
         return respawned_entities
 
-    def _should_respawn(self, entity: Entity, entity_type: RespawnType, world: World) -> bool:
+    def _should_respawn(
+        self, entity: Entity, entity_type: RespawnType, world: World
+    ) -> bool:
         """Determine if an entity should be scheduled for respawn"""
 
         # Check population limits
         if entity_type == RespawnType.AGENT:
-            current_agents = len([e for e in world.entities.values()
-                                if e.__class__.__name__ == "Agent" and e.stats.is_alive()])
+            current_agents = len(
+                [
+                    e
+                    for e in world.entities.values()
+                    if e.__class__.__name__ == "Agent" and e.stats.is_alive()
+                ]
+            )
             if current_agents >= self.max_agents:
                 return False
 
         elif entity_type == RespawnType.NPC:
-            current_npcs = len([e for e in world.entities.values()
-                              if hasattr(e, 'npc_type') and e.stats.is_alive()])
+            current_npcs = len(
+                [
+                    e
+                    for e in world.entities.values()
+                    if hasattr(e, "npc_type") and e.stats.is_alive()
+                ]
+            )
             if current_npcs >= self.max_npcs:
                 return False
 
@@ -157,9 +177,11 @@ class RespawnManager:
             return True
 
         # Personality-based respawn decisions for agents
-        if entity_type == RespawnType.AGENT and hasattr(entity, 'personality'):
+        if entity_type == RespawnType.AGENT and hasattr(entity, "personality"):
             # More determined personalities are more likely to respawn
-            determination = entity.personality.bravery + entity.personality.industriousness
+            determination = (
+                entity.personality.bravery + entity.personality.industriousness
+            )
             respawn_chance = 0.5 + (determination * 0.3)
             return random.random() < respawn_chance
 
@@ -172,7 +194,7 @@ class RespawnManager:
             RespawnType.AGENT: self.agent_respawn_delay,
             RespawnType.NPC: self.npc_respawn_delay,
             RespawnType.RESOURCE_NODE: self.resource_respawn_delay,
-            RespawnType.STRUCTURE: 500  # Structures take longer to rebuild
+            RespawnType.STRUCTURE: 500,  # Structures take longer to rebuild
         }.get(entity_type, 100)
 
         # Add some randomness
@@ -180,7 +202,7 @@ class RespawnManager:
         delay = base_delay + random.randint(-variation, variation)
 
         # Personality modifiers for agents
-        if entity_type == RespawnType.AGENT and hasattr(entity, 'personality'):
+        if entity_type == RespawnType.AGENT and hasattr(entity, "personality"):
             # Impatient agents respawn faster
             if entity.personality.patience < 0.3:
                 delay = int(delay * 0.8)
@@ -199,30 +221,30 @@ class RespawnManager:
                 "max_health": entity.stats.max_health,
                 "max_stamina": entity.stats.max_stamina,
                 "attack_power": entity.stats.attack_power,
-                "defense": entity.stats.defense
-            }
+                "defense": entity.stats.defense,
+            },
         }
 
         if entity_type == RespawnType.AGENT:
-            if hasattr(entity, 'personality'):
+            if hasattr(entity, "personality"):
                 base_data["personality"] = entity.personality.to_dict()
-            if hasattr(entity, 'character_class'):
+            if hasattr(entity, "character_class"):
                 base_data["character_class"] = entity.character_class.name
-            if hasattr(entity, 'skills'):
+            if hasattr(entity, "skills"):
                 base_data["skills"] = entity.skills.copy()
 
         elif entity_type == RespawnType.NPC:
-            if hasattr(entity, 'npc_type'):
+            if hasattr(entity, "npc_type"):
                 base_data["npc_type"] = entity.npc_type
-            if hasattr(entity, 'faction'):
+            if hasattr(entity, "faction"):
                 base_data["faction"] = entity.faction
-            if hasattr(entity, 'ai_state'):
+            if hasattr(entity, "ai_state"):
                 base_data["ai_state"] = entity.ai_state
 
         elif entity_type == RespawnType.RESOURCE_NODE:
-            if hasattr(entity, 'resource_type'):
+            if hasattr(entity, "resource_type"):
                 base_data["resource_type"] = entity.resource_type
-            if hasattr(entity, 'resource_amount'):
+            if hasattr(entity, "resource_amount"):
                 base_data["resource_amount"] = entity.resource_amount
 
         return base_data
@@ -245,7 +267,9 @@ class RespawnManager:
 
         return respawned_entity
 
-    def _find_respawn_position(self, entry: RespawnEntry, world: World) -> Optional[Tuple[int, int]]:
+    def _find_respawn_position(
+        self, entry: RespawnEntry, world: World
+    ) -> Optional[Tuple[int, int]]:
         """Find a suitable position to respawn an entity"""
 
         candidates = []
@@ -262,8 +286,11 @@ class RespawnManager:
                 x = int(safe_x + distance * math.cos(angle))
                 y = int(safe_y + distance * math.sin(angle))
 
-                if (0 <= x < self.world_width and 0 <= y < self.world_height and
-                    self._is_safe_respawn_position((x, y), world)):
+                if (
+                    0 <= x < self.world_width
+                    and 0 <= y < self.world_height
+                    and self._is_safe_respawn_position((x, y), world)
+                ):
                     candidates.append((x, y))
 
         # If no safe zones work, try near original position
@@ -276,8 +303,11 @@ class RespawnManager:
                     x = int(orig_x + distance * math.cos(angle))
                     y = int(orig_y + distance * math.sin(angle))
 
-                    if (0 <= x < self.world_width and 0 <= y < self.world_height and
-                        self._is_safe_respawn_position((x, y), world)):
+                    if (
+                        0 <= x < self.world_width
+                        and 0 <= y < self.world_height
+                        and self._is_safe_respawn_position((x, y), world)
+                    ):
                         candidates.append((x, y))
                         break
                 if candidates:
@@ -286,12 +316,18 @@ class RespawnManager:
         # Return best candidate (closest to original position)
         if candidates:
             orig_x, orig_y = entry.original_position
-            candidates.sort(key=lambda pos: math.sqrt((pos[0] - orig_x)**2 + (pos[1] - orig_y)**2))
+            candidates.sort(
+                key=lambda pos: math.sqrt(
+                    (pos[0] - orig_x) ** 2 + (pos[1] - orig_y) ** 2
+                )
+            )
             return candidates[0]
 
         return None
 
-    def _is_safe_respawn_position(self, position: Tuple[int, int], world: World) -> bool:
+    def _is_safe_respawn_position(
+        self, position: Tuple[int, int], world: World
+    ) -> bool:
         """Check if a position is safe for respawning"""
 
         x, y = position
@@ -302,7 +338,7 @@ class RespawnManager:
 
         # Check if position is in restricted zone
         for restrict_x, restrict_y, radius in self.restricted_zones:
-            distance = math.sqrt((x - restrict_x)**2 + (y - restrict_y)**2)
+            distance = math.sqrt((x - restrict_x) ** 2 + (y - restrict_y) ** 2)
             if distance <= radius:
                 return False
 
@@ -321,14 +357,18 @@ class RespawnManager:
             if not entity.stats.is_alive():
                 continue
 
-            if hasattr(entity, 'npc_type') and entity.npc_type == "aggressive":
-                distance = math.sqrt((x - entity.position[0])**2 + (y - entity.position[1])**2)
+            if hasattr(entity, "npc_type") and entity.npc_type == "aggressive":
+                distance = math.sqrt(
+                    (x - entity.position[0]) ** 2 + (y - entity.position[1]) ** 2
+                )
                 if distance < 5:  # Too close to hostile entity
                     return False
 
         return True
 
-    def _create_respawned_entity(self, entry: RespawnEntry, position: Tuple[int, int], world: World) -> Optional[Entity]:
+    def _create_respawned_entity(
+        self, entry: RespawnEntry, position: Tuple[int, int], world: World
+    ) -> Optional[Entity]:
         """Create a respawned entity from respawn data"""
 
         try:
@@ -341,17 +381,19 @@ class RespawnManager:
             elif entry.entity_type == RespawnType.STRUCTURE:
                 return self._create_respawned_structure(entry, position)
 
-        except Exception as e:
+        except Exception:
             # Log error in real implementation
             return None
 
         return None
 
-    def _create_respawned_agent(self, entry: RespawnEntry, position: Tuple[int, int]) -> Optional[Entity]:
+    def _create_respawned_agent(
+        self, entry: RespawnEntry, position: Tuple[int, int]
+    ) -> Optional[Entity]:
         """Create a respawned agent"""
-        from ..entities.agent import Agent
-        from ..ai.personality import Personality
         from ..ai.character_class import get_character_class
+        from ..ai.personality import Personality
+        from ..entities.agent import Agent
 
         data = entry.respawn_data
 
@@ -369,7 +411,7 @@ class RespawnManager:
             position=position,
             name=data["name"],
             personality=personality,
-            character_class=character_class
+            character_class=character_class,
         )
 
         # Restore skills (with some penalty)
@@ -382,7 +424,9 @@ class RespawnManager:
 
         return agent
 
-    def _create_respawned_npc(self, entry: RespawnEntry, position: Tuple[int, int]) -> Optional[Entity]:
+    def _create_respawned_npc(
+        self, entry: RespawnEntry, position: Tuple[int, int]
+    ) -> Optional[Entity]:
         """Create a respawned NPC"""
         from ..entities.npc import NPC
 
@@ -391,7 +435,7 @@ class RespawnManager:
         npc = NPC(
             position=position,
             name=data["name"],
-            npc_type=data.get("npc_type", "neutral")
+            npc_type=data.get("npc_type", "neutral"),
         )
 
         if "faction" in data:
@@ -399,13 +443,17 @@ class RespawnManager:
 
         return npc
 
-    def _create_respawned_resource(self, entry: RespawnEntry, position: Tuple[int, int]) -> Optional[Entity]:
+    def _create_respawned_resource(
+        self, entry: RespawnEntry, position: Tuple[int, int]
+    ) -> Optional[Entity]:
         """Create a respawned resource node"""
         # This would create resource nodes - simplified for now
         # In full implementation, would create resource entities or update tile resources
         return None
 
-    def _create_respawned_structure(self, entry: RespawnEntry, position: Tuple[int, int]) -> Optional[Entity]:
+    def _create_respawned_structure(
+        self, entry: RespawnEntry, position: Tuple[int, int]
+    ) -> Optional[Entity]:
         """Create a respawned structure"""
         # This would create structures - simplified for now
         return None
@@ -413,11 +461,21 @@ class RespawnManager:
     def maintain_population(self, world: World) -> None:
         """Maintain target population levels"""
 
-        current_agents = len([e for e in world.entities.values()
-                            if e.__class__.__name__ == "Agent" and e.stats.is_alive()])
+        current_agents = len(
+            [
+                e
+                for e in world.entities.values()
+                if e.__class__.__name__ == "Agent" and e.stats.is_alive()
+            ]
+        )
 
-        current_npcs = len([e for e in world.entities.values()
-                          if hasattr(e, 'npc_type') and e.stats.is_alive()])
+        current_npcs = len(
+            [
+                e
+                for e in world.entities.values()
+                if hasattr(e, "npc_type") and e.stats.is_alive()
+            ]
+        )
 
         # Spawn new agents if below target
         target_agents = max(20, self.max_agents // 2)
@@ -443,7 +501,6 @@ class RespawnManager:
     def _spawn_new_npcs(self, world: World, count: int) -> None:
         """Spawn new NPCs to maintain population"""
         # This would create new NPCs - simplified for now
-        pass
 
     def _find_spawn_position(self, world: World) -> Optional[Tuple[int, int]]:
         """Find a position to spawn a new entity"""
@@ -456,8 +513,11 @@ class RespawnManager:
                 x = int(safe_x + distance * math.cos(angle))
                 y = int(safe_y + distance * math.sin(angle))
 
-                if (0 <= x < self.world_width and 0 <= y < self.world_height and
-                    self._is_safe_respawn_position((x, y), world)):
+                if (
+                    0 <= x < self.world_width
+                    and 0 <= y < self.world_height
+                    and self._is_safe_respawn_position((x, y), world)
+                ):
                     return (x, y)
 
         # Random position as fallback
@@ -479,7 +539,9 @@ class RespawnManager:
             "respawns_by_type": self.respawn_by_type.copy(),
             "safe_zones": len(self.safe_zones),
             "restricted_zones": len(self.restricted_zones),
-            "next_respawn_tick": min((entry.respawn_tick for entry in self.respawn_queue), default=None)
+            "next_respawn_tick": min(
+                (entry.respawn_tick for entry in self.respawn_queue), default=None
+            ),
         }
 
     def cancel_respawn(self, entity_id: int) -> bool:
@@ -502,7 +564,7 @@ class RespawnManager:
                     "status": "pending",
                     "respawn_tick": entry.respawn_tick,
                     "attempts": entry.respawn_attempts,
-                    "original_position": entry.original_position
+                    "original_position": entry.original_position,
                 }
 
         # Check history
@@ -512,7 +574,7 @@ class RespawnManager:
                 "status": "completed",
                 "death_tick": entry.death_tick,
                 "respawn_tick": entry.respawn_tick,
-                "attempts": entry.respawn_attempts
+                "attempts": entry.respawn_attempts,
             }
 
         return None

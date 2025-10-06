@@ -1,15 +1,14 @@
-import pytest
-import tempfile
 import os
-from typing import List
+import tempfile
 
-from src.core.simulation import Simulation
+import pytest
+from src.ai.character_class import get_character_class
+from src.ai.goal import ExploreGoal, GatherResourceGoal
+from src.ai.personality import Personality
 from src.core.config import SimulationConfig
+from src.core.simulation import Simulation
 from src.entities.agent import Agent
 from src.entities.npc import NPC
-from src.ai.personality import Personality
-from src.ai.character_class import get_character_class
-from src.ai.goal import ExploreGoal, GatherResourceGoal, AttackEnemyGoal
 
 
 class TestSimulationScenarios:
@@ -18,7 +17,7 @@ class TestSimulationScenarios:
     @pytest.fixture
     def temp_db(self):
         """Create a temporary database for testing"""
-        fd, db_path = tempfile.mkstemp(suffix='.db')
+        fd, db_path = tempfile.mkstemp(suffix=".db")
         os.close(fd)
         yield db_path
         try:
@@ -37,7 +36,7 @@ class TestSimulationScenarios:
             database_path=temp_db,
             save_interval=10,
             analytics_interval=5,
-            tick_rate=0  # Run as fast as possible for tests
+            tick_rate=0,  # Run as fast as possible for tests
         )
 
     @pytest.fixture
@@ -45,22 +44,22 @@ class TestSimulationScenarios:
         """Create a basic simulation instance"""
         return Simulation(basic_config)
 
-    def create_test_agent(self, position: tuple, name: str, character_class: str = "Explorer") -> Agent:
+    def create_test_agent(
+        self, position: tuple, name: str, character_class: str = "Explorer"
+    ) -> Agent:
         """Helper to create a test agent"""
         return Agent(
             position=position,
             name=name,
             personality=Personality.randomize(),
-            character_class=get_character_class(character_class)
+            character_class=get_character_class(character_class),
         )
 
-    def create_test_npc(self, position: tuple, name: str, npc_type: str = "goblin") -> NPC:
+    def create_test_npc(
+        self, position: tuple, name: str, npc_type: str = "goblin"
+    ) -> NPC:
         """Helper to create a test NPC"""
-        return NPC(
-            position=position,
-            name=name,
-            npc_type=npc_type
-        )
+        return NPC(position=position, name=name, npc_type=npc_type)
 
     def test_basic_exploration_scenario(self, simulation):
         """Test basic exploration scenario with multiple agents"""
@@ -70,7 +69,7 @@ class TestSimulationScenarios:
         explorers = [
             self.create_test_agent((2, 2), "Explorer1", "Explorer"),
             self.create_test_agent((18, 18), "Explorer2", "Explorer"),
-            self.create_test_agent((2, 18), "Explorer3", "Explorer")
+            self.create_test_agent((2, 18), "Explorer3", "Explorer"),
         ]
 
         # Add explorers to simulation
@@ -85,13 +84,13 @@ class TestSimulationScenarios:
         # Verify simulation ran successfully
         assert simulation.time_manager.current_tick == 20
         stats = simulation.get_statistics()
-        assert stats['total_agents'] == 3
-        assert stats['active_agents'] == 3
+        assert stats["total_agents"] == 3
+        assert stats["active_agents"] == 3
 
         # Verify agents moved around and explored
         for agent in simulation.agents:
             # Agent should have some memory of explored areas
-            assert hasattr(agent, 'fog_of_war')
+            assert hasattr(agent, "fog_of_war")
 
     def test_combat_scenario(self, simulation):
         """Test combat scenario with agents and NPCs"""
@@ -100,14 +99,14 @@ class TestSimulationScenarios:
         # Create warrior agents
         warriors = [
             self.create_test_agent((5, 5), "Warrior1", "Warrior"),
-            self.create_test_agent((6, 5), "Warrior2", "Warrior")
+            self.create_test_agent((6, 5), "Warrior2", "Warrior"),
         ]
 
         # Create hostile NPCs
         enemies = [
             self.create_test_npc((15, 15), "Goblin1", "goblin"),
             self.create_test_npc((16, 15), "Goblin2", "goblin"),
-            self.create_test_npc((15, 16), "Wolf1", "wolf")
+            self.create_test_npc((15, 16), "Wolf1", "wolf"),
         ]
 
         # Add entities to simulation first
@@ -125,14 +124,12 @@ class TestSimulationScenarios:
         # Verify simulation ran successfully
         assert simulation.time_manager.current_tick == 30
         stats = simulation.get_statistics()
-        assert stats['total_agents'] == 2
-        assert stats['total_npcs'] == 3
+        assert stats["total_agents"] == 2
+        assert stats["total_npcs"] == 3
 
         # Check that some combat occurred (entities may have taken damage)
-        combat_occurred = False
         for agent in simulation.agents:
             if agent.stats.health < agent.stats.max_health:
-                combat_occurred = True
                 break
 
         # Note: Combat may not always occur in a short test, so we just verify
@@ -145,7 +142,7 @@ class TestSimulationScenarios:
         # Create gatherer agents
         gatherers = [
             self.create_test_agent((3, 3), "Gatherer1", "Explorer"),
-            self.create_test_agent((17, 17), "Gatherer2", "Explorer")
+            self.create_test_agent((17, 17), "Gatherer2", "Explorer"),
         ]
 
         # Add gatherers to simulation
@@ -160,8 +157,8 @@ class TestSimulationScenarios:
         # Verify simulation ran successfully
         assert simulation.time_manager.current_tick == 25
         stats = simulation.get_statistics()
-        assert stats['total_agents'] == 2
-        assert stats['active_agents'] == 2
+        assert stats["total_agents"] == 2
+        assert stats["active_agents"] == 2
 
         # Verify agents attempted to gather resources
         # (specific resource gathering success depends on world generation)
@@ -178,7 +175,7 @@ class TestSimulationScenarios:
             self.create_test_agent((19, 1), "Warrior1", "Warrior"),
             self.create_test_agent((1, 19), "Explorer2", "Explorer"),
             self.create_test_agent((19, 19), "Warrior2", "Warrior"),
-            self.create_test_agent((10, 10), "Explorer3", "Explorer")
+            self.create_test_agent((10, 10), "Explorer3", "Explorer"),
         ]
 
         # Create diverse NPC population
@@ -186,7 +183,7 @@ class TestSimulationScenarios:
             self.create_test_npc((5, 5), "Goblin1", "goblin"),
             self.create_test_npc((15, 5), "Wolf1", "wolf"),
             self.create_test_npc((5, 15), "Goblin2", "goblin"),
-            self.create_test_npc((15, 15), "Wolf2", "wolf")
+            self.create_test_npc((15, 15), "Wolf2", "wolf"),
         ]
 
         # Add entities with varied goals
@@ -196,7 +193,9 @@ class TestSimulationScenarios:
             elif i % 3 == 1:
                 agent.current_goals = [GatherResourceGoal(resource_type="stone")]
             else:
-                agent.current_goals = [ExploreGoal()]  # Use exploration instead of attack for now
+                agent.current_goals = [
+                    ExploreGoal()
+                ]  # Use exploration instead of attack for now
             simulation.add_agent(agent)
 
         for npc in npcs:
@@ -208,12 +207,12 @@ class TestSimulationScenarios:
         # Verify simulation ran successfully
         assert simulation.time_manager.current_tick == 40
         stats = simulation.get_statistics()
-        assert stats['total_agents'] == 5
-        assert stats['total_npcs'] == 4
+        assert stats["total_agents"] == 5
+        assert stats["total_npcs"] == 4
 
         # Verify all systems integrated properly
         assert len(simulation.tick_times) > 0  # Performance tracking working
-        assert simulation.last_save_tick > 0   # Periodic saves working
+        assert simulation.last_save_tick > 0  # Periodic saves working
 
     def test_long_running_scenario(self, simulation):
         """Test longer running scenario to stress test the simulation"""
@@ -229,9 +228,7 @@ class TestSimulationScenarios:
             x = (i % 4) * 5 + 2
             y = (i // 4) * 10 + 2
             agent = self.create_test_agent(
-                (x, y),
-                f"Agent{i+1}",
-                "Explorer" if i % 2 == 0 else "Warrior"
+                (x, y), f"Agent{i+1}", "Explorer" if i % 2 == 0 else "Warrior"
             )
             # Rotate through different goal types
             if i % 3 == 0:
@@ -239,14 +236,16 @@ class TestSimulationScenarios:
             elif i % 3 == 1:
                 agent.current_goals = [GatherResourceGoal(resource_type="wood")]
             else:
-                agent.current_goals = [ExploreGoal()]  # Use exploration instead of attack for now
+                agent.current_goals = [
+                    ExploreGoal()
+                ]  # Use exploration instead of attack for now
             agents.append(agent)
             simulation.add_agent(agent)
 
         # Add some NPCs
         npcs = [
             self.create_test_npc((10, 10), "CenterGoblin", "goblin"),
-            self.create_test_npc((5, 15), "GuardWolf", "wolf")
+            self.create_test_npc((5, 15), "GuardWolf", "wolf"),
         ]
         for npc in npcs:
             simulation.add_npc(npc)
@@ -257,8 +256,8 @@ class TestSimulationScenarios:
         # Verify simulation completed successfully
         assert simulation.time_manager.current_tick == 60
         stats = simulation.get_statistics()
-        assert stats['total_agents'] == 8
-        assert stats['total_npcs'] == 2
+        assert stats["total_agents"] == 8
+        assert stats["total_npcs"] == 2
 
         # Verify database operations occurred
         assert simulation.simulation_id is not None
@@ -276,7 +275,7 @@ class TestSimulationScenarios:
         # Add some agents
         agents = [
             self.create_test_agent((5, 5), "TestAgent1", "Explorer"),
-            self.create_test_agent((15, 15), "TestAgent2", "Warrior")
+            self.create_test_agent((15, 15), "TestAgent2", "Warrior"),
         ]
         for agent in agents:
             agent.current_goals = [ExploreGoal()]
@@ -315,9 +314,7 @@ class TestSimulationScenarios:
         simulation.initialize_simulation("Conditional Test")
 
         # Add agents
-        agents = [
-            self.create_test_agent((10, 10), "CenterAgent", "Explorer")
-        ]
+        agents = [self.create_test_agent((10, 10), "CenterAgent", "Explorer")]
         for agent in agents:
             agent.current_goals = [ExploreGoal()]
             simulation.add_agent(agent)
@@ -342,14 +339,16 @@ class TestSimulationScenarios:
         agents = [
             self.create_test_agent((2, 2), "EarlyExplorer", "Explorer"),
             self.create_test_agent((18, 18), "LateWarrior", "Warrior"),
-            self.create_test_agent((10, 2), "MidExplorer", "Explorer")
+            self.create_test_agent((10, 2), "MidExplorer", "Explorer"),
         ]
 
         for i, agent in enumerate(agents):
             if i == 0:
                 agent.current_goals = [ExploreGoal()]
             elif i == 1:
-                agent.current_goals = [ExploreGoal()]  # Use exploration instead of attack for now
+                agent.current_goals = [
+                    ExploreGoal()
+                ]  # Use exploration instead of attack for now
             else:
                 agent.current_goals = [GatherResourceGoal(resource_type="stone")]
             simulation.add_agent(agent)
@@ -368,8 +367,8 @@ class TestSimulationScenarios:
         # Check simulation completed successfully
         assert simulation.time_manager.current_tick == 25
         stats = simulation.get_statistics()
-        assert stats['total_agents'] == 3
-        assert stats['total_npcs'] == 1
+        assert stats["total_agents"] == 3
+        assert stats["total_npcs"] == 1
 
     def test_market_trading_scenario(self, simulation):
         """Test market and trading systems during simulation"""
@@ -378,7 +377,7 @@ class TestSimulationScenarios:
         # Create traders
         traders = [
             self.create_test_agent((3, 10), "Trader1", "Explorer"),
-            self.create_test_agent((17, 10), "Trader2", "Explorer")
+            self.create_test_agent((17, 10), "Trader2", "Explorer"),
         ]
 
         for trader in traders:
@@ -396,7 +395,7 @@ class TestSimulationScenarios:
         # Verify simulation completed successfully
         assert simulation.time_manager.current_tick == 35
         stats = simulation.get_statistics()
-        assert stats['total_agents'] == 2
+        assert stats["total_agents"] == 2
 
         # Check that trading system is functioning
         assert simulation.trading_system is not None

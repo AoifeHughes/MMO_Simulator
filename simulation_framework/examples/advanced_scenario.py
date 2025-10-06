@@ -10,17 +10,17 @@ This example shows:
 5. Pause/resume functionality
 """
 
-import tempfile
 import os
 import random
-from typing import Dict, Any
-from src.core.simulation import Simulation
-from src.core.config import SimulationConfig
-from src.entities.agent import Agent
-from src.entities.npc import NPC
-from src.ai.personality import Personality
+import tempfile
+
 from src.ai.character_class import get_character_class
 from src.ai.goal import ExploreGoal, GatherResourceGoal
+from src.ai.personality import Personality
+from src.core.config import SimulationConfig
+from src.core.simulation import Simulation
+from src.entities.agent import Agent
+from src.entities.npc import NPC
 
 
 class SimulationMonitor:
@@ -48,14 +48,14 @@ def create_diverse_population(num_agents: int = 20) -> list[Agent]:
     agents = []
 
     # Character class distribution
-    class_names = ["Explorer", "Warrior", "Explorer", "Warrior", "Explorer"]  # More explorers
-    archetype_names = [
-        "balanced",
-        "aggressive",
-        "cautious",
-        "social",
-        "curious"
-    ]
+    class_names = [
+        "Explorer",
+        "Warrior",
+        "Explorer",
+        "Warrior",
+        "Explorer",
+    ]  # More explorers
+    archetype_names = ["balanced", "aggressive", "cautious", "social", "curious"]
 
     for i in range(num_agents):
         # Random spawn position
@@ -71,20 +71,24 @@ def create_diverse_population(num_agents: int = 20) -> list[Agent]:
             position=(x, y),
             name=f"Agent_{i+1:02d}",
             personality=Personality.create_archetype(archetype),
-            character_class=get_character_class(char_class)
+            character_class=get_character_class(char_class),
         )
 
         # Assign varied goals based on personality
         if archetype == "curious":
             agent.current_goals = [ExploreGoal()]
         elif archetype == "aggressive":
-            agent.current_goals = [ExploreGoal()]  # Would use attack goals if we had targets
+            agent.current_goals = [
+                ExploreGoal()
+            ]  # Would use attack goals if we had targets
         else:
             if random.random() < 0.6:
                 agent.current_goals = [ExploreGoal()]
             else:
                 resource_type = random.choice(["wood", "stone", "food"])
-                agent.current_goals = [GatherResourceGoal(resource_type=resource_type, target_quantity=3)]
+                agent.current_goals = [
+                    GatherResourceGoal(resource_type=resource_type, target_quantity=3)
+                ]
 
         agents.append(agent)
 
@@ -110,9 +114,7 @@ def create_npc_ecosystem(num_npcs: int = 15) -> list[NPC]:
 
         npc_type = npc_types[i % len(npc_types)]
         npc = NPC(
-            position=(x, y),
-            name=f"{npc_type.title()}_{i+1:02d}",
-            npc_type=npc_type
+            position=(x, y), name=f"{npc_type.title()}_{i+1:02d}", npc_type=npc_type
         )
         npcs.append(npc)
 
@@ -123,7 +125,7 @@ def main():
     """Run an advanced simulation scenario"""
     print("=== Advanced Simulation Scenario ===")
 
-    with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as f:
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = f.name
 
     try:
@@ -136,10 +138,12 @@ def main():
             database_path=db_path,
             save_interval=5,  # More frequent saves
             analytics_interval=10,  # More frequent analytics
-            tick_rate=0  # Maximum speed
+            tick_rate=0,  # Maximum speed
         )
 
-        print(f"World: {config.world_width}x{config.world_height}, Seed: {config.world_seed}")
+        print(
+            f"World: {config.world_width}x{config.world_height}, Seed: {config.world_seed}"
+        )
 
         # Create simulation and monitor
         simulation = Simulation(config)
@@ -151,7 +155,7 @@ def main():
 
         simulation.initialize_simulation(
             "Advanced Scenario",
-            "Complex simulation demonstrating large-scale multi-agent interactions"
+            "Complex simulation demonstrating large-scale multi-agent interactions",
         )
 
         # Create large population
@@ -175,15 +179,23 @@ def main():
         simulation.run(num_ticks=50)
 
         stats = simulation.get_statistics()
-        print(f"Phase 1 complete. Active agents: {stats['active_agents']}, Active NPCs: {stats['active_npcs']}")
+        print(
+            f"Phase 1 complete. Active agents: {stats['active_agents']}, Active NPCs: {stats['active_npcs']}"
+        )
 
         # Pause and analyze
         simulation.pause_simulation()
         print("\nSimulation paused for mid-run analysis...")
 
         # Show agent distribution
-        agent_positions = [(agent.position[0], agent.position[1]) for agent in simulation.agents if agent.stats.is_alive()]
-        print(f"Agent positions: {len(agent_positions)} active agents spread across the world")
+        agent_positions = [
+            (agent.position[0], agent.position[1])
+            for agent in simulation.agents
+            if agent.stats.is_alive()
+        ]
+        print(
+            f"Agent positions: {len(agent_positions)} active agents spread across the world"
+        )
 
         # Phase 2: Continue with condition monitoring
         print("\n=== Phase 2: Continuing with Condition Monitoring ===")
@@ -193,18 +205,24 @@ def main():
         def stopping_condition(sim):
             stats = sim.get_statistics()
             # Stop if population drops significantly or we reach tick 120
-            return (stats['active_agents'] < len(agents) * 0.5 or
-                   sim.time_manager.current_tick >= 120)
+            return (
+                stats["active_agents"] < len(agents) * 0.5
+                or sim.time_manager.current_tick >= 120
+            )
 
         print("Running until stopping condition met...")
         simulation.run_until(stopping_condition)
 
         # Final analysis
         final_stats = simulation.get_statistics()
-        print(f"\n=== Final Results ===")
+        print("\n=== Final Results ===")
         print(f"Total ticks: {final_stats['current_tick']}")
-        print(f"Final active agents: {final_stats['active_agents']}/{final_stats['total_agents']}")
-        print(f"Final active NPCs: {final_stats['active_npcs']}/{final_stats['total_npcs']}")
+        print(
+            f"Final active agents: {final_stats['active_agents']}/{final_stats['total_agents']}"
+        )
+        print(
+            f"Final active NPCs: {final_stats['active_npcs']}/{final_stats['total_npcs']}"
+        )
         print(f"Average tick time: {final_stats['average_tick_time']:.4f}s")
 
         # Generate comprehensive analytics report
@@ -221,7 +239,7 @@ def main():
                             print(f"  {key}: {value}")
 
         # Show survival statistics
-        print(f"\n=== Survival Statistics ===")
+        print("\n=== Survival Statistics ===")
         survivors = [agent for agent in simulation.agents if agent.stats.is_alive()]
         casualties = len(simulation.agents) - len(survivors)
 
@@ -234,7 +252,7 @@ def main():
                 health_pct = (agent.stats.health / agent.stats.max_health) * 100
                 print(f"  {agent.name}: {health_pct:.0f}% health at {agent.position}")
 
-        print(f"\n=== Event Log ===")
+        print("\n=== Event Log ===")
         print(f"Monitored {len(monitor.tick_log)} ticks")
         for event in monitor.events:
             print(f"  {event}")

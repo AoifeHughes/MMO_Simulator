@@ -1,8 +1,6 @@
-import pytest
-import numpy as np
+from src.core.world import World
 from src.world.generator import WorldGenerator
 from src.world.terrain import TerrainType
-from src.core.world import World
 
 
 class TestWorldGeneration:
@@ -40,7 +38,9 @@ class TestWorldGeneration:
 
         for terrain_type, count in terrain_counts.items():
             percentage = count / total_tiles
-            assert percentage >= 0.0, f"{terrain_type.value} has {percentage:.1%} coverage"
+            assert (
+                percentage >= 0.0
+            ), f"{terrain_type.value} has {percentage:.1%} coverage"
 
         assert terrain_counts[TerrainType.GRASS] > 0, "No grass tiles generated"
         assert terrain_counts[TerrainType.WATER] > 0, "No water tiles generated"
@@ -77,7 +77,10 @@ class TestWorldGeneration:
                     if any(r.resource_type == "wood" for r in tile.resources):
                         forest_with_wood += 1
                 elif tile.terrain_type == TerrainType.MOUNTAIN:
-                    if any(r.resource_type in ["stone", "iron_ore", "gold_ore"] for r in tile.resources):
+                    if any(
+                        r.resource_type in ["stone", "iron_ore", "gold_ore"]
+                        for r in tile.resources
+                    ):
                         mountain_with_ore += 1
 
         assert water_with_fish > 0, "No water tiles have fish"

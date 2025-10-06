@@ -6,22 +6,37 @@ This provides the same comprehensive testing as comprehensive_test_simulation.py
 but with real-time pygame visualization so you can watch the simulation unfold.
 """
 
-import sys
 import os
-import time
-import tempfile
+import sys
 
 # Add the simulation framework to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from simulation_framework.src.core.simulation import Simulation
-from simulation_framework.src.core.config import SimulationConfig
-from simulation_framework.src.entities.agent import Agent, create_agent_with_archetype
-from simulation_framework.src.entities.npc import NPC, create_basic_goblin, create_forest_wolf
-from simulation_framework.src.ai.personality import Personality
-from simulation_framework.src.ai.character_class import get_character_class
-from simulation_framework.src.ai.goal import ExploreGoal, GatherResourceGoal, AttackEnemyGoal, RestGoal
-from simulation_framework.src.items.starting_equipment import give_starting_equipment, equip_agent_for_task
+from simulation_framework.src.ai.character_class import (  # noqa: E402
+    get_character_class,
+)
+from simulation_framework.src.ai.goal import (  # noqa: E402
+    AttackEnemyGoal,
+    ExploreGoal,
+    GatherResourceGoal,
+    RestGoal,
+)
+from simulation_framework.src.ai.personality import Personality  # noqa: E402
+from simulation_framework.src.core.config import SimulationConfig  # noqa: E402
+from simulation_framework.src.core.simulation import Simulation  # noqa: E402
+from simulation_framework.src.entities.agent import (  # noqa: E402
+    Agent,
+    create_agent_with_archetype,
+)
+from simulation_framework.src.entities.npc import (  # noqa: E402
+    NPC,
+    create_basic_goblin,
+    create_forest_wolf,
+)
+from simulation_framework.src.items.starting_equipment import (  # noqa: E402
+    equip_agent_for_task,
+    give_starting_equipment,
+)
 
 
 def create_comprehensive_agent_population_visual(num_agents: int = 30) -> list[Agent]:
@@ -50,15 +65,15 @@ def create_comprehensive_agent_population_visual(num_agents: int = 30) -> list[A
         try:
             agent = create_agent_with_archetype(
                 position=(x, y),
-                name=f"Agent_{char_class}_{i+1:02d}",
-                archetype=archetype
+                name=f"Agent_{char_class}_{i + 1:02d}",
+                archetype=archetype,
             )
-        except:
+        except Exception:
             agent = Agent(
                 position=(x, y),
-                name=f"Agent_{char_class}_{i+1:02d}",
+                name=f"Agent_{char_class}_{i + 1:02d}",
                 personality=Personality.create_archetype(archetype),
-                character_class=get_character_class(char_class)
+                character_class=get_character_class(char_class),
             )
 
         # Assign diverse goals to exercise different systems
@@ -69,7 +84,11 @@ def create_comprehensive_agent_population_visual(num_agents: int = 30) -> list[A
             # Resource gatherers
             resources = ["wood", "stone", "food"]
             resource = resources[i % len(resources)]
-            agent.current_goals = [GatherResourceGoal(resource_type=resource, target_quantity=5, priority=6)]
+            agent.current_goals = [
+                GatherResourceGoal(
+                    resource_type=resource, target_quantity=5, priority=6
+                )
+            ]
         elif i % 5 == 2:
             # Combat-ready agents (will find targets later)
             agent.current_goals = [ExploreGoal(priority=5)]
@@ -77,7 +96,7 @@ def create_comprehensive_agent_population_visual(num_agents: int = 30) -> list[A
             # Mixed goals
             agent.current_goals = [
                 ExploreGoal(priority=4),
-                GatherResourceGoal(resource_type="wood", target_quantity=3, priority=5)
+                GatherResourceGoal(resource_type="wood", target_quantity=3, priority=5),
             ]
         else:
             # Rest-focused agents (to test low-energy scenarios)
@@ -106,11 +125,11 @@ def create_combat_ready_npc_ecosystem_visual(num_npcs: int = 20) -> list[NPC]:
 
     # NPC types for different behaviors
     npc_types = [
-        ("goblin", True, 3),      # Aggressive, medium aggro range
-        ("wolf", True, 4),        # Aggressive, higher aggro range
-        ("goblin", True, 3),      # More goblins
-        ("merchant", False, 0),   # Peaceful, for trading
-        ("wolf", True, 4),        # More wolves
+        ("goblin", True, 3),  # Aggressive, medium aggro range
+        ("wolf", True, 4),  # Aggressive, higher aggro range
+        ("goblin", True, 3),  # More goblins
+        ("merchant", False, 0),  # Peaceful, for trading
+        ("wolf", True, 4),  # More wolves
     ]
 
     for i in range(num_npcs):
@@ -138,21 +157,21 @@ def create_combat_ready_npc_ecosystem_visual(num_npcs: int = 20) -> list[NPC]:
         try:
             if npc_type == "goblin":
                 npc = create_basic_goblin((x, y))
-                npc.name = f"Goblin_{i+1:02d}"
+                npc.name = f"Goblin_{i + 1:02d}"
             elif npc_type == "wolf":
                 npc = create_forest_wolf((x, y))
-                npc.name = f"Wolf_{i+1:02d}"
+                npc.name = f"Wolf_{i + 1:02d}"
             else:
                 npc = NPC(
                     position=(x, y),
-                    name=f"{npc_type.title()}_{i+1:02d}",
-                    npc_type=npc_type
+                    name=f"{npc_type.title()}_{i + 1:02d}",
+                    npc_type=npc_type,
                 )
-        except:
+        except Exception:
             npc = NPC(
                 position=(x, y),
-                name=f"{npc_type.title()}_{i+1:02d}",
-                npc_type=npc_type
+                name=f"{npc_type.title()}_{i + 1:02d}",
+                npc_type=npc_type,
             )
 
         # Set aggro properties if aggressive
@@ -169,13 +188,15 @@ def create_combat_ready_npc_ecosystem_visual(num_npcs: int = 20) -> list[NPC]:
 def setup_combat_goals_for_agents_visual(agents: list[Agent], npcs: list[NPC]) -> None:
     """Add combat goals to some agents to trigger PvE combat"""
     # Find aggressive NPCs
-    aggressive_npcs = [npc for npc in npcs if hasattr(npc, 'aggro_range') and npc.aggro_range > 0]
+    aggressive_npcs = [
+        npc for npc in npcs if hasattr(npc, "aggro_range") and npc.aggro_range > 0
+    ]
 
     if aggressive_npcs:
         # Give combat goals to warrior agents
         warriors = [agent for agent in agents if "Warrior" in agent.name]
 
-        for i, warrior in enumerate(warriors[:len(aggressive_npcs)]):
+        for i, warrior in enumerate(warriors[: len(aggressive_npcs)]):
             target_npc = aggressive_npcs[i % len(aggressive_npcs)]
             # Add attack goal to existing goals
             warrior.current_goals.append(AttackEnemyGoal(target_npc.id, priority=8))
@@ -193,20 +214,18 @@ def main():
             world_width=30,
             world_height=30,
             world_seed=99999,  # Same seed as comprehensive test
-            max_ticks=50000,   # 5+ minutes at 10 TPS
+            max_ticks=50000,  # 5+ minutes at 10 TPS
             save_interval=25,
             analytics_interval=50,
             tick_rate=10,  # 10 TPS for smooth visualization
-
             # Visualization settings
             enable_visualizer=True,
             visualizer_width=1400,  # Larger window for better view
             visualizer_height=1000,
             visualizer_tile_size=18,  # Bigger tiles for detail
-
             # Enhanced visual features
             default_agent_vision_range=6,
-            fog_of_war_enabled=True
+            fog_of_war_enabled=True,
         )
 
         db_path = config.database_path  # Get the auto-generated path
@@ -218,7 +237,7 @@ def main():
         simulation = Simulation(config)
         simulation.initialize_simulation(
             name="Visual Comprehensive Test",
-            description="Full system test with visual interface - combat, gathering, crafting, trading, respawn, analytics"
+            description="Full system test with visual interface - combat, gathering, crafting, trading, respawn, analytics",
         )
 
         print(f"\nSimulation ID: {simulation.simulation_id}")
@@ -244,14 +263,14 @@ def main():
         setup_combat_goals_for_agents_visual(agents, npcs)
 
         # Display initial state
-        print(f"\n=== INITIAL STATE ===")
+        print("\n=== INITIAL STATE ===")
         initial_stats = simulation.get_statistics()
         print(f"Total agents: {initial_stats['total_agents']}")
         print(f"Total NPCs: {initial_stats['total_npcs']}")
         print(f"Starting tick: {initial_stats['current_tick']}")
 
         # Visual controls
-        print(f"\n=== VISUAL CONTROLS ===")
+        print("\n=== VISUAL CONTROLS ===")
         print("• Left Click + Drag: Pan around the map")
         print("• Mouse Wheel: Zoom in/out")
         print("• Click on Agent: Show detailed information")
@@ -260,7 +279,7 @@ def main():
         print("• Close window: Stop simulation")
 
         # Run visual simulation
-        print(f"\n=== STARTING VISUAL SIMULATION ===")
+        print("\n=== STARTING VISUAL SIMULATION ===")
         print("Watch the comprehensive test unfold in real-time!")
 
         try:
@@ -274,18 +293,19 @@ def main():
 
         final_stats = simulation.get_statistics()
 
-        print(f"\n=== FINAL RESULTS ===")
+        print("\n=== FINAL RESULTS ===")
         print(f"Total ticks: {final_stats['current_tick']}")
         print(f"Final active agents: {final_stats['active_agents']}")
         print(f"Final active NPCs: {final_stats['active_npcs']}")
 
-        print(f"\n=== SUCCESS ===")
-        print(f"Visual comprehensive simulation completed!")
+        print("\n=== SUCCESS ===")
+        print("Visual comprehensive simulation completed!")
         print(f"Data saved to: {db_path}")
 
     except Exception as e:
         print(f"Error during visual simulation: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         # Keep the database for analysis

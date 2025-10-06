@@ -1,15 +1,18 @@
-import pytest
 import os
 import tempfile
 from datetime import datetime
-from unittest.mock import patch
 
+import pytest
+from src.database.analytics_engine import AnalyticsEngine
 from src.database.database import Database
 from src.database.models import (
-    SimulationRun, AgentSnapshot, WorldSnapshot, ActionLog,
-    TradeLog, CombatLog, Analytics, DatabaseHelper
+    ActionLog,
+    AgentSnapshot,
+    Analytics,
+    DatabaseHelper,
+    SimulationRun,
+    WorldSnapshot,
 )
-from src.database.analytics_engine import AnalyticsEngine
 
 
 class TestDatabaseModels:
@@ -20,7 +23,7 @@ class TestDatabaseModels:
             world_seed=42,
             world_width=100,
             world_height=100,
-            total_agents=10
+            total_agents=10,
         )
 
         assert sim.name == "Test Sim"
@@ -38,7 +41,7 @@ class TestDatabaseModels:
             health=80,
             max_health=100,
             personality={"curiosity": 0.8},
-            skills={"combat": 5}
+            skills={"combat": 5},
         )
 
         assert snapshot.agent_id == 5
@@ -80,7 +83,7 @@ class TestDatabase:
     @pytest.fixture
     def temp_db(self):
         """Create temporary database for testing"""
-        with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
             temp_path = f.name
 
         db = Database(temp_path)
@@ -103,8 +106,14 @@ class TestDatabase:
             tables = [row[0] for row in cursor.fetchall()]
 
         expected_tables = [
-            'simulation_runs', 'agent_snapshots', 'world_snapshots',
-            'action_logs', 'trade_logs', 'combat_logs', 'analytics', 'schema_version'
+            "simulation_runs",
+            "agent_snapshots",
+            "world_snapshots",
+            "action_logs",
+            "trade_logs",
+            "combat_logs",
+            "analytics",
+            "schema_version",
         ]
 
         for table in expected_tables:
@@ -120,7 +129,7 @@ class TestDatabase:
             world_width=50,
             world_height=50,
             total_agents=5,
-            config={"test": True}
+            config={"test": True},
         )
 
         sim_id = temp_db.create_simulation_run(sim)
@@ -169,7 +178,7 @@ class TestDatabase:
                 health=100 - i * 10,
                 max_health=100,
                 personality={"curiosity": 0.5 + i * 0.1},
-                skills={"combat": i}
+                skills={"combat": i},
             )
             snapshots.append(snapshot)
 
@@ -204,7 +213,7 @@ class TestDatabase:
             total_entities=10,
             active_agents=5,
             world_events=["event1", "event2"],
-            market_prices={"Wood": 2.5, "Stone": 1.5}
+            market_prices={"Wood": 2.5, "Stone": 1.5},
         )
 
         snapshot_id = temp_db.save_world_snapshot(snapshot)
@@ -230,7 +239,7 @@ class TestDatabase:
             action_type="move",
             action_data={"from": (0, 0), "to": (1, 1)},
             success=True,
-            result_message="Moved successfully"
+            result_message="Moved successfully",
         )
 
         action_id = temp_db.log_action(action)
@@ -262,7 +271,7 @@ class TestDatabase:
             metric_value=0.85,
             tick=100,
             category="agents",
-            metadata={"agent_count": 10}
+            metadata={"agent_count": 10},
         )
 
         analytics_id = temp_db.save_analytics(analytics)
@@ -297,7 +306,7 @@ class TestDatabase:
                 position_x=i,
                 position_y=i,
                 health=100,
-                max_health=100
+                max_health=100,
             )
             temp_db.save_agent_snapshot(snapshot)
 
@@ -308,7 +317,7 @@ class TestDatabase:
                 tick=10,
                 agent_id=1,
                 action_type="move",
-                success=True
+                success=True,
             )
             temp_db.log_action(action)
 
@@ -334,14 +343,16 @@ class TestAnalyticsEngine:
     @pytest.fixture
     def analytics_setup(self):
         """Setup analytics engine with test data"""
-        with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
             temp_path = f.name
 
         db = Database(temp_path)
         analytics = AnalyticsEngine(db)
 
         # Create test simulation
-        sim = SimulationRun(name="Analytics Test", world_seed=1, world_width=10, world_height=10)
+        sim = SimulationRun(
+            name="Analytics Test", world_seed=1, world_width=10, world_height=10
+        )
         sim_id = db.create_simulation_run(sim)
 
         yield analytics, db, sim_id
@@ -373,7 +384,7 @@ class TestAnalyticsEngine:
                 stamina=60 + i * 5,  # 60, 65, 70, 75, 80
                 max_stamina=100,
                 inventory_items=i * 2,  # 0, 2, 4, 6, 8
-                gold=i * 10  # 0, 10, 20, 30, 40
+                gold=i * 10,  # 0, 10, 20, 30, 40
             )
             db.save_agent_snapshot(snapshot)
 
@@ -383,11 +394,15 @@ class TestAnalyticsEngine:
         # Check saved metrics
         health_metric = db.get_analytics(sim_id, metric_name="average_agent_health")
         assert len(health_metric) == 1
-        assert health_metric[0].metric_value == 0.88  # (80+84+88+92+96)/500 = 440/500 = 0.88
+        assert (
+            health_metric[0].metric_value == 0.88
+        )  # (80+84+88+92+96)/500 = 440/500 = 0.88
 
         stamina_metric = db.get_analytics(sim_id, metric_name="average_agent_stamina")
         assert len(stamina_metric) == 1
-        assert stamina_metric[0].metric_value == 0.7  # (60+65+70+75+80)/500 = 350/500 = 0.7
+        assert (
+            stamina_metric[0].metric_value == 0.7
+        )  # (60+65+70+75+80)/500 = 350/500 = 0.7
 
     def test_trend_analysis(self, analytics_setup):
         """Test trend analysis functionality"""
@@ -400,7 +415,7 @@ class TestAnalyticsEngine:
                 metric_name="test_metric",
                 metric_value=float(i * 10),  # 0, 10, 20, ..., 90
                 tick=i * 10,
-                category="test"
+                category="test",
             )
             db.save_analytics(metric)
 
@@ -425,20 +440,22 @@ class TestAnalyticsEngine:
                 metric_name="metric_a",
                 metric_value=float(i),
                 tick=i,
-                category="test"
+                category="test",
             )
             metric2 = Analytics(
                 simulation_id=sim_id,
                 metric_name="metric_b",
                 metric_value=float(i * 2),  # Perfectly correlated
                 tick=i,
-                category="test"
+                category="test",
             )
             db.save_analytics(metric1)
             db.save_analytics(metric2)
 
         # Analyze correlation
-        correlation_data = analytics.get_correlation_analysis(sim_id, "metric_a", "metric_b")
+        correlation_data = analytics.get_correlation_analysis(
+            sim_id, "metric_a", "metric_b"
+        )
 
         assert correlation_data["correlation"] == pytest.approx(1.0, rel=1e-3)
         assert correlation_data["strength"] == "very_strong"
@@ -500,7 +517,7 @@ class TestAnalyticsEngine:
         world_snapshot = WorldSnapshot(
             simulation_id=sim_id,
             tick=100,
-            market_prices={"Wood": 5.0, "Stone": 3.0, "Iron": 10.0}
+            market_prices={"Wood": 5.0, "Stone": 3.0, "Iron": 10.0},
         )
         db.save_world_snapshot(world_snapshot)
 
@@ -519,4 +536,6 @@ class TestAnalyticsEngine:
                 break
 
         assert avg_price_metric is not None
-        assert avg_price_metric.metric_value == pytest.approx(6.0, rel=1e-3)  # (5+3+10)/3 = 6
+        assert avg_price_metric.metric_value == pytest.approx(
+            6.0, rel=1e-3
+        )  # (5+3+10)/3 = 6

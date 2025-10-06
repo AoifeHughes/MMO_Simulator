@@ -3,11 +3,11 @@ Database management utilities for MMO Simulator.
 Handles automatic database creation, cleanup, and rotation.
 """
 
+import glob
 import os
 import time
-import glob
-from typing import Optional
 from pathlib import Path
+from typing import Optional
 
 
 class DatabaseManager:
@@ -72,6 +72,7 @@ class DatabaseManager:
 
             # Copy the existing database to backup
             import shutil
+
             shutil.copy2(db_path, backup_path)
 
             print(f"Backed up previous database to: {backup_path}")
@@ -134,6 +135,7 @@ class DatabaseManager:
 
             # Copy backup to current location
             import shutil
+
             shutil.copy2(backup_path, db_path)
 
             print(f"Restored database from backup: {backup_path}")
@@ -240,7 +242,9 @@ if __name__ == "__main__":
     elif command == "restore" and len(sys.argv) > 2:
         manager.restore_backup(sys.argv[2])
     elif command == "cleanup":
-        confirm = input("This will delete ALL simulation databases. Continue? (yes/no): ")
+        confirm = input(
+            "This will delete ALL simulation databases. Continue? (yes/no): "
+        )
         if confirm.lower() == "yes":
             manager.cleanup_all_files()
         else:

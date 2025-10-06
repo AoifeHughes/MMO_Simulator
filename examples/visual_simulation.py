@@ -17,21 +17,30 @@ Controls:
 - ESC: Deselect agent and hide info panel
 """
 
-import tempfile
+import argparse
 import os
 import sys
-import argparse
+import tempfile
 
 # Add the simulation framework to the Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from simulation_framework.src.core.simulation import Simulation
-from simulation_framework.src.core.config import SimulationConfig
-from simulation_framework.src.entities.agent import Agent, create_random_agent, create_agent_with_archetype
-from simulation_framework.src.entities.npc import NPC, create_basic_goblin, create_forest_wolf
-from simulation_framework.src.ai.personality import Personality
-from simulation_framework.src.ai.character_class import get_character_class
-from simulation_framework.src.ai.goal import ExploreGoal, GatherResourceGoal, AttackEnemyGoal
+from simulation_framework.src.ai.goal import (  # noqa: E402
+    ExploreGoal,
+    GatherResourceGoal,
+)
+from simulation_framework.src.core.config import SimulationConfig  # noqa: E402
+from simulation_framework.src.core.simulation import Simulation  # noqa: E402
+from simulation_framework.src.entities.agent import (  # noqa: E402
+    Agent,
+    create_agent_with_archetype,
+    create_random_agent,
+)
+from simulation_framework.src.entities.npc import (  # noqa: E402
+    NPC,
+    create_basic_goblin,
+    create_forest_wolf,
+)
 
 
 def find_valid_spawn_positions(world, num_positions: int) -> list[tuple[int, int]]:
@@ -80,8 +89,14 @@ def create_diverse_agents(world, num_agents: int = 8) -> list[Agent]:
 
     # Create some specific archetypes
     archetypes = [
-        "explorer", "warrior", "crafter", "social",
-        "aggressive", "peaceful", "curious", "merchant"
+        "explorer",
+        "warrior",
+        "crafter",
+        "social",
+        "aggressive",
+        "peaceful",
+        "curious",
+        "merchant",
     ]
 
     # Find valid spawn positions
@@ -95,22 +110,20 @@ def create_diverse_agents(world, num_agents: int = 8) -> list[Agent]:
             agent = create_agent_with_archetype(
                 position=position,
                 name=f"{archetypes[i].title()} Agent {i+1}",
-                archetype=archetypes[i]
+                archetype=archetypes[i],
             )
         else:
-            agent = create_random_agent(
-                position=position,
-                name=f"Random Agent {i+1}"
-            )
+            agent = create_random_agent(position=position, name=f"Random Agent {i+1}")
 
         # Add some initial goals based on agent type
         if i % 3 == 0:
             agent.current_goals.append(ExploreGoal(priority=3))
         elif i % 3 == 1:
-            agent.current_goals.append(GatherResourceGoal(
-                resource_type="wood" if i % 2 == 0 else "stone",
-                target_quantity=10
-            ))
+            agent.current_goals.append(
+                GatherResourceGoal(
+                    resource_type="wood" if i % 2 == 0 else "stone", target_quantity=10
+                )
+            )
         else:
             # Some agents start without specific goals
             pass
@@ -144,14 +157,30 @@ def create_varied_npcs(world, num_npcs: int = 6) -> list[NPC]:
 
 def main():
     """Run a visual simulation example"""
-    parser = argparse.ArgumentParser(description="MMO Simulator with Pygame Visualization")
-    parser.add_argument('--width', type=int, default=40, help='World width (default: 40)')
-    parser.add_argument('--height', type=int, default=40, help='World height (default: 40)')
-    parser.add_argument('--agents', type=int, default=8, help='Number of agents (default: 8)')
-    parser.add_argument('--npcs', type=int, default=6, help='Number of NPCs (default: 6)')
-    parser.add_argument('--ticks', type=int, default=None, help='Max ticks (default: unlimited)')
-    parser.add_argument('--seed', type=int, default=12345, help='World seed (default: 12345)')
-    parser.add_argument('--no-visual', action='store_true', help='Run without visualization')
+    parser = argparse.ArgumentParser(
+        description="MMO Simulator with Pygame Visualization"
+    )
+    parser.add_argument(
+        "--width", type=int, default=40, help="World width (default: 40)"
+    )
+    parser.add_argument(
+        "--height", type=int, default=40, help="World height (default: 40)"
+    )
+    parser.add_argument(
+        "--agents", type=int, default=8, help="Number of agents (default: 8)"
+    )
+    parser.add_argument(
+        "--npcs", type=int, default=6, help="Number of NPCs (default: 6)"
+    )
+    parser.add_argument(
+        "--ticks", type=int, default=None, help="Max ticks (default: unlimited)"
+    )
+    parser.add_argument(
+        "--seed", type=int, default=12345, help="World seed (default: 12345)"
+    )
+    parser.add_argument(
+        "--no-visual", action="store_true", help="Run without visualization"
+    )
 
     args = parser.parse_args()
 
@@ -164,7 +193,7 @@ def main():
         print("Max Ticks: Unlimited (close window to stop)")
 
     # Create a temporary database for this example
-    with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as f:
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = f.name
 
     try:
@@ -178,16 +207,14 @@ def main():
             save_interval=25,
             analytics_interval=50,
             tick_rate=10,  # 10 ticks per second for smooth visualization
-
             # Visualization settings
             enable_visualizer=not args.no_visual,
             visualizer_width=1200,
             visualizer_height=800,
             visualizer_tile_size=16,
-
             # Agent settings for interesting simulation
             default_agent_vision_range=6,
-            fog_of_war_enabled=True
+            fog_of_war_enabled=True,
         )
 
         print(f"Configuration: Seed={config.world_seed}, Tick Rate={config.tick_rate}")
@@ -196,7 +223,7 @@ def main():
         simulation = Simulation(config)
         simulation.initialize_simulation(
             "Visual Simulation Example",
-            "A demonstration of the pygame visualizer with diverse agents and NPCs"
+            "A demonstration of the pygame visualizer with diverse agents and NPCs",
         )
 
         print(f"Initialized simulation with ID: {simulation.simulation_id}")
@@ -205,7 +232,9 @@ def main():
         agents = create_diverse_agents(simulation.world, args.agents)
         for agent in agents:
             simulation.add_agent(agent)
-            print(f"Added {agent.name} ({agent.character_class.name}) at {agent.position}")
+            print(
+                f"Added {agent.name} ({agent.character_class.name}) at {agent.position}"
+            )
 
         # Create and add NPCs
         npcs = create_varied_npcs(simulation.world, args.npcs)
@@ -213,7 +242,9 @@ def main():
             simulation.add_npc(npc)
             print(f"Added {npc.name} ({npc.npc_type}) at {npc.position}")
 
-        print(f"\\nStarting simulation with {len(agents)} agents and {len(npcs)} NPCs...")
+        print(
+            f"\\nStarting simulation with {len(agents)} agents and {len(npcs)} NPCs..."
+        )
 
         if args.no_visual:
             print("Running without visualization (use --help to see visual options)")
@@ -236,7 +267,9 @@ def main():
                 print("Falling back to non-visual simulation...")
                 simulation.run(num_ticks=args.ticks or 100)
 
-        print(f"\\nSimulation completed after {simulation.time_manager.current_tick} ticks")
+        print(
+            f"\\nSimulation completed after {simulation.time_manager.current_tick} ticks"
+        )
 
         # Display final statistics
         stats = simulation.get_statistics()
@@ -252,8 +285,10 @@ def main():
         for agent in simulation.agents:
             status = "Alive" if agent.stats.is_alive else "Dead"
             goals = len(agent.current_goals)
-            print(f"{agent.name}: {status}, Health {agent.stats.health}/{agent.stats.max_health}, "
-                  f"Position {agent.position}, {goals} goals")
+            print(
+                f"{agent.name}: {status}, Health {agent.stats.health}/{agent.stats.max_health}, "
+                f"Position {agent.position}, {goals} goals"
+            )
 
         print(f"\\nSimulation data saved to: {db_path}")
         print("Visual simulation example completed successfully!")
@@ -263,6 +298,7 @@ def main():
     except Exception as e:
         print(f"\\nError during simulation: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         # Clean up temporary database

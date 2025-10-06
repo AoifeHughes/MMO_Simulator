@@ -1,16 +1,15 @@
-import pytest
-import tempfile
 import os
-from unittest.mock import Mock, patch
+import tempfile
+from unittest.mock import patch
 
-from src.core.simulation import Simulation
+import pytest
+from src.ai.character_class import get_character_class
+from src.ai.personality import Personality
 from src.core.config import SimulationConfig
+from src.core.simulation import Simulation
 from src.core.time_manager import TimeManager
 from src.entities.agent import Agent
 from src.entities.npc import NPC
-from src.core.world import World
-from src.ai.personality import Personality
-from src.ai.character_class import CharacterClass, get_character_class
 
 
 class TestTimeManager:
@@ -39,16 +38,16 @@ class TestTimeManager:
         tm.current_tick = 0
 
         game_time = tm.get_game_time()
-        assert game_time['days'] == 0
-        assert game_time['hours'] == 0
-        assert game_time['minutes'] == 0
+        assert game_time["days"] == 0
+        assert game_time["hours"] == 0
+        assert game_time["minutes"] == 0
 
         # Test 1 day + 2 hours + 30 minutes
         tm.current_tick = 1440 + 120 + 30
         game_time = tm.get_game_time()
-        assert game_time['days'] == 1
-        assert game_time['hours'] == 2
-        assert game_time['minutes'] == 30
+        assert game_time["days"] == 1
+        assert game_time["hours"] == 2
+        assert game_time["minutes"] == 30
 
     def test_day_night_cycle(self):
         """Test day/night time detection"""
@@ -104,14 +103,14 @@ class TestSimulationConfig:
     def test_config_custom_params(self):
         """Test custom parameter handling"""
         config = SimulationConfig()
-        config.set('custom_value', 42)
-        assert config.get('custom_value') == 42
-        assert config.get('nonexistent', 'default') == 'default'
+        config.set("custom_value", 42)
+        assert config.get("custom_value") == 42
+        assert config.get("nonexistent", "default") == "default"
 
     def test_config_serialization(self):
         """Test configuration serialization"""
         config = SimulationConfig(world_width=100, world_height=75)
-        config.set('custom_param', 'test_value')
+        config.set("custom_param", "test_value")
 
         # Convert to dict and back
         config_dict = config.to_dict()
@@ -119,13 +118,13 @@ class TestSimulationConfig:
 
         assert config2.world_width == 100
         assert config2.world_height == 75
-        assert config2.get('custom_param') == 'test_value'
+        assert config2.get("custom_param") == "test_value"
 
     def test_config_file_operations(self):
         """Test configuration file save/load"""
         config = SimulationConfig(world_width=200, max_ticks=5000)
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             config_path = f.name
 
         try:
@@ -144,7 +143,7 @@ class TestSimulation:
     @pytest.fixture
     def temp_db(self):
         """Create a temporary database for testing"""
-        fd, db_path = tempfile.mkstemp(suffix='.db')
+        fd, db_path = tempfile.mkstemp(suffix=".db")
         os.close(fd)
         yield db_path
         try:
@@ -162,7 +161,7 @@ class TestSimulation:
             max_ticks=100,
             database_path=temp_db,
             save_interval=10,
-            analytics_interval=5
+            analytics_interval=5,
         )
 
     @pytest.fixture
@@ -193,7 +192,7 @@ class TestSimulation:
             position=(5, 5),
             name="Test Agent",
             personality=Personality.randomize(),
-            character_class=get_character_class("Warrior")
+            character_class=get_character_class("Warrior"),
         )
 
         simulation.add_agent(agent)
@@ -203,11 +202,7 @@ class TestSimulation:
 
     def test_npc_management(self, simulation):
         """Test adding NPCs to simulation"""
-        npc = NPC(
-            position=(3, 3),
-            name="Test NPC",
-            npc_type="goblin"
-        )
+        npc = NPC(position=(3, 3), name="Test NPC", npc_type="goblin")
 
         simulation.add_npc(npc)
         assert len(simulation.npcs) == 1
@@ -220,7 +215,7 @@ class TestSimulation:
             position=(1, 1),
             name="Agent1",
             personality=Personality.randomize(),
-            character_class=get_character_class("Explorer")
+            character_class=get_character_class("Explorer"),
         )
         simulation.add_agent(agent)
 
@@ -228,11 +223,11 @@ class TestSimulation:
         simulation.add_npc(npc)
 
         stats = simulation.get_statistics()
-        assert stats['total_agents'] == 1
-        assert stats['active_agents'] == 1
-        assert stats['total_npcs'] == 1
-        assert stats['active_npcs'] == 1
-        assert stats['current_tick'] == 0
+        assert stats["total_agents"] == 1
+        assert stats["active_agents"] == 1
+        assert stats["total_npcs"] == 1
+        assert stats["active_npcs"] == 1
+        assert stats["current_tick"] == 0
 
     def test_simulation_step(self, simulation):
         """Test single simulation step"""
@@ -243,7 +238,7 @@ class TestSimulation:
             position=(1, 1),
             name="Test Agent",
             personality=Personality.randomize(),
-            character_class=get_character_class("Explorer")
+            character_class=get_character_class("Explorer"),
         )
         simulation.add_agent(agent)
 
@@ -262,7 +257,7 @@ class TestSimulation:
             position=(1, 1),
             name="Test Agent",
             personality=Personality.randomize(),
-            character_class=get_character_class("Explorer")
+            character_class=get_character_class("Explorer"),
         )
         simulation.add_agent(agent)
 
@@ -291,7 +286,7 @@ class TestSimulation:
         assert not simulation.running
         assert simulation.simulation_run.end_time is not None
 
-    @patch('src.core.simulation.time.sleep')
+    @patch("src.core.simulation.time.sleep")
     def test_simulation_tick_rate(self, mock_sleep, simulation):
         """Test tick rate limiting"""
         simulation.config.tick_rate = 10.0  # 10 ticks per second
@@ -312,7 +307,7 @@ class TestSimulation:
             position=(1, 1),
             name="Test Agent",
             personality=Personality.randomize(),
-            character_class=get_character_class("Explorer")
+            character_class=get_character_class("Explorer"),
         )
         simulation.add_agent(agent)
 
@@ -342,7 +337,7 @@ class TestSimulation:
             position=(1, 1),
             name="Test Agent",
             personality=Personality.randomize(),
-            character_class=get_character_class("Explorer")
+            character_class=get_character_class("Explorer"),
         )
         simulation.add_agent(agent)
 

@@ -1,10 +1,11 @@
 from __future__ import annotations
-from typing import Optional, List, Tuple, TYPE_CHECKING
-import random
 
+import random
+from typing import TYPE_CHECKING, List, Optional, Tuple
+
+from ..items.loot_table import LootTable
 from .base import Entity
 from .stats import Stats
-from ..items.loot_table import LootTable
 
 if TYPE_CHECKING:
     from ..core.world import World
@@ -19,7 +20,7 @@ class NPC(Entity):
         stats: Optional[Stats] = None,
         loot_table: Optional[LootTable] = None,
         spawn_point: Optional[Tuple[int, int]] = None,
-        tether_radius: int = 10
+        tether_radius: int = 10,
     ):
         super().__init__(position, name, stats or Stats())
         self.npc_type = npc_type
@@ -61,7 +62,7 @@ class NPC(Entity):
     def _is_too_far_from_spawn(self) -> bool:
         spawn_x, spawn_y = self.spawn_point
         current_x, current_y = self.position
-        distance = ((current_x - spawn_x)**2 + (current_y - spawn_y)**2)**0.5
+        distance = ((current_x - spawn_x) ** 2 + (current_y - spawn_y) ** 2) ** 0.5
         return distance > self.tether_radius
 
     def _return_to_spawn(self, world: World) -> None:
@@ -98,6 +99,7 @@ class NPC(Entity):
             # Initiate combat if in range
             if distance <= 1.5:
                 from ..actions.combat import MeleeAttack
+
                 attack = MeleeAttack(self.id, self.target_id)
                 if attack.can_execute(self, world):
                     self.current_action = attack
@@ -105,6 +107,7 @@ class NPC(Entity):
             else:
                 # Move closer to target
                 from ..actions.movement import PathfindAction
+
                 pathfind = PathfindAction(self.id, target.position)
                 if pathfind.can_execute(self, world):
                     self.current_action = pathfind
@@ -125,7 +128,7 @@ class NPC(Entity):
 
             distance = self.distance_to(entity)
             if distance <= self.aggro_range:
-                if hasattr(entity, 'inventory'):
+                if hasattr(entity, "inventory"):
                     self.target_id = entity.id
                     self.aggro_cooldown = 5
                     break
@@ -150,9 +153,12 @@ class NPC(Entity):
         target_point = self.patrol_points[self.current_patrol_index]
 
         if self.distance_to_position(*target_point) < 1.5:
-            self.current_patrol_index = (self.current_patrol_index + 1) % len(self.patrol_points)
+            self.current_patrol_index = (self.current_patrol_index + 1) % len(
+                self.patrol_points
+            )
         else:
             from ..actions.movement import PathfindAction
+
             pathfind = PathfindAction(self.id, target_point)
             if pathfind.can_execute(self, world):
                 pathfind.execute(self, world)
@@ -161,6 +167,7 @@ class NPC(Entity):
         # Only set new action if we don't have one already
         if not self.current_action or not self.current_action.is_active:
             from ..actions.movement import WanderAction
+
             wander = WanderAction(self.id, self.spawn_point, max_distance=3)
             if wander.can_execute(self, world):
                 self.current_action = wander
@@ -190,7 +197,7 @@ class NPC(Entity):
         self._register_for_respawn()
 
     def _drop_loot(self, killer: Entity) -> None:
-        luck_modifier = getattr(killer, 'luck', 0) * 0.01
+        luck_modifier = getattr(killer, "luck", 0) * 0.01
         loot_items = self.loot_table.generate_loot(luck_modifier)
 
         for item, quantity in loot_items:
@@ -202,7 +209,9 @@ class NPC(Entity):
         pass
 
     def get_threat_level(self) -> str:
-        total_stats = self.stats.max_health + self.stats.attack_power + self.stats.defense
+        total_stats = (
+            self.stats.max_health + self.stats.attack_power + self.stats.defense
+        )
 
         if total_stats < 50:
             return "weak"
@@ -215,7 +224,7 @@ class NPC(Entity):
 
     def is_hostile_to(self, entity: Entity) -> bool:
         if self.npc_type == "aggressive":
-            return hasattr(entity, 'inventory')
+            return hasattr(entity, "inventory")
         return False
 
     def __repr__(self) -> str:
@@ -232,7 +241,7 @@ def create_basic_goblin(position: Tuple[int, int]) -> NPC:
         stamina=40,
         attack_power=8,
         defense=2,
-        speed=6
+        speed=6,
     )
 
     loot_table = LootTable.create_basic_monster_loot()
@@ -242,7 +251,7 @@ def create_basic_goblin(position: Tuple[int, int]) -> NPC:
         name="Goblin",
         npc_type="aggressive",
         stats=stats,
-        loot_table=loot_table
+        loot_table=loot_table,
     )
 
 
@@ -254,7 +263,7 @@ def create_forest_wolf(position: Tuple[int, int]) -> NPC:
         stamina=60,
         attack_power=12,
         defense=3,
-        speed=8
+        speed=8,
     )
 
     loot_table = LootTable()
@@ -268,7 +277,7 @@ def create_forest_wolf(position: Tuple[int, int]) -> NPC:
         properties={"resource_type": "meat"},
         value=8,
         description="Fresh wolf meat",
-        max_stack_size=20
+        max_stack_size=20,
     )
 
     loot_table.add_entry(meat, 0.8, 1, 3)
@@ -279,7 +288,7 @@ def create_forest_wolf(position: Tuple[int, int]) -> NPC:
         name="Forest Wolf",
         npc_type="aggressive",
         stats=stats,
-        loot_table=loot_table
+        loot_table=loot_table,
     )
     wolf.aggro_range = 7
     return wolf
@@ -293,12 +302,7 @@ def create_peaceful_villager(position: Tuple[int, int]) -> NPC:
         stamina=30,
         attack_power=3,
         defense=1,
-        speed=4
+        speed=4,
     )
 
-    return NPC(
-        position=position,
-        name="Villager",
-        npc_type="neutral",
-        stats=stats
-    )
+    return NPC(position=position, name="Villager", npc_type="neutral", stats=stats)

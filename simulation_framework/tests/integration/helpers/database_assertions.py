@@ -1,15 +1,16 @@
 """Database assertion helpers for verifying simulation behavior"""
 
-from typing import List, Optional, Tuple, Dict, Any
+from typing import Any, Dict, List, Optional, Tuple
+
 from src.database.database import Database
-from src.database.models import CombatLog, ActionLog, AgentSnapshot
+from src.database.models import ActionLog, AgentSnapshot
 
 
 def get_combat_logs(
     db: Database,
     simulation_id: int,
     attacker_id: Optional[int] = None,
-    target_id: Optional[int] = None
+    target_id: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     """
     Get combat logs from database.
@@ -43,7 +44,7 @@ def get_action_logs(
     db: Database,
     simulation_id: int,
     agent_id: Optional[int] = None,
-    action_type: Optional[str] = None
+    action_type: Optional[str] = None,
 ) -> List[ActionLog]:
     """
     Get action logs from database.
@@ -58,9 +59,7 @@ def get_action_logs(
         List of ActionLog objects
     """
     return db.get_action_logs(
-        simulation_id=simulation_id,
-        agent_id=agent_id,
-        action_type=action_type
+        simulation_id=simulation_id, agent_id=agent_id, action_type=action_type
     )
 
 
@@ -69,14 +68,14 @@ def get_agent_snapshots(
     simulation_id: int,
     agent_id: int,
     start_tick: Optional[int] = None,
-    end_tick: Optional[int] = None
+    end_tick: Optional[int] = None,
 ) -> List[AgentSnapshot]:
     """Get agent snapshots from database"""
     return db.get_agent_snapshots(
         simulation_id=simulation_id,
         agent_id=agent_id,
         start_tick=start_tick,
-        end_tick=end_tick
+        end_tick=end_tick,
     )
 
 
@@ -85,7 +84,7 @@ def assert_combat_occurred(
     simulation_id: int,
     attacker_id: int,
     target_id: int,
-    min_attacks: int = 1
+    min_attacks: int = 1,
 ) -> None:
     """
     Assert that combat occurred between two entities.
@@ -104,12 +103,16 @@ def assert_combat_occurred(
     combat_logs = get_combat_logs(db, simulation_id, attacker_id, target_id)
 
     # Also check action_logs for attack actions
-    attack_actions = get_action_logs(
-        db, simulation_id, agent_id=attacker_id, action_type="MeleeAttack"
-    ) + get_action_logs(
-        db, simulation_id, agent_id=attacker_id, action_type="RangedAttack"
-    ) + get_action_logs(
-        db, simulation_id, agent_id=attacker_id, action_type="MagicAttack"
+    attack_actions = (
+        get_action_logs(
+            db, simulation_id, agent_id=attacker_id, action_type="MeleeAttack"
+        )
+        + get_action_logs(
+            db, simulation_id, agent_id=attacker_id, action_type="RangedAttack"
+        )
+        + get_action_logs(
+            db, simulation_id, agent_id=attacker_id, action_type="MagicAttack"
+        )
     )
 
     total_attacks = len(combat_logs) + len(attack_actions)
@@ -125,7 +128,7 @@ def assert_entity_died(
     db: Database,
     simulation_id: int,
     entity_id: int,
-    tick_range: Optional[Tuple[int, int]] = None
+    tick_range: Optional[Tuple[int, int]] = None,
 ) -> None:
     """
     Assert that an entity died during the simulation.
@@ -143,9 +146,11 @@ def assert_entity_died(
     """
     # Get agent snapshots to check health over time
     snapshots = get_agent_snapshots(
-        db, simulation_id, entity_id,
+        db,
+        simulation_id,
+        entity_id,
         start_tick=tick_range[0] if tick_range else None,
-        end_tick=tick_range[1] if tick_range else None
+        end_tick=tick_range[1] if tick_range else None,
     )
 
     if snapshots:
@@ -161,7 +166,7 @@ def assert_entity_died(
         # Entity might be an NPC - check combat logs for target_died flag
         combat_logs = get_combat_logs(db, simulation_id, target_id=entity_id)
 
-        died = any(log.get('target_died', False) for log in combat_logs)
+        died = any(log.get("target_died", False) for log in combat_logs)
 
         assert died, (
             f"Expected entity {entity_id} (NPC) to die, "
@@ -170,10 +175,7 @@ def assert_entity_died(
 
 
 def assert_entity_health_changed(
-    db: Database,
-    simulation_id: int,
-    entity_id: int,
-    decreased: bool = True
+    db: Database, simulation_id: int, entity_id: int, decreased: bool = True
 ) -> None:
     """
     Assert that an entity's health changed during simulation.
@@ -216,14 +218,20 @@ def assert_entity_health_changed(
 
         if decreased:
             # Check that entity was hit and took damage
-            damage_taken = sum(log['damage_dealt'] for log in combat_logs if log.get('damage_dealt', 0) > 0)
+            damage_taken = sum(
+                log["damage_dealt"]
+                for log in combat_logs
+                if log.get("damage_dealt", 0) > 0
+            )
             assert damage_taken > 0, (
                 f"Expected entity {entity_id} to take damage (NPC), "
                 f"but found {damage_taken} total damage in combat logs"
             )
         else:
             # For health increase, we'd need different logic (not applicable to NPCs in combat)
-            raise AssertionError(f"Cannot verify health increase for NPC {entity_id} without snapshots")
+            raise AssertionError(
+                f"Cannot verify health increase for NPC {entity_id} without snapshots"
+            )
 
 
 def assert_resource_gathered(
@@ -231,7 +239,7 @@ def assert_resource_gathered(
     simulation_id: int,
     agent_id: int,
     resource_type: str,
-    min_amount: int = 1
+    min_amount: int = 1,
 ) -> None:
     """
     Assert that an agent gathered resources.
@@ -247,17 +255,22 @@ def assert_resource_gathered(
         AssertionError: If resource gathering didn't occur
     """
     # Check action logs for gathering actions
-    gather_actions = get_action_logs(
-        db, simulation_id, agent_id=agent_id, action_type="GatherAction"
-    ) + get_action_logs(
-        db, simulation_id, agent_id=agent_id, action_type="WoodcutAction"
-    ) + get_action_logs(
-        db, simulation_id, agent_id=agent_id, action_type="MineAction"
+    gather_actions = (
+        get_action_logs(
+            db, simulation_id, agent_id=agent_id, action_type="GatherAction"
+        )
+        + get_action_logs(
+            db, simulation_id, agent_id=agent_id, action_type="WoodcutAction"
+        )
+        + get_action_logs(
+            db, simulation_id, agent_id=agent_id, action_type="MineAction"
+        )
     )
 
     # Filter for successful gathering of the specific resource
     successful_gathers = [
-        action for action in gather_actions
+        action
+        for action in gather_actions
         if action.success and resource_type.lower() in action.result_message.lower()
     ]
 
@@ -272,7 +285,7 @@ def assert_movement_occurred(
     simulation_id: int,
     agent_id: int,
     from_pos: Optional[Tuple[int, int]] = None,
-    to_pos: Optional[Tuple[int, int]] = None
+    to_pos: Optional[Tuple[int, int]] = None,
 ) -> None:
     """
     Assert that an agent moved during simulation.
@@ -289,9 +302,9 @@ def assert_movement_occurred(
     """
     snapshots = get_agent_snapshots(db, simulation_id, agent_id)
 
-    assert len(snapshots) >= 2, (
-        f"Need at least 2 snapshots to check movement, got {len(snapshots)}"
-    )
+    assert (
+        len(snapshots) >= 2
+    ), f"Need at least 2 snapshots to check movement, got {len(snapshots)}"
 
     # Sort by tick
     snapshots.sort(key=lambda s: s.tick)
@@ -300,9 +313,9 @@ def assert_movement_occurred(
     final_pos = (snapshots[-1].position_x, snapshots[-1].position_y)
 
     # Check if position changed
-    assert initial_pos != final_pos, (
-        f"Expected agent {agent_id} to move, but stayed at {initial_pos}"
-    )
+    assert (
+        initial_pos != final_pos
+    ), f"Expected agent {agent_id} to move, but stayed at {initial_pos}"
 
     # Verify specific positions if provided
     if from_pos:
@@ -313,8 +326,7 @@ def assert_movement_occurred(
 
     if to_pos:
         assert final_pos == to_pos, (
-            f"Expected agent {agent_id} to end at {to_pos}, "
-            f"but was at {final_pos}"
+            f"Expected agent {agent_id} to end at {to_pos}, " f"but was at {final_pos}"
         )
 
 
@@ -324,7 +336,7 @@ def assert_action_logged(
     agent_id: int,
     action_type: str,
     min_count: int = 1,
-    success: Optional[bool] = None
+    success: Optional[bool] = None,
 ) -> None:
     """
     Assert that a specific action was logged.
@@ -340,7 +352,9 @@ def assert_action_logged(
     Raises:
         AssertionError: If action wasn't logged min_count times
     """
-    actions = get_action_logs(db, simulation_id, agent_id=agent_id, action_type=action_type)
+    actions = get_action_logs(
+        db, simulation_id, agent_id=agent_id, action_type=action_type
+    )
 
     if success is not None:
         actions = [a for a in actions if a.success == success]
@@ -352,17 +366,13 @@ def assert_action_logged(
     )
 
 
-def assert_stamina_decreased(
-    db: Database,
-    simulation_id: int,
-    agent_id: int
-) -> None:
+def assert_stamina_decreased(db: Database, simulation_id: int, agent_id: int) -> None:
     """Assert that agent's stamina decreased (proving actions consumed stamina)"""
     snapshots = get_agent_snapshots(db, simulation_id, agent_id)
 
-    assert len(snapshots) >= 2, (
-        f"Need at least 2 snapshots to check stamina, got {len(snapshots)}"
-    )
+    assert (
+        len(snapshots) >= 2
+    ), f"Need at least 2 snapshots to check stamina, got {len(snapshots)}"
 
     snapshots.sort(key=lambda s: s.tick)
     initial_stamina = snapshots[0].stamina
@@ -374,17 +384,13 @@ def assert_stamina_decreased(
     )
 
 
-def assert_inventory_changed(
-    db: Database,
-    simulation_id: int,
-    agent_id: int
-) -> None:
+def assert_inventory_changed(db: Database, simulation_id: int, agent_id: int) -> None:
     """Assert that agent's inventory changed (items added or removed)"""
     snapshots = get_agent_snapshots(db, simulation_id, agent_id)
 
-    assert len(snapshots) >= 2, (
-        f"Need at least 2 snapshots to check inventory, got {len(snapshots)}"
-    )
+    assert (
+        len(snapshots) >= 2
+    ), f"Need at least 2 snapshots to check inventory, got {len(snapshots)}"
 
     snapshots.sort(key=lambda s: s.tick)
     initial_items = snapshots[0].inventory_items

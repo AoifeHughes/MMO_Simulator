@@ -1,13 +1,13 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple, Dict, Any, TYPE_CHECKING
-import random
+
 import math
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
-    from ..entities.base import Entity
-    from ..core.world import World
     from ..actions.base import Action
+    from ..core.world import World
+    from ..entities.base import Entity
 
 
 class Goal(ABC):
@@ -22,24 +22,22 @@ class Goal(ABC):
     @abstractmethod
     def is_complete(self, agent: Entity, world: World) -> bool:
         """Check if this goal has been completed"""
-        pass
 
     @abstractmethod
     def is_valid(self, agent: Entity, world: World) -> bool:
         """Check if this goal is still valid/achievable"""
-        pass
 
     @abstractmethod
     def get_next_action(self, agent: Entity, world: World) -> Optional[Action]:
         """Get the next action to work towards this goal"""
-        pass
 
     @abstractmethod
     def get_utility(self, agent: Entity, world: World) -> float:
         """Calculate utility score for this goal (0-1)"""
-        pass
 
-    def on_action_completed(self, action: Action, success: bool, agent: Entity, world: World) -> None:
+    def on_action_completed(
+        self, action: Action, success: bool, agent: Entity, world: World
+    ) -> None:
         """Called when an action for this goal completes"""
         if success:
             self.last_progress_tick = world.current_tick
@@ -72,15 +70,21 @@ class Goal(ABC):
 
 
 class ExploreGoal(Goal):
-    def __init__(self, target_area: Optional[Tuple[int, int, int]] = None, priority: int = 4):
+    def __init__(
+        self, target_area: Optional[Tuple[int, int, int]] = None, priority: int = 4
+    ):
         super().__init__(priority, "Explore")
         self.target_area = target_area  # (center_x, center_y, radius)
         self.explored_tiles = 0
         self.target_explored_tiles = 20
 
     def is_complete(self, agent: Entity, world: World) -> bool:
-        if hasattr(agent, 'known_map'):
-            explored_count = len(agent.known_map.get_explored_tiles() if hasattr(agent.known_map, 'get_explored_tiles') else [])
+        if hasattr(agent, "known_map"):
+            explored_count = len(
+                agent.known_map.get_explored_tiles()
+                if hasattr(agent.known_map, "get_explored_tiles")
+                else []
+            )
             return explored_count >= self.target_explored_tiles
         return False
 
@@ -88,14 +92,16 @@ class ExploreGoal(Goal):
         return True  # Always valid
 
     def get_next_action(self, agent: Entity, world: World) -> Optional[Action]:
-        from ..actions.movement import WanderAction, PathfindAction
+        from ..actions.movement import PathfindAction, WanderAction
 
         if self.target_area:
             center_x, center_y, radius = self.target_area
 
             # If already in target area, wander
             agent_x, agent_y = agent.position
-            distance_to_center = math.sqrt((agent_x - center_x)**2 + (agent_y - center_y)**2)
+            distance_to_center = math.sqrt(
+                (agent_x - center_x) ** 2 + (agent_y - center_y) ** 2
+            )
 
             if distance_to_center <= radius:
                 return WanderAction(agent.id, (center_x, center_y), radius)
@@ -106,44 +112,92 @@ class ExploreGoal(Goal):
             return WanderAction(agent.id, agent.position, 5)
 
     def get_utility(self, agent: Entity, world: World) -> float:
-        base_utility = agent.personality.get_exploration_desire(0.5) if hasattr(agent, 'personality') else 0.5
+        base_utility = (
+            agent.personality.get_exploration_desire(0.5)
+            if hasattr(agent, "personality")
+            else 0.5
+        )
 
         # Higher utility if haven't explored much
-        if hasattr(agent, 'known_map'):
+        if hasattr(agent, "known_map"):
             known_percentage = 0.1  # Simplified calculation
-            base_utility *= (1.0 - known_percentage * 0.5)
+            base_utility *= 1.0 - known_percentage * 0.5
 
         return base_utility
 
 
 class GatherResourceGoal(Goal):
-    def __init__(self, resource_type: str, target_quantity: int = 10, priority: int = 6):
+    def __init__(
+        self, resource_type: str, target_quantity: int = 10, priority: int = 6
+    ):
         super().__init__(priority, f"Gather {resource_type}")
         self.resource_type = resource_type
         self.target_quantity = target_quantity
         self.current_location: Optional[Tuple[int, int]] = None
 
     def is_complete(self, agent: Entity, world: World) -> bool:
-        return agent.inventory.get_item_count(self.resource_type.title()) >= self.target_quantity
+        return (
+            agent.inventory.get_item_count(self.resource_type.title())
+            >= self.target_quantity
+        )
 
     def is_valid(self, agent: Entity, world: World) -> bool:
-        # Check if there are resources of this type in the world
-        for y in range(world.height):
-            for x in range(world.width):
-                tile = world.get_tile(x, y)
-                if tile and tile.can_gather(self.resource_type):
-                    return True
+        # First check agent's spatial memory
+        if hasattr(agent, "spatial_memory"):
+            known_resources = agent.spatial_memory.get_known_resources(
+                self.resource_type, agent.position, world.current_tick
+            )
+            if known_resources:
+                return True
+
+        # Then check world resource manager if available
+        if hasattr(world, "resource_manager"):
+            available = world.resource_manager.get_available_resources(
+                self.resource_type, world.current_tick, agent.position, max_distance=30
+            )
+            if available:
+                return True
+
+        # Fallback: quick scan of nearby tiles only (not entire world)
+        agent_x, agent_y = agent.position
+        search_radius = 15
+        for dy in range(-search_radius, search_radius + 1):
+            for dx in range(-search_radius, search_radius + 1):
+                x, y = agent_x + dx, agent_y + dy
+                if 0 <= x < world.width and 0 <= y < world.height:
+                    tile = world.get_tile(x, y)
+                    if tile and tile.can_gather(self.resource_type, world.current_tick):
+                        return True
         return False
 
     def get_next_action(self, agent: Entity, world: World) -> Optional[Action]:
-        from ..actions.gathering import GatherAction, FishAction, MineAction, WoodcutAction, ForageAction
+        from ..actions.gathering import (
+            FishAction,
+            ForageAction,
+            GatherAction,
+            MineAction,
+            WoodcutAction,
+        )
         from ..actions.movement import PathfindAction
 
         agent_x, agent_y = agent.position
         current_tile = world.get_tile(agent_x, agent_y)
 
         # If at a resource location, gather
-        if current_tile and current_tile.can_gather(self.resource_type):
+        if current_tile and current_tile.can_gather(
+            self.resource_type, world.current_tick
+        ):
+            # Update spatial memory
+            if hasattr(agent, "spatial_memory"):
+                for resource in current_tile.resources:
+                    if resource.resource_type == self.resource_type:
+                        agent.spatial_memory.remember_resource(
+                            self.resource_type,
+                            agent.position,
+                            resource.quantity,
+                            world.current_tick,
+                        )
+
             if self.resource_type == "fish":
                 return FishAction(agent.id)
             elif self.resource_type in ["stone", "iron_ore", "gold_ore"]:
@@ -155,19 +209,44 @@ class GatherResourceGoal(Goal):
             else:
                 return GatherAction(agent.id, self.resource_type)
 
-        # Otherwise, find a resource location
-        resource_locations = []
-        for y in range(world.height):
-            for x in range(world.width):
-                tile = world.get_tile(x, y)
-                if tile and tile.can_gather(self.resource_type):
-                    distance = math.sqrt((x - agent_x)**2 + (y - agent_y)**2)
-                    resource_locations.append((distance, x, y))
+        # Find nearest resource location (using smart lookups)
+        target_position = None
 
-        if resource_locations:
-            resource_locations.sort()  # Sort by distance
-            _, target_x, target_y = resource_locations[0]
-            return PathfindAction(agent.id, (target_x, target_y))
+        # Strategy 1: Check spatial memory first
+        if hasattr(agent, "spatial_memory"):
+            target_position = agent.spatial_memory.get_nearest_known_resource(
+                self.resource_type, agent.position, world.current_tick
+            )
+
+        # Strategy 2: Use world resource manager if no memory or memory failed
+        if not target_position and hasattr(world, "resource_manager"):
+            target_position = world.resource_manager.get_nearest_resource(
+                self.resource_type, agent.position, world.current_tick
+            )
+
+        # Strategy 3: Fallback to limited scanning if both above failed
+        if not target_position:
+            resource_locations = []
+            search_radius = 20
+            for dy in range(-search_radius, search_radius + 1):
+                for dx in range(-search_radius, search_radius + 1):
+                    x, y = agent_x + dx, agent_y + dy
+                    if 0 <= x < world.width and 0 <= y < world.height:
+                        tile = world.get_tile(x, y)
+                        if tile and tile.can_gather(
+                            self.resource_type, world.current_tick
+                        ):
+                            distance = math.sqrt(
+                                (x - agent_x) ** 2 + (y - agent_y) ** 2
+                            )
+                            resource_locations.append((distance, x, y))
+
+            if resource_locations:
+                resource_locations.sort()
+                target_position = (resource_locations[0][1], resource_locations[0][2])
+
+        if target_position:
+            return PathfindAction(agent.id, target_position)
 
         return None
 
@@ -176,10 +255,12 @@ class GatherResourceGoal(Goal):
 
         # Higher utility if we need this resource
         current_amount = agent.inventory.get_item_count(self.resource_type.title())
-        need_factor = max(0.1, (self.target_quantity - current_amount) / self.target_quantity)
+        need_factor = max(
+            0.1, (self.target_quantity - current_amount) / self.target_quantity
+        )
 
         # Factor in personality
-        if hasattr(agent, 'personality'):
+        if hasattr(agent, "personality"):
             base_utility *= agent.personality.industriousness
             if agent.personality.greed > 0.6:
                 base_utility *= 1.2
@@ -222,10 +303,12 @@ class CraftItemGoal(Goal):
     def get_utility(self, agent: Entity, world: World) -> float:
         base_utility = 0.5
 
-        if hasattr(agent, 'personality'):
-            base_utility *= agent.personality.industriousness + agent.personality.patience * 0.3
+        if hasattr(agent, "personality"):
+            base_utility *= (
+                agent.personality.industriousness + agent.personality.patience * 0.3
+            )
 
-        if hasattr(agent, 'character_class'):
+        if hasattr(agent, "character_class"):
             if "craft" in agent.character_class.preferred_actions:
                 base_utility *= 1.3
 
@@ -254,7 +337,7 @@ class AttackEnemyGoal(Goal):
         return True
 
     def get_next_action(self, agent: Entity, world: World) -> Optional[Action]:
-        from ..actions.combat import MeleeAttack, RangedAttack, MagicAttack
+        from ..actions.combat import MagicAttack, MeleeAttack, RangedAttack
         from ..actions.movement import PathfindAction
 
         target = world.entities.get(self.target_id)
@@ -289,8 +372,10 @@ class AttackEnemyGoal(Goal):
 
         base_utility = 0.7
 
-        if hasattr(agent, 'personality'):
-            combat_desire = agent.personality.bravery * 0.4 + agent.personality.aggression * 0.6
+        if hasattr(agent, "personality"):
+            combat_desire = (
+                agent.personality.bravery * 0.4 + agent.personality.aggression * 0.6
+            )
             base_utility *= combat_desire
 
         # Consider strength difference
@@ -340,7 +425,7 @@ class FleeFromDangerGoal(Goal):
 
         base_utility = 0.8
 
-        if hasattr(agent, 'personality'):
+        if hasattr(agent, "personality"):
             base_utility *= agent.personality.caution
 
         # Consider health
@@ -361,15 +446,21 @@ class RestGoal(Goal):
         if self.rest_start_tick == 0:
             return False
 
-        rested_enough = (world.current_tick - self.rest_start_tick) >= self.rest_duration
-        stats_restored = (agent.stats.stamina > agent.stats.max_stamina * 0.8 and
-                         agent.stats.health > agent.stats.max_health * 0.8)
+        rested_enough = (
+            world.current_tick - self.rest_start_tick
+        ) >= self.rest_duration
+        stats_restored = (
+            agent.stats.stamina > agent.stats.max_stamina * 0.8
+            and agent.stats.health > agent.stats.max_health * 0.8
+        )
 
         return rested_enough or stats_restored
 
     def is_valid(self, agent: Entity, world: World) -> bool:
-        return (agent.stats.stamina < agent.stats.max_stamina * 0.4 or
-                agent.stats.health < agent.stats.max_health * 0.6)
+        return (
+            agent.stats.stamina < agent.stats.max_stamina * 0.4
+            or agent.stats.health < agent.stats.max_health * 0.6
+        )
 
     def get_next_action(self, agent: Entity, world: World) -> Optional[Action]:
         # Resting is passive - just wait
@@ -394,8 +485,14 @@ class RestGoal(Goal):
 
 class TradeGoal(Goal):
     """Goal for trading items with other entities"""
-    def __init__(self, target_id: Optional[int] = None, offered_items: Optional[List[Tuple[str, int]]] = None,
-                 requested_items: Optional[List[Tuple[str, int]]] = None, priority: int = 5):
+
+    def __init__(
+        self,
+        target_id: Optional[int] = None,
+        offered_items: Optional[List[Tuple[str, int]]] = None,
+        requested_items: Optional[List[Tuple[str, int]]] = None,
+        priority: int = 5,
+    ):
         super().__init__(priority, "Trade")
         self.target_id = target_id
         self.offered_items = offered_items or []
@@ -458,7 +555,10 @@ class TradeGoal(Goal):
             # In a full implementation, this would create a TradeOffer through the TradingSystem
 
         # If waiting too long, give up
-        if self.waiting_for_response and (world.current_tick - self.waiting_since_tick) > 50:
+        if (
+            self.waiting_for_response
+            and (world.current_tick - self.waiting_since_tick) > 50
+        ):
             self.waiting_for_response = False
             self.target_id = None
 
@@ -466,7 +566,7 @@ class TradeGoal(Goal):
 
     def _find_trade_partner(self, agent: Entity, world: World) -> None:
         """Find a nearby entity to trade with"""
-        min_distance = float('inf')
+        min_distance = float("inf")
         best_target = None
 
         for entity_id, entity in world.entities.items():
@@ -475,7 +575,10 @@ class TradeGoal(Goal):
             if not entity.stats.is_alive():
                 continue
             # Only trade with other agents, not hostile NPCs
-            if hasattr(entity, 'npc_type') and entity.npc_type in ['hostile', 'aggressive']:
+            if hasattr(entity, "npc_type") and entity.npc_type in [
+                "hostile",
+                "aggressive",
+            ]:
                 continue
 
             distance = agent.distance_to(entity)
@@ -490,8 +593,8 @@ class TradeGoal(Goal):
         base_utility = 0.4
 
         # Higher utility for social agents
-        if hasattr(agent, 'personality'):
-            base_utility *= (agent.personality.sociability * 0.8 + 0.4)
+        if hasattr(agent, "personality"):
+            base_utility *= agent.personality.sociability * 0.8 + 0.4
 
         # Higher utility if we have excess items to trade
         if self.offered_items:

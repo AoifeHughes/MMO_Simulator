@@ -1,14 +1,9 @@
-import pytest
-import math
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
-from src.systems.fog_of_war import FogOfWar
-from src.systems.trading import TradingSystem, Market, TradeOffer, TradeStatus
-from src.systems.respawn import RespawnManager, RespawnType, RespawnEntry
-from src.entities.stats import Stats
-from src.entities.inventory import Inventory
 from src.core.world import World
-from src.world.tile import Tile
+from src.systems.fog_of_war import FogOfWar
+from src.systems.respawn import RespawnEntry, RespawnManager, RespawnType
+from src.systems.trading import Market, TradeOffer, TradingSystem
 
 
 class TestFogOfWar:
@@ -86,10 +81,7 @@ class TestFogOfWar:
 
     def test_memory_cleanup(self):
         fog = FogOfWar(10, 10)
-        fog.agent_memory[1] = {
-            (5, 5): {"last_seen": 50},
-            (6, 6): {"last_seen": 200}
-        }
+        fog.agent_memory[1] = {(5, 5): {"last_seen": 50}, (6, 6): {"last_seen": 200}}
         fog.memory_duration = 100
 
         fog.forget_old_memories(1, 200)
@@ -164,10 +156,11 @@ class TestTradingSystem:
         target.id = 2
 
         offer = trading.create_trade_offer(
-            initiator, target,
+            initiator,
+            target,
             offered_items=[("Wood", 5)],
             requested_items=[("Stone", 3)],
-            offered_gold=10
+            offered_gold=10,
         )
 
         assert offer is not None
@@ -192,7 +185,7 @@ class TestTradingSystem:
             initiator_id=1,
             target_id=2,
             offered_items=[("Wood", 5)],
-            requested_items=[("Stone", 2)]
+            requested_items=[("Stone", 2)],
         )
 
         utility = trading._calculate_trade_utility(entity, offer)
@@ -215,7 +208,7 @@ class TestTradingSystem:
             initiator_id=2,
             target_id=1,
             offered_items=[("Wood", 1)],
-            requested_items=[("Stone", 5)]  # Entity doesn't have this
+            requested_items=[("Stone", 5)],  # Entity doesn't have this
         )
 
         should_accept, utility = trading.evaluate_trade_offer(entity, 1)
@@ -236,7 +229,7 @@ class TestTradingSystem:
             offered_items=[],
             requested_items=[],
             created_tick=0,
-            expires_tick=50
+            expires_tick=50,
         )
         trading.pending_offers[1] = offer
 
@@ -369,10 +362,10 @@ class TestRespawnManager:
                     "max_health": 100,
                     "max_stamina": 50,
                     "attack_power": 10,
-                    "defense": 5
-                }
+                    "defense": 5,
+                },
             },
-            death_tick=50
+            death_tick=50,
         )
 
         respawn.respawn_queue.append(entry)
@@ -380,7 +373,7 @@ class TestRespawnManager:
         # Mock world.add_entity
         world.add_entity = Mock()
 
-        respawned = respawn.process_respawns(world)
+        respawn.process_respawns(world)
 
         # Should have processed the respawn
         assert len(respawn.respawn_queue) == 0  # Entry should be removed

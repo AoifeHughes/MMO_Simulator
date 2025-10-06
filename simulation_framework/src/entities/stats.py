@@ -1,6 +1,7 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict
 
 
 @dataclass
@@ -80,7 +81,7 @@ class Stats:
             "magic": self.magic,
             "attack_power": self.attack_power,
             "defense": self.defense,
-            "speed": self.speed
+            "speed": self.speed,
         }
 
     @classmethod

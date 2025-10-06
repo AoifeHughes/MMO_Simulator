@@ -1,12 +1,13 @@
 from __future__ import annotations
-from typing import Dict, List, Optional, TYPE_CHECKING
 
-from .base import Action, ActionResult, ResourceCost, Event
+from typing import TYPE_CHECKING, Dict, Optional
+
 from ..items.item import Item
+from .base import Action, ActionResult, Event, ResourceCost
 
 if TYPE_CHECKING:
-    from ..entities.base import Entity
     from ..core.world import World
+    from ..entities.base import Entity
 
 
 class CraftAction(Action):
@@ -23,32 +24,32 @@ class CraftAction(Action):
                 "materials": {"Wood": 2},
                 "tool_required": None,
                 "skill_required": ("crafting", 1),
-                "crafting_time": 3
+                "crafting_time": 3,
             },
             "Stone Axe": {
                 "materials": {"Wood": 1, "Stone": 2},
                 "tool_required": None,
                 "skill_required": ("crafting", 2),
-                "crafting_time": 4
+                "crafting_time": 4,
             },
             "Health Potion": {
                 "materials": {"Herbs": 2, "Berries": 1},
                 "tool_required": None,
                 "skill_required": ("alchemy", 1),
-                "crafting_time": 2
+                "crafting_time": 2,
             },
             "Bread": {
                 "materials": {"Berries": 3},
                 "tool_required": None,
                 "skill_required": ("cooking", 1),
-                "crafting_time": 2
+                "crafting_time": 2,
             },
             "Iron Sword": {
                 "materials": {"Iron Ore": 3, "Wood": 1},
                 "tool_required": "anvil",
                 "skill_required": ("smithing", 3),
-                "crafting_time": 5
-            }
+                "crafting_time": 5,
+            },
         }
         return recipes.get(item_name, {})
 
@@ -70,7 +71,7 @@ class CraftAction(Action):
         skill_req = self.recipe.get("skill_required")
         if skill_req:
             skill_name, min_level = skill_req
-            if hasattr(actor, 'skills'):
+            if hasattr(actor, "skills"):
                 current_level = actor.skills.get(skill_name, 0)
                 if current_level < min_level:
                     return False
@@ -95,11 +96,13 @@ class CraftAction(Action):
         if crafted_item:
             remaining = actor.inventory.add_item(crafted_item, self.quantity)
             if remaining > 0:
-                return ActionResult.failure(f"Inventory full, lost {remaining} {self.item_name}")
+                return ActionResult.failure(
+                    f"Inventory full, lost {remaining} {self.item_name}"
+                )
 
             # Gain skill experience
             skill_req = self.recipe.get("skill_required")
-            if skill_req and hasattr(actor, 'skills'):
+            if skill_req and hasattr(actor, "skills"):
                 skill_name, _ = skill_req
                 current_skill = actor.skills.get(skill_name, 0)
                 actor.skills[skill_name] = current_skill + 2
@@ -110,13 +113,12 @@ class CraftAction(Action):
                 data={
                     "item": self.item_name,
                     "quantity": self.quantity,
-                    "skill_gained": 2
-                }
+                    "skill_gained": 2,
+                },
             )
 
             return ActionResult.success(
-                f"Crafted {self.quantity}x {self.item_name}",
-                [event]
+                f"Crafted {self.quantity}x {self.item_name}", [event]
             )
 
         return ActionResult.failure(f"Failed to create {self.item_name}")
@@ -127,40 +129,28 @@ class CraftAction(Action):
             "Wooden Sword": {
                 "id": 1001,
                 "type": "weapon",
-                "properties": {
-                    "damage": 8,
-                    "attack_type": "melee",
-                    "durability": 30
-                },
-                "value": 15
+                "properties": {"damage": 8, "attack_type": "melee", "durability": 30},
+                "value": 15,
             },
             "Stone Axe": {
                 "id": 1002,
                 "type": "tool",
-                "properties": {
-                    "tool_type": "axe",
-                    "durability": 40,
-                    "efficiency": 1.2
-                },
-                "value": 20
+                "properties": {"tool_type": "axe", "durability": 40, "efficiency": 1.2},
+                "value": 20,
             },
             "Health Potion": {
                 "id": 1003,
                 "type": "consumable",
-                "properties": {
-                    "effect": {"heal": 30}
-                },
+                "properties": {"effect": {"heal": 30}},
                 "value": 25,
-                "max_stack": 10
+                "max_stack": 10,
             },
             "Bread": {
                 "id": 1004,
                 "type": "consumable",
-                "properties": {
-                    "effect": {"heal": 15, "restore_stamina": 10}
-                },
+                "properties": {"effect": {"heal": 15, "restore_stamina": 10}},
                 "value": 5,
-                "max_stack": 20
+                "max_stack": 20,
             },
             "Iron Sword": {
                 "id": 1005,
@@ -169,10 +159,10 @@ class CraftAction(Action):
                     "damage": 18,
                     "attack_type": "melee",
                     "durability": 80,
-                    "critical_chance": 0.15
+                    "critical_chance": 0.15,
                 },
-                "value": 75
-            }
+                "value": 75,
+            },
         }
 
         data = item_data.get(item_name)
@@ -186,7 +176,7 @@ class CraftAction(Action):
             properties=data["properties"],
             description=f"Crafted {item_name.lower()}",
             value=data["value"],
-            max_stack_size=data.get("max_stack", 1)
+            max_stack_size=data.get("max_stack", 1),
         )
 
     def get_duration(self) -> int:

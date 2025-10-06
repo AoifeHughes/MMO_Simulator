@@ -1,16 +1,21 @@
 from __future__ import annotations
-from typing import List, Tuple, Dict, Optional, TYPE_CHECKING
+
 import random
-import math
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 from .goal import (
-    Goal, ExploreGoal, GatherResourceGoal, CraftItemGoal,
-    AttackEnemyGoal, FleeFromDangerGoal, RestGoal
+    AttackEnemyGoal,
+    CraftItemGoal,
+    ExploreGoal,
+    FleeFromDangerGoal,
+    GatherResourceGoal,
+    Goal,
+    RestGoal,
 )
 
 if TYPE_CHECKING:
-    from ..entities.base import Entity
     from ..core.world import World
+    from ..entities.base import Entity
 
 
 class DecisionMaker:
@@ -20,10 +25,7 @@ class DecisionMaker:
         self.decision_cooldown = 3  # Ticks between decisions
 
     def evaluate_all_goals(
-        self,
-        agent: Entity,
-        world: World,
-        current_goals: List[Goal]
+        self, agent: Entity, world: World, current_goals: List[Goal]
     ) -> List[Tuple[Goal, float]]:
         """Evaluate utility of all possible goals"""
         goal_utilities = []
@@ -47,7 +49,7 @@ class DecisionMaker:
         agent: Entity,
         world: World,
         current_goals: List[Goal],
-        selection_method: str = "utility_weighted"
+        selection_method: str = "utility_weighted",
     ) -> Optional[Goal]:
         """Select the best goal for the agent"""
 
@@ -94,18 +96,18 @@ class DecisionMaker:
         history_modifier = self._get_history_modifier(goal)
 
         total_utility = (
-            base_utility *
-            personality_modifier *
-            class_modifier *
-            context_modifier *
-            history_modifier
+            base_utility
+            * personality_modifier
+            * class_modifier
+            * context_modifier
+            * history_modifier
         )
 
         return max(0.0, min(1.0, total_utility))
 
     def _get_personality_modifier(self, goal: Goal, agent: Entity) -> float:
         """Get personality-based utility modifier"""
-        if not hasattr(agent, 'personality'):
+        if not hasattr(agent, "personality"):
             return 1.0
 
         personality = agent.personality
@@ -128,7 +130,7 @@ class DecisionMaker:
 
     def _get_class_modifier(self, goal: Goal, agent: Entity) -> float:
         """Get character class-based utility modifier"""
-        if not hasattr(agent, 'character_class'):
+        if not hasattr(agent, "character_class"):
             return 1.0
 
         character_class = agent.character_class
@@ -164,7 +166,9 @@ class DecisionMaker:
                 modifier *= 0.3
 
         # Inventory space modifiers
-        inventory_full = agent.inventory.get_total_items() >= agent.inventory.capacity * 0.9
+        inventory_full = (
+            agent.inventory.get_total_items() >= agent.inventory.capacity * 0.9
+        )
 
         if inventory_full:
             if isinstance(goal, GatherResourceGoal):
@@ -223,12 +227,14 @@ class DecisionMaker:
         potential_goals = []
 
         # Always consider resting if tired
-        if (agent.stats.get_stamina_percentage() < 0.5 or
-            agent.stats.get_health_percentage() < 0.7):
+        if (
+            agent.stats.get_stamina_percentage() < 0.5
+            or agent.stats.get_health_percentage() < 0.7
+        ):
             potential_goals.append(RestGoal())
 
         # Exploration goals
-        if hasattr(agent, 'personality') and agent.personality.curiosity > 0.4:
+        if hasattr(agent, "personality") and agent.personality.curiosity > 0.4:
             potential_goals.append(ExploreGoal())
 
         # Gathering goals based on needs and preferences
@@ -261,7 +267,7 @@ class DecisionMaker:
             needed.append("wood")  # For crafting weapons
 
         # Class-specific needs
-        if hasattr(agent, 'character_class'):
+        if hasattr(agent, "character_class"):
             if agent.character_class.name == "Blacksmith":
                 if agent.inventory.get_item_count("Iron Ore") < 5:
                     needed.append("iron_ore")
@@ -271,7 +277,9 @@ class DecisionMaker:
 
         return needed[:2]  # Limit to 2 most important needs
 
-    def _find_nearby_enemies(self, agent: Entity, world: World, range_limit: int = 10) -> List:
+    def _find_nearby_enemies(
+        self, agent: Entity, world: World, range_limit: int = 10
+    ) -> List:
         """Find potential enemies within range"""
         enemies = []
         agent_x, agent_y = agent.position
@@ -284,7 +292,7 @@ class DecisionMaker:
                 continue
 
             # Check if it's an NPC that could be hostile
-            if hasattr(entity, 'npc_type') and entity.npc_type == "aggressive":
+            if hasattr(entity, "npc_type") and entity.npc_type == "aggressive":
                 distance = agent.distance_to(entity)
                 if distance <= range_limit:
                     enemies.append(entity)
@@ -293,7 +301,7 @@ class DecisionMaker:
 
     def _should_consider_combat(self, agent: Entity, enemy: Entity) -> bool:
         """Determine if agent should consider fighting this enemy"""
-        if not hasattr(agent, 'personality'):
+        if not hasattr(agent, "personality"):
             return False
 
         # Check relative strength
@@ -304,9 +312,9 @@ class DecisionMaker:
 
         # Factor in personality
         combat_willingness = (
-            agent.personality.bravery * 0.4 +
-            agent.personality.aggression * 0.4 +
-            (1.0 - agent.personality.caution) * 0.2
+            agent.personality.bravery * 0.4
+            + agent.personality.aggression * 0.4
+            + (1.0 - agent.personality.caution) * 0.2
         )
 
         # Adjust for strength
@@ -317,7 +325,9 @@ class DecisionMaker:
 
         return random.random() < combat_willingness
 
-    def _find_immediate_threats(self, agent: Entity, world: World, range_limit: int = 5) -> List:
+    def _find_immediate_threats(
+        self, agent: Entity, world: World, range_limit: int = 5
+    ) -> List:
         """Find immediate threats that agent should flee from"""
         threats = []
 
@@ -329,8 +339,12 @@ class DecisionMaker:
                 continue
 
             # Check if entity is hostile and nearby
-            if (hasattr(entity, 'npc_type') and entity.npc_type == "aggressive" and
-                hasattr(entity, 'target_id') and entity.target_id == agent.id):
+            if (
+                hasattr(entity, "npc_type")
+                and entity.npc_type == "aggressive"
+                and hasattr(entity, "target_id")
+                and entity.target_id == agent.id
+            ):
 
                 distance = agent.distance_to(entity)
                 if distance <= range_limit:
@@ -342,20 +356,24 @@ class DecisionMaker:
 
     def _should_flee_from(self, agent: Entity, threat: Entity) -> bool:
         """Determine if agent should flee from this threat"""
-        if not hasattr(agent, 'personality'):
+        if not hasattr(agent, "personality"):
             return True  # Default to caution
 
         # Check relative strength
-        agent_power = agent.stats.attack_power + agent.stats.defense + agent.stats.health
-        threat_power = threat.stats.attack_power + threat.stats.defense + threat.stats.health
+        agent_power = (
+            agent.stats.attack_power + agent.stats.defense + agent.stats.health
+        )
+        threat_power = (
+            threat.stats.attack_power + threat.stats.defense + threat.stats.health
+        )
 
         strength_ratio = agent_power / max(threat_power, 1)
 
         # Factor in personality and health
         flee_tendency = (
-            agent.personality.caution * 0.5 +
-            (1.0 - agent.personality.bravery) * 0.3 +
-            (1.0 - agent.stats.get_health_percentage()) * 0.2
+            agent.personality.caution * 0.5
+            + (1.0 - agent.personality.bravery) * 0.3
+            + (1.0 - agent.stats.get_health_percentage()) * 0.2
         )
 
         # Adjust for strength difference
@@ -379,6 +397,12 @@ class DecisionMaker:
             "last_decision_tick": self.last_decision_tick,
             "goal_history": self.goal_history.copy(),
             "decision_cooldown": self.decision_cooldown,
-            "agent_personality": agent.personality.to_dict() if hasattr(agent, 'personality') else None,
-            "agent_class": str(agent.character_class) if hasattr(agent, 'character_class') else None
+            "agent_personality": (
+                agent.personality.to_dict() if hasattr(agent, "personality") else None
+            ),
+            "agent_class": (
+                str(agent.character_class)
+                if hasattr(agent, "character_class")
+                else None
+            ),
         }

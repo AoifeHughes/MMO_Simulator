@@ -6,37 +6,30 @@ validate that the expected events are properly logged to the database.
 """
 
 import pytest
-import tempfile
-import os
-from typing import Optional
-
-from src.core.simulation import Simulation
-from src.core.config import SimulationConfig
-from src.ai.goal import AttackEnemyGoal, ExploreGoal, GatherResourceGoal, RestGoal
 from src.actions.movement import PathfindAction
+from src.ai.goal import AttackEnemyGoal, ExploreGoal, GatherResourceGoal, RestGoal
+from src.core.simulation import Simulation
 
 # Import test helpers
 from .helpers import (
-    create_controlled_world,
-    create_test_config,
-    force_agent_equipment,
-    place_resource_node,
-    ForcedBehaviorAgent,
     ControlledNPC,
-    create_test_warrior,
-    create_test_archer,
-    create_test_gatherer,
-    create_weak_goblin,
-    create_strong_enemy,
     StaticNPC,
+    assert_action_logged,
     assert_combat_occurred,
     assert_entity_died,
     assert_entity_health_changed,
-    assert_resource_gathered,
     assert_movement_occurred,
-    assert_action_logged,
+    assert_resource_gathered,
     assert_stamina_decreased,
-    cleanup_test_database
+    cleanup_test_database,
+    create_controlled_world,
+    create_test_archer,
+    create_test_config,
+    create_test_gatherer,
+    create_test_warrior,
+    create_weak_goblin,
+    force_agent_equipment,
+    place_resource_node,
 )
 
 
@@ -70,8 +63,12 @@ class TestCombatValidation:
         sim.run(num_ticks=50)
 
         # Verify combat occurred and was logged
-        assert_combat_occurred(sim.db, sim.simulation_id, warrior.id, goblin.id, min_attacks=1)
-        assert_entity_health_changed(sim.db, sim.simulation_id, goblin.id, decreased=True)
+        assert_combat_occurred(
+            sim.db, sim.simulation_id, warrior.id, goblin.id, min_attacks=1
+        )
+        assert_entity_health_changed(
+            sim.db, sim.simulation_id, goblin.id, decreased=True
+        )
 
         # Cleanup
         cleanup_test_database(config.database_path)
@@ -101,7 +98,9 @@ class TestCombatValidation:
         sim.run(num_ticks=50)
 
         # Verify ranged attacks logged
-        assert_action_logged(sim.db, sim.simulation_id, archer.id, "RangedAttack", min_count=1)
+        assert_action_logged(
+            sim.db, sim.simulation_id, archer.id, "RangedAttack", min_count=1
+        )
 
         cleanup_test_database(config.database_path)
 
@@ -158,7 +157,9 @@ class TestCombatValidation:
         sim.run(num_ticks=80)
 
         # Verify NPC initiated combat (attacks should be logged from NPC to agent)
-        assert_combat_occurred(sim.db, sim.simulation_id, npc.id, agent.id, min_attacks=1)
+        assert_combat_occurred(
+            sim.db, sim.simulation_id, npc.id, agent.id, min_attacks=1
+        )
 
         cleanup_test_database(config.database_path)
 
@@ -187,10 +188,14 @@ class TestCombatValidation:
 
         # Verify health decreased for at least one combatant
         try:
-            assert_entity_health_changed(sim.db, sim.simulation_id, enemy.id, decreased=True)
+            assert_entity_health_changed(
+                sim.db, sim.simulation_id, enemy.id, decreased=True
+            )
         except AssertionError:
             # If enemy didn't take damage, warrior should have
-            assert_entity_health_changed(sim.db, sim.simulation_id, warrior.id, decreased=True)
+            assert_entity_health_changed(
+                sim.db, sim.simulation_id, warrior.id, decreased=True
+            )
 
         cleanup_test_database(config.database_path)
 
@@ -293,7 +298,9 @@ class TestResourceGathering:
         force_agent_equipment(gatherer, "axe")
 
         # Force gathering goal
-        gatherer.current_goals = [GatherResourceGoal("wood", target_quantity=5, priority=10)]
+        gatherer.current_goals = [
+            GatherResourceGoal("wood", target_quantity=5, priority=10)
+        ]
 
         sim.add_agent(gatherer)
 
@@ -301,7 +308,9 @@ class TestResourceGathering:
         sim.run(num_ticks=80)
 
         # Verify wood gathering logged
-        assert_resource_gathered(sim.db, sim.simulation_id, gatherer.id, "wood", min_amount=1)
+        assert_resource_gathered(
+            sim.db, sim.simulation_id, gatherer.id, "wood", min_amount=1
+        )
 
         cleanup_test_database(config.database_path)
 
@@ -320,7 +329,9 @@ class TestResourceGathering:
         force_agent_equipment(miner, "pickaxe")
 
         # Force mining goal
-        miner.current_goals = [GatherResourceGoal("stone", target_quantity=5, priority=10)]
+        miner.current_goals = [
+            GatherResourceGoal("stone", target_quantity=5, priority=10)
+        ]
 
         sim.add_agent(miner)
 
@@ -328,7 +339,9 @@ class TestResourceGathering:
         sim.run(num_ticks=80)
 
         # Verify stone gathering logged
-        assert_resource_gathered(sim.db, sim.simulation_id, miner.id, "stone", min_amount=1)
+        assert_resource_gathered(
+            sim.db, sim.simulation_id, miner.id, "stone", min_amount=1
+        )
 
         cleanup_test_database(config.database_path)
 
@@ -346,7 +359,9 @@ class TestResourceGathering:
         gatherer = create_test_gatherer((2, 2), "NoToolGatherer")
         # Don't equip any tool
 
-        gatherer.current_goals = [GatherResourceGoal("wood", target_quantity=5, priority=10)]
+        gatherer.current_goals = [
+            GatherResourceGoal("wood", target_quantity=5, priority=10)
+        ]
 
         sim.add_agent(gatherer)
 
@@ -355,7 +370,9 @@ class TestResourceGathering:
 
         # Verify no successful gathering (should fail or have 0 successful gathers)
         try:
-            assert_resource_gathered(sim.db, sim.simulation_id, gatherer.id, "wood", min_amount=1)
+            assert_resource_gathered(
+                sim.db, sim.simulation_id, gatherer.id, "wood", min_amount=1
+            )
             # If this passes, the test should fail
             assert False, "Expected gathering to fail without tool, but it succeeded"
         except AssertionError as e:
@@ -363,7 +380,6 @@ class TestResourceGathering:
             if "Expected gathering to fail" in str(e):
                 raise
             # Otherwise, this is the expected assertion error from assert_resource_gathered
-            pass
 
         cleanup_test_database(config.database_path)
 
@@ -396,7 +412,9 @@ class TestMultiSystemIntegration:
         sim.run(num_ticks=100)
 
         # Verify combat occurred
-        assert_combat_occurred(sim.db, sim.simulation_id, warrior.id, goblin.id, min_attacks=1)
+        assert_combat_occurred(
+            sim.db, sim.simulation_id, warrior.id, goblin.id, min_attacks=1
+        )
 
         # Verify death
         assert_entity_died(sim.db, sim.simulation_id, goblin.id)
@@ -426,7 +444,9 @@ class TestMultiSystemIntegration:
         sim.run(num_ticks=120)
 
         # Verify combat occurred (which proves movement happened - warrior had to reach enemy)
-        assert_combat_occurred(sim.db, sim.simulation_id, warrior.id, enemy.id, min_attacks=1)
+        assert_combat_occurred(
+            sim.db, sim.simulation_id, warrior.id, enemy.id, min_attacks=1
+        )
 
         # Combat occurring proves movement succeeded (warrior moved from (2,2) to enemy at (8,8))
 
@@ -518,7 +538,9 @@ class TestEdgeCasesAndErrors:
 
         place_resource_node(sim.world, 2, 2, "wood", amount=100)
 
-        gatherer.current_goals = [GatherResourceGoal("wood", target_quantity=5, priority=10)]
+        gatherer.current_goals = [
+            GatherResourceGoal("wood", target_quantity=5, priority=10)
+        ]
 
         sim.add_agent(gatherer)
 
@@ -555,13 +577,14 @@ class TestEdgeCasesAndErrors:
 
         # Verify no combat occurred (target doesn't exist)
         try:
-            assert_combat_occurred(sim.db, sim.simulation_id, warrior.id, 99999, min_attacks=1)
+            assert_combat_occurred(
+                sim.db, sim.simulation_id, warrior.id, 99999, min_attacks=1
+            )
             assert False, "Expected no combat with invalid target"
         except AssertionError as e:
             # Expected - no combat should occur
             if "Expected no combat" in str(e):
                 raise
-            pass
 
         cleanup_test_database(config.database_path)
 
@@ -588,8 +611,12 @@ class TestEdgeCasesAndErrors:
         # Agent should stay within bounds (0,0) to (4,4)
         snapshots = sim.db.get_agent_snapshots(sim.simulation_id, agent.id)
         for snapshot in snapshots:
-            assert 0 <= snapshot.position_x < 5, f"Agent x={snapshot.position_x} out of bounds"
-            assert 0 <= snapshot.position_y < 5, f"Agent y={snapshot.position_y} out of bounds"
+            assert (
+                0 <= snapshot.position_x < 5
+            ), f"Agent x={snapshot.position_x} out of bounds"
+            assert (
+                0 <= snapshot.position_y < 5
+            ), f"Agent y={snapshot.position_y} out of bounds"
 
         cleanup_test_database(config.database_path)
 

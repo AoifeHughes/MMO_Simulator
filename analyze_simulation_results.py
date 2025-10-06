@@ -10,15 +10,14 @@ This script will:
 """
 
 import sqlite3
-import json
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
-from datetime import datetime
+from typing import Any, Dict, List
 
 
 @dataclass
 class BehaviorCheck:
     """Represents a specific behavior to check for"""
+
     name: str
     description: str
     sql_query: str
@@ -46,11 +45,13 @@ class SimulationAnalyzer:
         cursor = self.conn.cursor()
 
         # Get the latest simulation run
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT * FROM simulation_runs
             ORDER BY id DESC
             LIMIT 1
-        """)
+        """
+        )
 
         sim_run = cursor.fetchone()
         if not sim_run:
@@ -65,7 +66,7 @@ class SimulationAnalyzer:
             "start_time": sim_run["start_time"],
             "end_time": sim_run["end_time"],
             "total_ticks": sim_run["current_tick"],
-            "total_agents": sim_run["total_agents"]
+            "total_agents": sim_run["total_agents"],
         }
 
     def define_expected_behaviors(self) -> List[BehaviorCheck]:
@@ -76,83 +77,90 @@ class SimulationAnalyzer:
             BehaviorCheck(
                 name="Simulation Initialization",
                 description="Simulation run was properly initialized and recorded",
-                sql_query="SELECT COUNT(*) as count FROM simulation_runs WHERE id = (SELECT MAX(id) FROM simulation_runs)",
-                expected_minimum=1
+                sql_query=(
+                    "SELECT COUNT(*) as count FROM simulation_runs WHERE id = (SELECT MAX(id) FROM simulation_runs)"
+                ),
+                expected_minimum=1,
             ),
-
             BehaviorCheck(
                 name="Agent Snapshots Recorded",
                 description="Agent snapshots were saved periodically",
                 sql_query="SELECT COUNT(*) as count FROM agent_snapshots",
-                expected_minimum=50  # Should have many snapshots over 5 minutes
+                expected_minimum=50,  # Should have many snapshots over 5 minutes
             ),
-
             BehaviorCheck(
                 name="World Snapshots Recorded",
                 description="World state snapshots were saved periodically",
                 sql_query="SELECT COUNT(*) as count FROM world_snapshots",
-                expected_minimum=10  # Should have world snapshots
+                expected_minimum=10,  # Should have world snapshots
             ),
-
             # === AGENT BEHAVIORS ===
             BehaviorCheck(
                 name="Agent Movement Actions",
                 description="Agents performed movement actions",
-                sql_query="SELECT COUNT(*) as count FROM action_logs WHERE action_type LIKE '%Move%'",
-                expected_minimum=100  # Should see many movement actions
+                sql_query=(
+                    "SELECT COUNT(*) as count FROM action_logs WHERE action_type LIKE '%Move%'"
+                ),
+                expected_minimum=100,  # Should see many movement actions
             ),
-
             BehaviorCheck(
                 name="Agent Exploration Actions",
                 description="Agents performed exploration/wandering actions",
-                sql_query="SELECT COUNT(*) as count FROM action_logs WHERE action_type LIKE '%Wander%' OR action_type LIKE '%Explore%'",
-                expected_minimum=10
+                sql_query=(
+                    "SELECT COUNT(*) as count FROM action_logs WHERE action_type LIKE '%Wander%' OR action_type LIKE '%Explore%'"
+                ),
+                expected_minimum=10,
             ),
-
             BehaviorCheck(
                 name="Agent Pathfinding Actions",
                 description="Agents used pathfinding to reach destinations",
-                sql_query="SELECT COUNT(*) as count FROM action_logs WHERE action_type LIKE '%Pathfind%'",
-                expected_minimum=5
+                sql_query=(
+                    "SELECT COUNT(*) as count FROM action_logs WHERE action_type LIKE '%Pathfind%'"
+                ),
+                expected_minimum=5,
             ),
-
             # === RESOURCE GATHERING ===
             BehaviorCheck(
                 name="Gathering Actions Attempted",
                 description="Agents attempted to gather resources",
-                sql_query="SELECT COUNT(*) as count FROM action_logs WHERE action_type LIKE '%Gather%' OR action_type LIKE '%Mine%' OR action_type LIKE '%Woodcut%' OR action_type LIKE '%Fish%' OR action_type LIKE '%Forage%'",
-                expected_minimum=5
+                sql_query=(
+                    "SELECT COUNT(*) as count FROM action_logs WHERE action_type LIKE '%Gather%' OR action_type LIKE '%Mine%' OR action_type LIKE '%Woodcut%' OR action_type LIKE '%Fish%' OR action_type LIKE '%Forage%'"
+                ),
+                expected_minimum=5,
             ),
-
             BehaviorCheck(
                 name="Successful Gathering Actions",
                 description="Some gathering actions were successful",
-                sql_query="SELECT COUNT(*) as count FROM action_logs WHERE (action_type LIKE '%Gather%' OR action_type LIKE '%Mine%' OR action_type LIKE '%Woodcut%') AND success = 1",
-                expected_minimum=1
+                sql_query=(
+                    "SELECT COUNT(*) as count FROM action_logs WHERE (action_type LIKE '%Gather%' OR action_type LIKE '%Mine%' OR action_type LIKE '%Woodcut%') AND success = 1"
+                ),
+                expected_minimum=1,
             ),
-
             # === COMBAT BEHAVIORS ===
             BehaviorCheck(
                 name="Combat Actions Initiated",
                 description="Combat actions were initiated between entities",
-                sql_query="SELECT COUNT(*) as count FROM action_logs WHERE action_type LIKE '%Attack%' OR action_type LIKE '%Combat%'",
-                expected_minimum=1
+                sql_query=(
+                    "SELECT COUNT(*) as count FROM action_logs WHERE action_type LIKE '%Attack%' OR action_type LIKE '%Combat%'"
+                ),
+                expected_minimum=1,
             ),
-
             BehaviorCheck(
                 name="Combat Hits Landed",
                 description="Combat attacks successfully hit targets",
-                sql_query="SELECT COUNT(*) as count FROM action_logs WHERE action_type LIKE '%Attack%' AND success = 1",
-                expected_minimum=1
+                sql_query=(
+                    "SELECT COUNT(*) as count FROM action_logs WHERE action_type LIKE '%Attack%' AND success = 1"
+                ),
+                expected_minimum=1,
             ),
-
             BehaviorCheck(
                 name="Combat Damage Dealt",
                 description="Combat resulted in damage being dealt",
-                sql_query="SELECT COUNT(*) as count FROM combat_logs WHERE damage_dealt > 0",
-                expected_minimum=1
+                sql_query=(
+                    "SELECT COUNT(*) as count FROM combat_logs WHERE damage_dealt > 0"
+                ),
+                expected_minimum=1,
             ),
-
             # === HEALTH AND STAMINA MANAGEMENT ===
             BehaviorCheck(
                 name="Health Changes Recorded",
@@ -162,9 +170,8 @@ class SimulationAnalyzer:
                     JOIN agent_snapshots a2 ON a1.agent_id = a2.agent_id
                     WHERE a1.tick < a2.tick AND a1.health != a2.health
                 """,
-                expected_minimum=1
+                expected_minimum=1,
             ),
-
             BehaviorCheck(
                 name="Stamina Usage Recorded",
                 description="Agents used stamina for actions",
@@ -173,31 +180,33 @@ class SimulationAnalyzer:
                     JOIN agent_snapshots a2 ON a1.agent_id = a2.agent_id
                     WHERE a1.tick < a2.tick AND a1.stamina < a2.stamina
                 """,
-                expected_minimum=10  # Should see stamina being used
+                expected_minimum=10,  # Should see stamina being used
             ),
-
             # === AI DECISION MAKING ===
             BehaviorCheck(
                 name="Goal-Based Actions",
                 description="Agents had active goals recorded in snapshots",
-                sql_query="SELECT COUNT(*) as count FROM agent_snapshots WHERE current_goals != '[]' AND current_goals != ''",
-                expected_minimum=50
+                sql_query=(
+                    "SELECT COUNT(*) as count FROM agent_snapshots WHERE current_goals != '[]' AND current_goals != ''"
+                ),
+                expected_minimum=50,
             ),
-
             BehaviorCheck(
                 name="Personality-Based Behavior",
                 description="Agents had personality data recorded",
-                sql_query="SELECT COUNT(*) as count FROM agent_snapshots WHERE personality != '{}' AND personality != ''",
-                expected_minimum=50
+                sql_query=(
+                    "SELECT COUNT(*) as count FROM agent_snapshots WHERE personality != '{}' AND personality != ''"
+                ),
+                expected_minimum=50,
             ),
-
             BehaviorCheck(
                 name="Character Class Diversity",
                 description="Multiple character classes were present",
-                sql_query="SELECT COUNT(DISTINCT character_class) as count FROM agent_snapshots WHERE character_class != ''",
-                expected_minimum=2
+                sql_query=(
+                    "SELECT COUNT(DISTINCT character_class) as count FROM agent_snapshots WHERE character_class != ''"
+                ),
+                expected_minimum=2,
             ),
-
             # === WORLD DYNAMICS ===
             BehaviorCheck(
                 name="Position Changes",
@@ -207,9 +216,8 @@ class SimulationAnalyzer:
                     JOIN agent_snapshots a2 ON a1.agent_id = a2.agent_id
                     WHERE a1.tick < a2.tick AND (a1.position_x != a2.position_x OR a1.position_y != a2.position_y)
                 """,
-                expected_minimum=100  # Should see lots of movement
+                expected_minimum=100,  # Should see lots of movement
             ),
-
             BehaviorCheck(
                 name="World State Evolution",
                 description="World state changed over time",
@@ -218,54 +226,53 @@ class SimulationAnalyzer:
                     JOIN world_snapshots w2 ON w1.simulation_id = w2.simulation_id
                     WHERE w1.tick < w2.tick AND w1.tick != w2.tick
                 """,
-                expected_minimum=5
+                expected_minimum=5,
             ),
-
             # === SYSTEM INTERACTIONS ===
             BehaviorCheck(
                 name="Action Success and Failure",
                 description="Actions had both successful and failed outcomes",
                 sql_query="SELECT COUNT(DISTINCT success) as count FROM action_logs",
-                expected_minimum=2  # Should have both true and false
+                expected_minimum=2,  # Should have both true and false
             ),
-
             BehaviorCheck(
                 name="Action Duration Variety",
                 description="Actions had different durations",
-                sql_query="SELECT COUNT(DISTINCT duration) as count FROM action_logs WHERE duration > 0",
-                expected_minimum=2
+                sql_query=(
+                    "SELECT COUNT(DISTINCT duration) as count FROM action_logs WHERE duration > 0"
+                ),
+                expected_minimum=2,
             ),
-
             BehaviorCheck(
                 name="Diverse Action Types",
                 description="Multiple types of actions were performed",
-                sql_query="SELECT COUNT(DISTINCT action_type) as count FROM action_logs",
-                expected_minimum=5
+                sql_query=(
+                    "SELECT COUNT(DISTINCT action_type) as count FROM action_logs"
+                ),
+                expected_minimum=5,
             ),
-
             # === ANALYTICS AND METRICS ===
             BehaviorCheck(
                 name="Analytics Data Generated",
                 description="Analytics metrics were calculated and stored",
                 sql_query="SELECT COUNT(*) as count FROM analytics",
-                expected_minimum=1
+                expected_minimum=1,
             ),
-
             BehaviorCheck(
                 name="Multiple Metric Categories",
                 description="Different categories of metrics were recorded",
-                sql_query="SELECT COUNT(DISTINCT category) as count FROM analytics WHERE category != ''",
-                expected_minimum=1
+                sql_query=(
+                    "SELECT COUNT(DISTINCT category) as count FROM analytics WHERE category != ''"
+                ),
+                expected_minimum=1,
             ),
-
             # === TIME PROGRESSION ===
             BehaviorCheck(
                 name="Temporal Progression",
                 description="Simulation progressed through multiple time ticks",
                 sql_query="SELECT MAX(tick) - MIN(tick) as count FROM agent_snapshots",
-                expected_minimum=1000  # Should have run for many ticks
+                expected_minimum=1000,  # Should have run for many ticks
             ),
-
             BehaviorCheck(
                 name="Consistent Time Recording",
                 description="Time progression was consistent across tables",
@@ -278,17 +285,17 @@ class SimulationAnalyzer:
                         SELECT DISTINCT tick FROM world_snapshots
                     )
                 """,
-                expected_minimum=100
+                expected_minimum=100,
             ),
-
             # === DATA INTEGRITY ===
             BehaviorCheck(
                 name="Agent Data Consistency",
                 description="Agent data was consistently recorded",
-                sql_query="SELECT COUNT(DISTINCT agent_id) as count FROM agent_snapshots",
-                expected_minimum=20  # Should see most of our 30 agents
+                sql_query=(
+                    "SELECT COUNT(DISTINCT agent_id) as count FROM agent_snapshots"
+                ),
+                expected_minimum=20,  # Should see most of our 30 agents
             ),
-
             BehaviorCheck(
                 name="Simulation ID Consistency",
                 description="All records properly reference the simulation",
@@ -303,8 +310,8 @@ class SimulationAnalyzer:
                         SELECT simulation_id FROM analytics WHERE simulation_id IS NOT NULL
                     )
                 """,
-                expected_minimum=500
-            )
+                expected_minimum=500,
+            ),
         ]
 
     def run_behavior_checks(self) -> List[BehaviorCheck]:
@@ -319,8 +326,8 @@ class SimulationAnalyzer:
                 result = cursor.fetchone()
 
                 # Extract count from result
-                if result and 'count' in result.keys():
-                    behavior.found_count = result['count'] or 0
+                if result and "count" in result.keys():
+                    behavior.found_count = result["count"] or 0
                 else:
                     behavior.found_count = 0
 
@@ -332,7 +339,7 @@ class SimulationAnalyzer:
                     try:
                         cursor.execute(sample_query)
                         behavior.sample_data = [dict(row) for row in cursor.fetchall()]
-                    except:
+                    except BaseException:
                         # Some queries might not work with SELECT *, that's OK
                         behavior.sample_data = []
 
@@ -363,11 +370,11 @@ class SimulationAnalyzer:
                 "passed": len(passed),
                 "failed": len(failed),
                 "errors": len(errors),
-                "success_rate": f"{len(passed) / len(behaviors) * 100:.1f}%"
+                "success_rate": f"{len(passed) / len(behaviors) * 100:.1f}%",
             },
             "passed_behaviors": passed,
             "failed_behaviors": failed,
-            "error_behaviors": errors
+            "error_behaviors": errors,
         }
 
     def print_detailed_report(self):
@@ -381,7 +388,7 @@ class SimulationAnalyzer:
 
         # Simulation info
         info = report["simulation_info"]
-        print(f"\nSimulation Info:")
+        print("\nSimulation Info:")
         print(f"  ID: {info.get('simulation_id')}")
         print(f"  Name: {info.get('name')}")
         print(f"  World: {info.get('world_size')} (seed: {info.get('world_seed')})")
@@ -391,7 +398,7 @@ class SimulationAnalyzer:
 
         # Summary
         summary = report["summary"]
-        print(f"\nSummary:")
+        print("\nSummary:")
         print(f"  Total Behavior Checks: {summary['total_checks']}")
         print(f"  ✅ Passed: {summary['passed']}")
         print(f"  ❌ Failed: {summary['failed']}")
@@ -404,7 +411,9 @@ class SimulationAnalyzer:
             print("-" * 50)
             for behavior in report["passed_behaviors"]:
                 print(f"  ✓ {behavior.name}")
-                print(f"    Found: {behavior.found_count} (expected: {behavior.expected_minimum}+)")
+                print(
+                    f"    Found: {behavior.found_count} (expected: {behavior.expected_minimum}+)"
+                )
                 print(f"    Description: {behavior.description}")
                 if behavior.sample_data:
                     print(f"    Sample: {len(behavior.sample_data)} records")
@@ -416,7 +425,9 @@ class SimulationAnalyzer:
             print("-" * 50)
             for behavior in report["failed_behaviors"]:
                 print(f"  ✗ {behavior.name}")
-                print(f"    Found: {behavior.found_count} (expected: {behavior.expected_minimum}+)")
+                print(
+                    f"    Found: {behavior.found_count} (expected: {behavior.expected_minimum}+)"
+                )
                 print(f"    Description: {behavior.description}")
                 print(f"    Query: {behavior.sql_query}")
                 print()
@@ -427,7 +438,7 @@ class SimulationAnalyzer:
             print("-" * 50)
             for behavior in report["error_behaviors"]:
                 print(f"  ! {behavior.name}")
-                print(f"    Error during query execution")
+                print("    Error during query execution")
                 print(f"    Description: {behavior.description}")
                 print(f"    Query: {behavior.sql_query}")
                 print()
@@ -441,16 +452,24 @@ class SimulationAnalyzer:
             print("\nAreas needing investigation:")
             for behavior in report["failed_behaviors"]:
                 if "Combat" in behavior.name:
-                    print(f"  • Combat System: {behavior.name} - Check combat mechanics and NPC aggro")
+                    print(
+                        f"  • Combat System: {behavior.name} - Check combat mechanics and NPC aggro"
+                    )
                 elif "Gathering" in behavior.name:
-                    print(f"  • Resource System: {behavior.name} - Check resource availability and gathering logic")
+                    print(
+                        f"  • Resource System: {behavior.name} - Check resource availability and gathering logic"
+                    )
                 elif "Analytics" in behavior.name:
-                    print(f"  • Analytics System: {behavior.name} - Check analytics calculation timing")
+                    print(
+                        f"  • Analytics System: {behavior.name} - Check analytics calculation timing"
+                    )
                 else:
                     print(f"  • {behavior.name} - Investigate underlying system")
 
         if not report["failed_behaviors"] and not report["error_behaviors"]:
-            print("\n🎉 All behavior checks passed! The simulation is working as expected.")
+            print(
+                "\n🎉 All behavior checks passed! The simulation is working as expected."
+            )
 
         print(f"\nDatabase location: {self.db_path}")
         print("Analysis complete.")
@@ -473,6 +492,7 @@ def main():
     except Exception as e:
         print(f"Error during analysis: {e}")
         import traceback
+
         traceback.print_exc()
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import Dict, Any
+
 from datetime import datetime, timedelta
+from typing import Any, Dict
 
 
 class TimeManager:
@@ -37,11 +38,11 @@ class TimeManager:
         minutes = remaining_minutes % self.ticks_per_game_hour
 
         return {
-            'tick': self.current_tick,
-            'days': days,
-            'hours': hours,
-            'minutes': minutes,
-            'time_string': f"Day {days}, {hours:02d}:{minutes:02d}"
+            "tick": self.current_tick,
+            "days": days,
+            "hours": hours,
+            "minutes": minutes,
+            "time_string": f"Day {days}, {hours:02d}:{minutes:02d}",
         }
 
     def get_elapsed_real_time(self) -> timedelta:
@@ -55,7 +56,7 @@ class TimeManager:
     def is_day_time(self) -> bool:
         """Check if it's day time in the game world"""
         game_time = self.get_game_time()
-        hour = game_time['hours']
+        hour = game_time["hours"]
         return 6 <= hour < 18  # Day time is 6 AM to 6 PM
 
     def is_night_time(self) -> bool:
@@ -65,7 +66,7 @@ class TimeManager:
     def get_time_of_day_modifier(self) -> float:
         """Get time of day modifier for various activities"""
         game_time = self.get_game_time()
-        hour = game_time['hours']
+        hour = game_time["hours"]
 
         # Activities are easier during day time
         if 8 <= hour < 16:  # Prime day time
@@ -82,8 +83,10 @@ class TimeManager:
         game_time = self.get_game_time()
         elapsed = self.get_elapsed_real_time()
 
-        return (f"Tick {self.current_tick} ({game_time['time_string']}) "
-                f"- Real time elapsed: {elapsed}")
+        return (
+            f"Tick {self.current_tick} ({game_time['time_string']}) "
+            f"- Real time elapsed: {elapsed}"
+        )
 
     def __repr__(self) -> str:
         return f"TimeManager(tick={self.current_tick})"

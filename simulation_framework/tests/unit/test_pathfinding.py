@@ -1,6 +1,6 @@
 import pytest
-from src.systems.pathfinding import Pathfinder, PathfindingMap
 from src.core.world import World
+from src.systems.pathfinding import Pathfinder
 from src.world.terrain import TerrainType
 
 
@@ -47,7 +47,9 @@ class TestPathfinding:
 
             for x, y in path:
                 tile = world.get_tile(x, y)
-                assert tile.can_pass(), f"Path goes through impassable tile at ({x}, {y})"
+                assert (
+                    tile.can_pass()
+                ), f"Path goes through impassable tile at ({x}, {y})"
 
     def test_no_path_scenario(self):
         world = World(10, 10, seed=456)

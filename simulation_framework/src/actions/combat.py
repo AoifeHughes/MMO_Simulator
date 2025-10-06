@@ -1,13 +1,14 @@
 from __future__ import annotations
-from typing import Optional, TYPE_CHECKING
-import math
 
-from .base import Action, ActionResult, ResourceCost, Event
+import math
+from typing import TYPE_CHECKING
+
 from ..systems.combat_resolver import CombatResolver, DamageType
+from .base import Action, ActionResult, Event, ResourceCost
 
 if TYPE_CHECKING:
-    from ..entities.base import Entity
     from ..core.world import World
+    from ..entities.base import Entity
 
 
 class CombatAction(Action):
@@ -16,7 +17,7 @@ class CombatAction(Action):
         actor_id: int,
         target_id: int,
         damage_type: str = DamageType.PHYSICAL,
-        base_range: float = 1.0
+        base_range: float = 1.0,
     ):
         super().__init__(actor_id)
         self.target_id = target_id
@@ -51,7 +52,9 @@ class CombatAction(Action):
         if not cost.consume(actor):
             return ActionResult.failure("Insufficient resources for attack")
 
-        weapon_damage, critical_chance, critical_multiplier, accuracy = self._get_weapon_stats(actor)
+        weapon_damage, critical_chance, critical_multiplier, accuracy = (
+            self._get_weapon_stats(actor)
+        )
 
         combat_result = self.combat_resolver.resolve_attack(
             attacker=actor,
@@ -61,7 +64,7 @@ class CombatAction(Action):
             critical_chance=critical_chance,
             critical_multiplier=critical_multiplier,
             base_accuracy=accuracy,
-            attack_range=self.base_range
+            attack_range=self.base_range,
         )
 
         events = []
@@ -79,8 +82,8 @@ class CombatAction(Action):
                     "is_critical": is_critical,
                     "damage_type": self.damage_type,
                     "target_died": target_died,
-                    **combat_result["damage_info"]
-                }
+                    **combat_result["damage_info"],
+                },
             )
             events.append(attack_event)
 
@@ -89,11 +92,13 @@ class CombatAction(Action):
                     event_type="entity_death",
                     actor_id=target.id,
                     target_id=actor.id,
-                    data={"killed_by": actor.id, "cause": "combat"}
+                    data={"killed_by": actor.id, "cause": "combat"},
                 )
                 events.append(death_event)
 
-                message = f"Killed {target.name} with {damage} {self.damage_type} damage"
+                message = (
+                    f"Killed {target.name} with {damage} {self.damage_type} damage"
+                )
                 if is_critical:
                     message += " (Critical Hit!)"
             else:
@@ -109,8 +114,8 @@ class CombatAction(Action):
                 target_id=target.id,
                 data={
                     "hit_chance": combat_result["hit_chance"],
-                    "distance": combat_result["distance"]
-                }
+                    "distance": combat_result["distance"],
+                },
             )
             events.append(miss_event)
             return ActionResult.success(f"Missed attack on {target.name}", events)
@@ -153,7 +158,7 @@ class MeleeAttack(CombatAction):
             actor_id=actor_id,
             target_id=target_id,
             damage_type=DamageType.PHYSICAL,
-            base_range=1.5  # Changed from 1.0 to allow diagonal attacks
+            base_range=1.5,  # Changed from 1.0 to allow diagonal attacks
         )
 
     def can_execute(self, actor: Entity, world: World) -> bool:
@@ -173,7 +178,7 @@ class RangedAttack(CombatAction):
             actor_id=actor_id,
             target_id=target_id,
             damage_type=DamageType.PHYSICAL,
-            base_range=weapon_range
+            base_range=weapon_range,
         )
 
     def can_execute(self, actor: Entity, world: World) -> bool:
@@ -194,13 +199,13 @@ class MagicAttack(CombatAction):
         actor_id: int,
         target_id: int,
         spell_type: str = DamageType.MAGICAL,
-        spell_range: float = 15.0
+        spell_range: float = 15.0,
     ):
         super().__init__(
             actor_id=actor_id,
             target_id=target_id,
             damage_type=spell_type,
-            base_range=spell_range
+            base_range=spell_range,
         )
 
     def can_execute(self, actor: Entity, world: World) -> bool:
@@ -241,11 +246,12 @@ class DefendAction(Action):
             return ActionResult.failure("Already defending")
 
         from ..entities.base import StatusEffect
+
         defend_effect = StatusEffect(
             name="defending",
             duration=self.defense_duration,
             effect_type="defense",
-            power=actor.stats.defense * 0.5
+            power=actor.stats.defense * 0.5,
         )
 
         actor.apply_status_effect(defend_effect)
@@ -253,7 +259,10 @@ class DefendAction(Action):
         event = Event(
             event_type="defend",
             actor_id=actor.id,
-            data={"defense_bonus": defend_effect.power, "duration": self.defense_duration}
+            data={
+                "defense_bonus": defend_effect.power,
+                "duration": self.defense_duration,
+            },
         )
 
         return ActionResult.success("Entered defensive stance", [event])
@@ -291,7 +300,9 @@ class FleeAction(Action):
                     continue
 
                 new_x, new_y = current_x + dx, current_y + dy
-                if not world.is_valid_position(new_x, new_y) or not world.is_passable(new_x, new_y):
+                if not world.is_valid_position(new_x, new_y) or not world.is_passable(
+                    new_x, new_y
+                ):
                     continue
 
                 distance = math.sqrt(dx**2 + dy**2)
@@ -305,7 +316,11 @@ class FleeAction(Action):
                 event = Event(
                     event_type="flee",
                     actor_id=actor.id,
-                    data={"from": (current_x, current_y), "to": best_position, "distance": max_distance}
+                    data={
+                        "from": (current_x, current_y),
+                        "to": best_position,
+                        "distance": max_distance,
+                    },
                 )
                 return ActionResult.success(f"Fled to {best_position}", [event])
 

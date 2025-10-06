@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import List, Tuple, Optional, Dict, TYPE_CHECKING
+
 import random
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 if TYPE_CHECKING:
     from .item import Item
@@ -12,7 +13,7 @@ class LootEntry:
         item: Item,
         probability: float,
         min_quantity: int = 1,
-        max_quantity: int = 1
+        max_quantity: int = 1,
     ):
         self.item = item
         self.probability = probability
@@ -35,7 +36,7 @@ class LootTable:
         item: Item,
         probability: float,
         min_quantity: int = 1,
-        max_quantity: int = 1
+        max_quantity: int = 1,
     ) -> None:
         entry = LootEntry(item, probability, min_quantity, max_quantity)
         self.entries.append(entry)
@@ -76,8 +77,8 @@ class LootTable:
 
     @classmethod
     def create_basic_monster_loot(cls) -> LootTable:
-        from ..items.item import Item
         from ..items.consumable import Consumable
+        from ..items.item import Item
 
         table = cls()
 
@@ -89,7 +90,7 @@ class LootTable:
             description="Basic currency",
             value=1,
             weight=0.1,
-            max_stack_size=999
+            max_stack_size=999,
         )
 
         health_potion = Consumable.create_health_potion()
@@ -103,9 +104,8 @@ class LootTable:
 
     @classmethod
     def create_rare_monster_loot(cls) -> LootTable:
-        from ..items.weapon import Weapon
-        from ..items.tool import Tool
         from ..items.consumable import Consumable
+        from ..items.weapon import Weapon
 
         table = cls()
 
@@ -118,12 +118,12 @@ class LootTable:
                 "attack_type": "melee",
                 "damage_type": "magical",
                 "critical_chance": 0.2,
-                "stamina_cost": 6
+                "stamina_cost": 6,
             },
             description="A magically enhanced sword",
             value=200,
             weight=4.0,
-            max_stack_size=1
+            max_stack_size=1,
         )
 
         magic_potion = Consumable.create_magic_potion()
@@ -150,7 +150,7 @@ class LootTable:
                 properties={"resource_type": "wood"},
                 value=2,
                 description="Raw wood material",
-                max_stack_size=99
+                max_stack_size=99,
             )
             table.add_entry(wood, 1.0, 2, 5)
 
@@ -161,7 +161,7 @@ class LootTable:
                 properties={"resource_type": "bark"},
                 value=1,
                 description="Tree bark for crafting",
-                max_stack_size=50
+                max_stack_size=50,
             )
             table.add_entry(bark, 0.3, 1, 2)
 
@@ -173,7 +173,7 @@ class LootTable:
                 properties={"resource_type": "iron_ore"},
                 value=5,
                 description="Iron ore for smelting",
-                max_stack_size=99
+                max_stack_size=99,
             )
             table.add_entry(iron_ore, 1.0, 1, 3)
 
@@ -184,7 +184,7 @@ class LootTable:
                 properties={"resource_type": "gems"},
                 value=15,
                 description="Uncut gems",
-                max_stack_size=20
+                max_stack_size=20,
             )
             table.add_entry(gems, 0.2)
 

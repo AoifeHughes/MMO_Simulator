@@ -1,22 +1,27 @@
 from __future__ import annotations
+
 import logging
 import time
-from typing import List, Optional, Dict, Any, Callable
 from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional
 
-from .world import World
+from ..database.analytics_engine import AnalyticsEngine
+from ..database.database import Database
+from ..database.models import (
+    ActionLog,
+    AgentSnapshot,
+    CombatLog,
+    SimulationRun,
+    WorldSnapshot,
+)
 from ..entities.agent import Agent
 from ..entities.npc import NPC
 from ..systems.fog_of_war import FogOfWar
-from ..systems.trading import TradingSystem
 from ..systems.respawn import RespawnManager
-from ..systems.trading import Market
-from ..database.database import Database
-from ..database.models import SimulationRun, AgentSnapshot, WorldSnapshot, ActionLog, CombatLog
-from ..database.analytics_engine import AnalyticsEngine
-from .time_manager import TimeManager
+from ..systems.trading import Market, TradingSystem
 from .config import SimulationConfig
-
+from .time_manager import TimeManager
+from .world import World
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +39,7 @@ class Simulation:
 
         # Initialize world
         self.world = World(
-            width=config.world_width,
-            height=config.world_height,
-            seed=config.world_seed
+            width=config.world_width, height=config.world_height, seed=config.world_seed
         )
 
         # Initialize systems
@@ -74,11 +77,11 @@ class Simulation:
             start_time=datetime.now(),
             total_agents=len(self.agents),
             config={
-                'max_ticks': self.config.max_ticks,
-                'save_interval': self.config.save_interval,
-                'analytics_interval': self.config.analytics_interval,
-                'tick_rate': self.config.tick_rate
-            }
+                "max_ticks": self.config.max_ticks,
+                "save_interval": self.config.save_interval,
+                "analytics_interval": self.config.analytics_interval,
+                "tick_rate": self.config.tick_rate,
+            },
         )
 
         self.simulation_id = self.db.create_simulation_run(self.simulation_run)
@@ -96,7 +99,7 @@ class Simulation:
         self.world.add_entity(agent)
 
         # Update fog of war for new agent
-        if hasattr(self.fog_of_war, 'update_agent_vision'):
+        if hasattr(self.fog_of_war, "update_agent_vision"):
             self.fog_of_war.update_agent_vision(agent, self.world)
 
     def add_agents(self, agents: List[Agent]) -> None:
@@ -181,25 +184,25 @@ class Simulation:
         for npc in self.npcs:
             if npc.stats.is_alive():
                 # Update NPC AI decision making
-                if hasattr(npc, 'update'):
+                if hasattr(npc, "update"):
                     npc.update(self.world)
 
                 # Handle aggro and combat for hostile NPCs
-                if hasattr(npc, 'aggro_range') and npc.aggro_range > 0:
+                if hasattr(npc, "aggro_range") and npc.aggro_range > 0:
                     self._check_npc_aggro(npc)
 
     def _check_npc_aggro(self, npc: NPC) -> None:
         """Check if NPC should become aggressive towards nearby agents"""
         # Only check aggro if NPC doesn't already have a target
-        if hasattr(npc, 'target_id') and npc.target_id is not None:
+        if hasattr(npc, "target_id") and npc.target_id is not None:
             return  # Already has a target
 
-        if not (hasattr(npc, 'aggro_range') and npc.aggro_range > 0):
+        if not (hasattr(npc, "aggro_range") and npc.aggro_range > 0):
             return  # No aggro range
 
         # Find nearest agent within aggro range
         nearest_agent = None
-        nearest_distance = float('inf')
+        nearest_distance = float("inf")
 
         for agent in self.agents:
             if agent.stats.is_alive():
@@ -215,7 +218,9 @@ class Simulation:
         # Set target to nearest agent in range
         if nearest_agent:
             npc.target_id = nearest_agent.id
-            logger.info(f"NPC {npc.name} acquired target: Agent {nearest_agent.name} at distance {nearest_distance:.1f}")
+            logger.info(
+                f"NPC {npc.name} acquired target: Agent {nearest_agent.name} at distance {nearest_distance:.1f}"
+            )
 
     def _update_agent_perception(self) -> None:
         """Update agent vision and perception"""
@@ -235,7 +240,7 @@ class Simulation:
         all_entities = self.agents + self.npcs
 
         for entity in all_entities:
-            if entity.stats.is_alive() and hasattr(entity, 'current_action'):
+            if entity.stats.is_alive() and hasattr(entity, "current_action"):
                 action = entity.current_action
 
                 if action and action.is_active:
@@ -244,48 +249,85 @@ class Simulation:
                         result = action.execute(entity, self.world)
 
                         # Log the action if it completed or failed
-                        if self.simulation_id and (not result.success or action.is_complete(self.time_manager.current_tick)):
+                        if self.simulation_id and (
+                            not result.success
+                            or action.is_complete(self.time_manager.current_tick)
+                        ):
                             action_log = ActionLog(
                                 simulation_id=self.simulation_id,
                                 tick=self.time_manager.current_tick,
                                 agent_id=entity.id,
                                 action_type=action.__class__.__name__,
-                                action_data=action.to_dict() if hasattr(action, 'to_dict') else {},
+                                action_data=(
+                                    action.to_dict()
+                                    if hasattr(action, "to_dict")
+                                    else {}
+                                ),
                                 success=result.success,
                                 result_message=result.message,
-                                duration=action.get_duration()
+                                duration=action.get_duration(),
                             )
                             self.db.log_action(action_log)
 
                             # Log combat-specific events to combat_logs table
-                            if hasattr(result, 'events') and result.events:
+                            if hasattr(result, "events") and result.events:
                                 for event in result.events:
-                                    if event.event_type in ["attack_hit", "attack_miss"]:
+                                    if event.event_type in [
+                                        "attack_hit",
+                                        "attack_miss",
+                                    ]:
                                         combat_log = CombatLog(
                                             simulation_id=self.simulation_id,
                                             tick=self.time_manager.current_tick,
                                             attacker_id=event.actor_id,
-                                            target_id=event.target_id if event.target_id else 0,
-                                            damage_dealt=event.data.get('damage', 0) if event.event_type == "attack_hit" else 0,
-                                            damage_type=event.data.get('damage_type', 'physical'),
-                                            was_critical=event.data.get('is_critical', False) if event.event_type == "attack_hit" else False,
+                                            target_id=(
+                                                event.target_id
+                                                if event.target_id
+                                                else 0
+                                            ),
+                                            damage_dealt=(
+                                                event.data.get("damage", 0)
+                                                if event.event_type == "attack_hit"
+                                                else 0
+                                            ),
+                                            damage_type=event.data.get(
+                                                "damage_type", "physical"
+                                            ),
+                                            was_critical=(
+                                                event.data.get("is_critical", False)
+                                                if event.event_type == "attack_hit"
+                                                else False
+                                            ),
                                             weapon_used=action.__class__.__name__,
-                                            target_died=event.data.get('target_died', False) if event.event_type == "attack_hit" else False
+                                            target_died=(
+                                                event.data.get("target_died", False)
+                                                if event.event_type == "attack_hit"
+                                                else False
+                                            ),
                                         )
                                         self.db.log_combat(combat_log)
 
                         # Clear action if completed or failed
-                        if not result.success or action.is_complete(self.time_manager.current_tick):
+                        if not result.success or action.is_complete(
+                            self.time_manager.current_tick
+                        ):
                             entity.current_action = None
 
                             # Notify the goal that the action completed
-                            if hasattr(entity, 'current_goals') and entity.current_goals:
+                            if (
+                                hasattr(entity, "current_goals")
+                                and entity.current_goals
+                            ):
                                 active_goal = entity.current_goals[0]
-                                if hasattr(active_goal, 'on_action_completed'):
-                                    active_goal.on_action_completed(action, result.success, entity, self.world)
+                                if hasattr(active_goal, "on_action_completed"):
+                                    active_goal.on_action_completed(
+                                        action, result.success, entity, self.world
+                                    )
 
                     except Exception as e:
-                        logger.error(f"Error executing action {action} for entity {entity.id}: {e}")
+                        logger.error(
+                            f"Error executing action {action} for entity {entity.id}: {e}"
+                        )
                         entity.current_action = None
 
     def _update_systems(self) -> None:
@@ -299,16 +341,21 @@ class Simulation:
             # Log trades to database
             if self.simulation_id:
                 from ..database.models import TradeLog
+
                 trade_log = TradeLog(
                     simulation_id=self.simulation_id,
                     tick=self.time_manager.current_tick,
-                    initiator_id=trade.get('initiator_id', 0),
-                    target_id=trade.get('target_id', 0),
-                    offered_items={item: qty for item, qty in trade.get('offered_items', [])},
-                    requested_items={item: qty for item, qty in trade.get('requested_items', [])},
-                    offered_gold=trade.get('offered_gold', 0),
-                    requested_gold=trade.get('requested_gold', 0),
-                    completed=True
+                    initiator_id=trade.get("initiator_id", 0),
+                    target_id=trade.get("target_id", 0),
+                    offered_items={
+                        item: qty for item, qty in trade.get("offered_items", [])
+                    },
+                    requested_items={
+                        item: qty for item, qty in trade.get("requested_items", [])
+                    },
+                    offered_gold=trade.get("offered_gold", 0),
+                    requested_gold=trade.get("requested_gold", 0),
+                    completed=True,
                 )
                 self.db.log_trade(trade_log)
 
@@ -331,12 +378,12 @@ class Simulation:
                         action_type="Respawn",
                         action_data={
                             "entity_type": "NPC",
-                            "npc_type": getattr(entity, 'npc_type', 'unknown'),
-                            "position": entity.position
+                            "npc_type": getattr(entity, "npc_type", "unknown"),
+                            "position": entity.position,
                         },
                         success=True,
                         result_message=f"Respawned {entity.name} at {entity.position}",
-                        duration=0
+                        duration=0,
                     )
                     self.db.log_action(action_log)
             elif isinstance(entity, Agent):
@@ -354,12 +401,16 @@ class Simulation:
                         action_type="Respawn",
                         action_data={
                             "entity_type": "Agent",
-                            "character_class": getattr(entity.character_class, 'name', 'unknown') if hasattr(entity, 'character_class') else 'unknown',
-                            "position": entity.position
+                            "character_class": (
+                                getattr(entity.character_class, "name", "unknown")
+                                if hasattr(entity, "character_class")
+                                else "unknown"
+                            ),
+                            "position": entity.position,
                         },
                         success=True,
                         result_message=f"Respawned {entity.name} at {entity.position}",
-                        duration=0
+                        duration=0,
                     )
                     self.db.log_action(action_log)
 
@@ -405,13 +456,27 @@ class Simulation:
                 max_health=agent.stats.max_health,
                 stamina=agent.stats.stamina,
                 max_stamina=agent.stats.max_stamina,
-                personality=agent.personality.to_dict() if hasattr(agent, 'personality') else {},
-                character_class=agent.character_class.name if hasattr(agent, 'character_class') else "",
-                skills=agent.skills if hasattr(agent, 'skills') else {},
-                current_goals=[str(goal) for goal in agent.current_goals] if hasattr(agent, 'current_goals') else [],
-                relationships=agent.relationships if hasattr(agent, 'relationships') else {},
-                inventory_items=len(agent.inventory.items) if hasattr(agent, 'inventory') else 0,
-                gold=0  # TODO: Implement gold system
+                personality=(
+                    agent.personality.to_dict() if hasattr(agent, "personality") else {}
+                ),
+                character_class=(
+                    agent.character_class.name
+                    if hasattr(agent, "character_class")
+                    else ""
+                ),
+                skills=agent.skills if hasattr(agent, "skills") else {},
+                current_goals=(
+                    [str(goal) for goal in agent.current_goals]
+                    if hasattr(agent, "current_goals")
+                    else []
+                ),
+                relationships=(
+                    agent.relationships if hasattr(agent, "relationships") else {}
+                ),
+                inventory_items=(
+                    len(agent.inventory.items) if hasattr(agent, "inventory") else 0
+                ),
+                gold=0,  # TODO: Implement gold system
             )
             agent_snapshots.append(snapshot)
 
@@ -434,7 +499,7 @@ class Simulation:
                 current_goals=[],
                 relationships={},
                 inventory_items=0,
-                gold=0
+                gold=0,
             )
             agent_snapshots.append(snapshot)
 
@@ -450,7 +515,7 @@ class Simulation:
             active_npcs=len([n for n in self.npcs if n.stats.is_alive()]),
             resource_nodes=0,  # TODO: Implement resource node counting
             world_events=[],  # TODO: Implement world events
-            market_prices=self.market.get_current_prices()
+            market_prices=self.market.get_current_prices(),
         )
         self.db.save_world_snapshot(world_snapshot)
 
@@ -459,7 +524,9 @@ class Simulation:
     def run(self, num_ticks: Optional[int] = None) -> None:
         """Run the simulation for a specified number of ticks"""
         if not self.simulation_id:
-            raise RuntimeError("Simulation not initialized. Call initialize_simulation() first.")
+            raise RuntimeError(
+                "Simulation not initialized. Call initialize_simulation() first."
+            )
 
         self.running = True
         target_tick = None
@@ -492,7 +559,9 @@ class Simulation:
     def run_until(self, condition: Callable[[Simulation], bool]) -> None:
         """Run the simulation until a condition is met"""
         if not self.simulation_id:
-            raise RuntimeError("Simulation not initialized. Call initialize_simulation() first.")
+            raise RuntimeError(
+                "Simulation not initialized. Call initialize_simulation() first."
+            )
 
         self.running = True
         logger.info("Starting simulation with custom condition")
@@ -516,14 +585,19 @@ class Simulation:
     def run_with_visualizer(self, num_ticks: Optional[int] = None) -> None:
         """Run the simulation with pygame visualization"""
         if not self.simulation_id:
-            raise RuntimeError("Simulation not initialized. Call initialize_simulation() first.")
+            raise RuntimeError(
+                "Simulation not initialized. Call initialize_simulation() first."
+            )
 
         # Import visualizer here to avoid dependency issues if pygame is not available
         try:
-            import sys
             import os
+            import sys
+
             # Add the root directory to the Python path for visualizer imports
-            root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+            root_dir = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "../../..")
+            )
             if root_dir not in sys.path:
                 sys.path.insert(0, root_dir)
 
@@ -538,10 +612,12 @@ class Simulation:
         visualizer = GameVisualizer(
             width=self.config.visualizer_width,
             height=self.config.visualizer_height,
-            tile_size=self.config.visualizer_tile_size
+            tile_size=self.config.visualizer_tile_size,
         )
 
-        ui_manager = UIManager(self.config.visualizer_width, self.config.visualizer_height)
+        ui_manager = UIManager(
+            self.config.visualizer_width, self.config.visualizer_height
+        )
 
         self.running = True
         target_tick = None
@@ -549,12 +625,15 @@ class Simulation:
         if num_ticks:
             target_tick = self.time_manager.current_tick + num_ticks
 
-        logger.info(f"Starting visual simulation run for {num_ticks or 'unlimited'} ticks")
+        logger.info(
+            f"Starting visual simulation run for {num_ticks or 'unlimited'} ticks"
+        )
 
         try:
             clock = None
             try:
                 import pygame
+
                 clock = pygame.time.Clock()
             except ImportError:
                 pass
@@ -588,12 +667,12 @@ class Simulation:
 
                 # Prepare simulation data for UI
                 simulation_data = {
-                    'current_tick': self.time_manager.current_tick,
-                    'total_agents': len(self.agents),
-                    'alive_agents': len([a for a in self.agents if a.stats.is_alive]),
-                    'total_npcs': len(self.npcs),
-                    'alive_npcs': len([n for n in self.npcs if n.stats.is_alive]),
-                    'zoom': visualizer.camera.zoom
+                    "current_tick": self.time_manager.current_tick,
+                    "total_agents": len(self.agents),
+                    "alive_agents": len([a for a in self.agents if a.stats.is_alive]),
+                    "total_npcs": len(self.npcs),
+                    "alive_npcs": len([n for n in self.npcs if n.stats.is_alive]),
+                    "zoom": visualizer.camera.zoom,
                 }
 
                 # Render UI
@@ -602,6 +681,7 @@ class Simulation:
                 # Update display
                 try:
                     import pygame
+
                     pygame.display.flip()
                 except ImportError:
                     pass
@@ -642,7 +722,9 @@ class Simulation:
             self._save_snapshots()
 
             # Final analytics calculation
-            self.analytics.calculate_all_metrics(self.simulation_id, self.time_manager.current_tick)
+            self.analytics.calculate_all_metrics(
+                self.simulation_id, self.time_manager.current_tick
+            )
 
         # Call completion handler
         if self.on_simulation_complete:
@@ -653,15 +735,17 @@ class Simulation:
     def get_statistics(self) -> Dict[str, Any]:
         """Get current simulation statistics"""
         return {
-            'current_tick': self.time_manager.current_tick,
-            'total_agents': len(self.agents),
-            'active_agents': len([a for a in self.agents if a.stats.is_alive()]),
-            'total_npcs': len(self.npcs),
-            'active_npcs': len([n for n in self.npcs if n.stats.is_alive()]),
-            'average_tick_time': sum(self.tick_times) / len(self.tick_times) if self.tick_times else 0,
-            'simulation_id': self.simulation_id,
-            'running': self.running,
-            'paused': self.paused
+            "current_tick": self.time_manager.current_tick,
+            "total_agents": len(self.agents),
+            "active_agents": len([a for a in self.agents if a.stats.is_alive()]),
+            "total_npcs": len(self.npcs),
+            "active_npcs": len([n for n in self.npcs if n.stats.is_alive()]),
+            "average_tick_time": (
+                sum(self.tick_times) / len(self.tick_times) if self.tick_times else 0
+            ),
+            "simulation_id": self.simulation_id,
+            "running": self.running,
+            "paused": self.paused,
         }
 
     def get_analytics_report(self) -> Optional[Dict[str, Any]]:

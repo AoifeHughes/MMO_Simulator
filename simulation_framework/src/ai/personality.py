@@ -1,20 +1,20 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from typing import Dict, Any
+
 import random
-import math
+from dataclasses import dataclass
+from typing import Dict
 
 
 @dataclass
 class Personality:
-    curiosity: float = 0.5      # Drives exploration behavior
-    bravery: float = 0.5        # Willingness to engage in combat/take risks
-    sociability: float = 0.5    # Preference for trading/cooperation
-    greed: float = 0.5          # Focus on accumulating resources/wealth
-    patience: float = 0.5       # Willingness to wait for better opportunities
-    aggression: float = 0.3     # Tendency to initiate combat
-    industriousness: float = 0.5 # Focus on gathering/crafting activities
-    caution: float = 0.5        # Risk aversion in dangerous situations
+    curiosity: float = 0.5  # Drives exploration behavior
+    bravery: float = 0.5  # Willingness to engage in combat/take risks
+    sociability: float = 0.5  # Preference for trading/cooperation
+    greed: float = 0.5  # Focus on accumulating resources/wealth
+    patience: float = 0.5  # Willingness to wait for better opportunities
+    aggression: float = 0.3  # Tendency to initiate combat
+    industriousness: float = 0.5  # Focus on gathering/crafting activities
+    caution: float = 0.5  # Risk aversion in dangerous situations
 
     def __post_init__(self):
         # Ensure all traits are between 0 and 1
@@ -40,7 +40,7 @@ class Personality:
             patience=random.uniform(0.1, 0.9),
             aggression=random.uniform(0.0, 0.7),
             industriousness=random.uniform(0.2, 0.9),
-            caution=random.uniform(0.1, 0.8)
+            caution=random.uniform(0.1, 0.8),
         )
 
     @classmethod
@@ -55,7 +55,7 @@ class Personality:
                 patience=0.6,
                 aggression=0.2,
                 industriousness=0.5,
-                caution=0.3
+                caution=0.3,
             ),
             "warrior": cls(
                 curiosity=0.4,
@@ -65,7 +65,7 @@ class Personality:
                 patience=0.3,
                 aggression=0.8,
                 industriousness=0.4,
-                caution=0.2
+                caution=0.2,
             ),
             "trader": cls(
                 curiosity=0.5,
@@ -75,7 +75,7 @@ class Personality:
                 patience=0.7,
                 aggression=0.1,
                 industriousness=0.6,
-                caution=0.6
+                caution=0.6,
             ),
             "crafter": cls(
                 curiosity=0.3,
@@ -85,7 +85,7 @@ class Personality:
                 patience=0.9,
                 aggression=0.1,
                 industriousness=0.9,
-                caution=0.7
+                caution=0.7,
             ),
             "hermit": cls(
                 curiosity=0.6,
@@ -95,7 +95,7 @@ class Personality:
                 patience=0.8,
                 aggression=0.1,
                 industriousness=0.7,
-                caution=0.9
+                caution=0.9,
             ),
             "bandit": cls(
                 curiosity=0.3,
@@ -105,8 +105,8 @@ class Personality:
                 patience=0.2,
                 aggression=0.9,
                 industriousness=0.2,
-                caution=0.1
-            )
+                caution=0.1,
+            ),
         }
 
         if archetype in archetypes:
@@ -146,7 +146,7 @@ class Personality:
             abs(self.patience - other.patience),
             abs(self.aggression - other.aggression),
             abs(self.industriousness - other.industriousness),
-            abs(self.caution - other.caution)
+            abs(self.caution - other.caution),
         ]
 
         avg_difference = sum(differences) / len(differences)
@@ -163,7 +163,7 @@ class Personality:
             "flee": self.caution,
             "wait": self.patience,
             "hoard": self.greed,
-            "help_others": self.sociability - self.greed * 0.3
+            "help_others": self.sociability - self.greed * 0.3,
         }
 
         return modifiers.get(action_type, 0.5)
@@ -176,13 +176,11 @@ class Personality:
         """Calculate preference for social interactions"""
         return self.sociability
 
-    def should_initiate_trade(self, potential_profit: float, relationship: float = 0.5) -> bool:
+    def should_initiate_trade(
+        self, potential_profit: float, relationship: float = 0.5
+    ) -> bool:
         """Determine if agent should initiate a trade"""
-        trade_desire = (
-            self.sociability * 0.4 +
-            self.greed * 0.4 +
-            self.patience * 0.2
-        )
+        trade_desire = self.sociability * 0.4 + self.greed * 0.4 + self.patience * 0.2
 
         # Adjust for potential profit
         profit_factor = min(1.0, potential_profit / 10.0)  # Normalize profit
@@ -197,15 +195,13 @@ class Personality:
         self,
         enemy_strength: float,
         own_strength: float,
-        potential_loot_value: float = 0.0
+        potential_loot_value: float = 0.0,
     ) -> bool:
         """Determine if agent should engage in combat"""
         strength_ratio = own_strength / max(enemy_strength, 1)
 
         combat_desire = (
-            self.bravery * 0.4 +
-            self.aggression * 0.4 +
-            (1.0 - self.caution) * 0.2
+            self.bravery * 0.4 + self.aggression * 0.4 + (1.0 - self.caution) * 0.2
         )
 
         # Adjust for strength difference
@@ -241,7 +237,7 @@ class Personality:
             "patience": self.patience,
             "aggression": self.aggression,
             "industriousness": self.industriousness,
-            "caution": self.caution
+            "caution": self.caution,
         }
 
     @classmethod
@@ -256,7 +252,9 @@ class Personality:
             return "Personality(balanced)"
 
     def __repr__(self) -> str:
-        return (f"Personality(curiosity={self.curiosity:.2f}, bravery={self.bravery:.2f}, "
-                f"sociability={self.sociability:.2f}, greed={self.greed:.2f}, "
-                f"patience={self.patience:.2f}, aggression={self.aggression:.2f}, "
-                f"industriousness={self.industriousness:.2f}, caution={self.caution:.2f})")
+        return (
+            f"Personality(curiosity={self.curiosity:.2f}, bravery={self.bravery:.2f}, "
+            f"sociability={self.sociability:.2f}, greed={self.greed:.2f}, "
+            f"patience={self.patience:.2f}, aggression={self.aggression:.2f}, "
+            f"industriousness={self.industriousness:.2f}, caution={self.caution:.2f})"
+        )

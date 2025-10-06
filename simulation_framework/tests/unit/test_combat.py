@@ -1,13 +1,18 @@
-import pytest
-from src.systems.combat_resolver import CombatResolver, DamageType
-from src.actions.combat import MeleeAttack, RangedAttack, MagicAttack, DefendAction, FleeAction
-from src.entities.base import Entity, StatusEffect
-from src.entities.stats import Stats
-from src.entities.npc import NPC, create_basic_goblin, create_forest_wolf
-from src.items.weapon import Weapon
-from src.items.loot_table import LootTable, LootEntry
-from src.items.item import Item
+from src.actions.combat import (
+    DefendAction,
+    FleeAction,
+    MagicAttack,
+    MeleeAttack,
+    RangedAttack,
+)
 from src.core.world import World
+from src.entities.base import Entity, StatusEffect
+from src.entities.npc import NPC, create_basic_goblin, create_forest_wolf
+from src.entities.stats import Stats
+from src.items.item import Item
+from src.items.loot_table import LootTable
+from src.items.weapon import Weapon
+from src.systems.combat_resolver import CombatResolver, DamageType
 
 
 class MockEntity(Entity):
@@ -49,7 +54,11 @@ class TestCombatResolver:
 
         # Test with 100% crit chance
         damage, is_critical, _ = resolver.calculate_damage(
-            attacker, defender, base_damage=10, critical_chance=1.0, critical_multiplier=2.0
+            attacker,
+            defender,
+            base_damage=10,
+            critical_chance=1.0,
+            critical_multiplier=2.0,
         )
 
         assert is_critical
@@ -149,7 +158,7 @@ class TestCombatActions:
 
         assert action.can_execute(attacker, world)
 
-        initial_health = defender.stats.health
+        defender.stats.health
         result = action.execute(attacker, world)
 
         assert result.success
@@ -261,8 +270,10 @@ class TestCombatActions:
             if result.success:
                 # Should have moved away from initial position
                 new_position = entity.position
-                distance = ((new_position[0] - initial_position[0])**2 +
-                           (new_position[1] - initial_position[1])**2)**0.5
+                distance = (
+                    (new_position[0] - initial_position[0]) ** 2
+                    + (new_position[1] - initial_position[1]) ** 2
+                ) ** 0.5
                 assert distance > 0
 
 
@@ -300,7 +311,7 @@ class TestLootSystem:
         table.add_entry(item, 0.1)  # 10% base chance
 
         # With high luck modifier, should increase drop chance
-        loot_with_luck = table.generate_loot(luck_modifier=0.5)
+        _ = table.generate_loot(luck_modifier=0.5)
         # Can't easily test randomness, but at least verify no errors
 
     def test_basic_monster_loot_table(self):
@@ -375,12 +386,12 @@ class TestNPCSystem:
         killer = MockEntity((5, 6))
         world.add_entity(killer)
 
-        initial_inventory_size = len(killer.inventory.get_all_items())
+        len(killer.inventory.get_all_items())
 
         npc.on_death(killer)
 
         # Should have dropped some loot
-        final_inventory_size = len(killer.inventory.get_all_items())
+        len(killer.inventory.get_all_items())
         # Loot might not always drop due to randomness, so we can't assert it's always greater
 
     def test_threat_level_calculation(self):

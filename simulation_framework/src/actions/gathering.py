@@ -1,13 +1,14 @@
 from __future__ import annotations
-from typing import Optional, Dict, List, TYPE_CHECKING
-import random
 
-from .base import Action, ActionResult, ResourceCost, Event
+import random
+from typing import TYPE_CHECKING, Optional
+
 from ..items.item import Item
+from .base import Action, ActionResult, Event, ResourceCost
 
 if TYPE_CHECKING:
-    from ..entities.base import Entity
     from ..core.world import World
+    from ..entities.base import Entity
 
 
 class GatherAction(Action):
@@ -17,7 +18,7 @@ class GatherAction(Action):
         resource_type: str,
         required_tool: Optional[str] = None,
         required_terrain: Optional[str] = None,
-        skill_name: str = "general"
+        skill_name: str = "general",
     ):
         super().__init__(actor_id)
         self.resource_type = resource_type
@@ -34,7 +35,8 @@ class GatherAction(Action):
             if tile.terrain_type.value != self.required_terrain:
                 return False
 
-        if not tile.can_gather(self.resource_type):
+        # Pass current_tick to check if resource is actually harvestable
+        if not tile.can_gather(self.resource_type, world.current_tick):
             return False
 
         if self.required_tool:
@@ -83,7 +85,9 @@ class GatherAction(Action):
             remaining = actor.inventory.add_item(item, actual_yield)
 
             if remaining > 0:
-                return ActionResult.failure(f"Inventory full, lost {remaining} {self.resource_type}")
+                return ActionResult.failure(
+                    f"Inventory full, lost {remaining} {self.resource_type}"
+                )
 
             self._gain_experience(actor)
 
@@ -93,20 +97,19 @@ class GatherAction(Action):
                 data={
                     "resource_type": self.resource_type,
                     "yield": actual_yield,
-                    "position": actor.position
-                }
+                    "position": actor.position,
+                },
             )
 
             return ActionResult.success(
-                f"Gathered {actual_yield} {self.resource_type}",
-                [event]
+                f"Gathered {actual_yield} {self.resource_type}", [event]
             )
         else:
             return ActionResult.failure(f"Failed to gather {self.resource_type}")
 
     def _calculate_yield(self, actor: Entity) -> int:
         base_yield = 2
-        skill_level = getattr(actor, 'skills', {}).get(self.skill_name, 1)
+        skill_level = getattr(actor, "skills", {}).get(self.skill_name, 1)
         skill_bonus = skill_level * 0.1
 
         random_factor = random.uniform(0.8, 1.2)
@@ -120,19 +123,59 @@ class GatherAction(Action):
 
     def _create_resource_item(self, resource_type: str, quantity: int) -> Item:
         item_data = {
-            "wood": {"id": 100, "name": "Wood", "value": 2, "description": "Raw wood material"},
-            "stone": {"id": 101, "name": "Stone", "value": 1, "description": "Common stone"},
-            "iron_ore": {"id": 102, "name": "Iron Ore", "value": 5, "description": "Iron ore for smelting"},
-            "gold_ore": {"id": 103, "name": "Gold Ore", "value": 20, "description": "Precious gold ore"},
-            "fish": {"id": 104, "name": "Fish", "value": 3, "description": "Fresh fish"},
-            "berries": {"id": 105, "name": "Berries", "value": 2, "description": "Wild berries"},
-            "herbs": {"id": 106, "name": "Herbs", "value": 4, "description": "Medicinal herbs"}
+            "wood": {
+                "id": 100,
+                "name": "Wood",
+                "value": 2,
+                "description": "Raw wood material",
+            },
+            "stone": {
+                "id": 101,
+                "name": "Stone",
+                "value": 1,
+                "description": "Common stone",
+            },
+            "iron_ore": {
+                "id": 102,
+                "name": "Iron Ore",
+                "value": 5,
+                "description": "Iron ore for smelting",
+            },
+            "gold_ore": {
+                "id": 103,
+                "name": "Gold Ore",
+                "value": 20,
+                "description": "Precious gold ore",
+            },
+            "fish": {
+                "id": 104,
+                "name": "Fish",
+                "value": 3,
+                "description": "Fresh fish",
+            },
+            "berries": {
+                "id": 105,
+                "name": "Berries",
+                "value": 2,
+                "description": "Wild berries",
+            },
+            "herbs": {
+                "id": 106,
+                "name": "Herbs",
+                "value": 4,
+                "description": "Medicinal herbs",
+            },
         }
 
-        data = item_data.get(resource_type, {
-            "id": 999, "name": resource_type.title(), "value": 1,
-            "description": f"Raw {resource_type}"
-        })
+        data = item_data.get(
+            resource_type,
+            {
+                "id": 999,
+                "name": resource_type.title(),
+                "value": 1,
+                "description": f"Raw {resource_type}",
+            },
+        )
 
         return Item(
             id=data["id"],
@@ -142,11 +185,11 @@ class GatherAction(Action):
             value=data["value"],
             description=data["description"],
             weight=1.0,
-            max_stack_size=99
+            max_stack_size=99,
         )
 
     def _gain_experience(self, actor: Entity) -> None:
-        if hasattr(actor, 'skills'):
+        if hasattr(actor, "skills"):
             current_xp = actor.skills.get(self.skill_name, 0)
             actor.skills[self.skill_name] = current_xp + 1
 
@@ -166,7 +209,7 @@ class FishAction(GatherAction):
             actor_id=actor_id,
             resource_type="fish",
             required_tool="fishing_rod",
-            skill_name="fishing"
+            skill_name="fishing",
         )
 
     def can_execute(self, actor: Entity, world: World) -> bool:
@@ -192,16 +235,14 @@ class MineAction(GatherAction):
             resource_type=resource_type,
             required_tool="pickaxe",  # Restored tool requirement
             required_terrain="mountain",
-            skill_name="mining"
+            skill_name="mining",
         )
 
 
 class ForageAction(GatherAction):
     def __init__(self, actor_id: int, resource_type: str = "berries"):
         super().__init__(
-            actor_id=actor_id,
-            resource_type=resource_type,
-            skill_name="foraging"
+            actor_id=actor_id, resource_type=resource_type, skill_name="foraging"
         )
 
     def can_execute(self, actor: Entity, world: World) -> bool:
@@ -213,7 +254,9 @@ class ForageAction(GatherAction):
         if not valid_terrain:
             return False
 
-        return tile.can_gather(self.resource_type) and self.get_cost().can_afford(actor)
+        return tile.can_gather(
+            self.resource_type, world.current_tick
+        ) and self.get_cost().can_afford(actor)
 
 
 class WoodcutAction(GatherAction):
@@ -223,5 +266,5 @@ class WoodcutAction(GatherAction):
             resource_type="wood",
             required_tool="axe",  # Restored tool requirement
             required_terrain="forest",
-            skill_name="woodcutting"
+            skill_name="woodcutting",
         )

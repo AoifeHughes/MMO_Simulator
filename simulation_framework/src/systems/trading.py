@@ -1,12 +1,11 @@
 from __future__ import annotations
-from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
+
 from dataclasses import dataclass
 from enum import Enum
-import random
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
 if TYPE_CHECKING:
     from ..entities.base import Entity
-    from ..items.item import Item
 
 
 class TradeStatus(Enum):
@@ -20,6 +19,7 @@ class TradeStatus(Enum):
 @dataclass
 class TradeOffer:
     """Represents a trade offer between two entities"""
+
     id: int
     initiator_id: int
     target_id: int
@@ -37,12 +37,16 @@ class TradeOffer:
     def get_total_offered_value(self) -> float:
         """Calculate total value of offered items and gold"""
         # Simplified value calculation - could be made more sophisticated
-        item_value = sum(self._get_item_base_value(item) * qty for item, qty in self.offered_items)
+        item_value = sum(
+            self._get_item_base_value(item) * qty for item, qty in self.offered_items
+        )
         return item_value + self.offered_gold
 
     def get_total_requested_value(self) -> float:
         """Calculate total value of requested items and gold"""
-        item_value = sum(self._get_item_base_value(item) * qty for item, qty in self.requested_items)
+        item_value = sum(
+            self._get_item_base_value(item) * qty for item, qty in self.requested_items
+        )
         return item_value + self.requested_gold
 
     def _get_item_base_value(self, item_name: str) -> float:
@@ -60,7 +64,7 @@ class TradeOffer:
             "Health Potion": 25.0,
             "Wooden Sword": 15.0,
             "Stone Axe": 20.0,
-            "Iron Sword": 75.0
+            "Iron Sword": 75.0,
         }
         return item_values.get(item_name, 1.0)
 
@@ -92,7 +96,7 @@ class Market:
             "Health Potion": 25.0,
             "Wooden Sword": 15.0,
             "Stone Axe": 20.0,
-            "Iron Sword": 75.0
+            "Iron Sword": 75.0,
         }
 
         for item, price in base_prices.items():
@@ -127,7 +131,7 @@ class Market:
 
         # Update supply and demand based on trade
         self.update_supply(item_name, -quantity)  # Reduce supply
-        self.update_demand(item_name, quantity)   # Increase demand
+        self.update_demand(item_name, quantity)  # Increase demand
 
     def _recalculate_price(self, item_name: str) -> None:
         """Recalculate price based on supply and demand"""
@@ -140,14 +144,16 @@ class Market:
         # Simple supply/demand pricing model
         base_price = self.price_history[item_name][0]  # Original price
         supply_factor = 100.0 / max(supply, 10)  # Lower supply = higher price
-        demand_factor = demand / 100.0            # Higher demand = higher price
+        demand_factor = demand / 100.0  # Higher demand = higher price
 
         new_price = base_price * supply_factor * demand_factor
 
         # Limit price volatility
         current_price = self.item_prices[item_name]
         max_change = current_price * 0.2  # Max 20% change per update
-        new_price = max(current_price - max_change, min(current_price + max_change, new_price))
+        new_price = max(
+            current_price - max_change, min(current_price + max_change, new_price)
+        )
 
         # Ensure minimum price
         new_price = max(new_price, base_price * 0.1)
@@ -179,7 +185,7 @@ class Market:
             "prices": self.item_prices.copy(),
             "supply": self.supply.copy(),
             "demand": self.demand.copy(),
-            "trade_volume": self.trade_volume.copy()
+            "trade_volume": self.trade_volume.copy(),
         }
 
 
@@ -200,7 +206,7 @@ class TradingSystem:
         requested_items: List[Tuple[str, int]] = None,
         offered_gold: int = 0,
         requested_gold: int = 0,
-        duration: int = 100
+        duration: int = 100,
     ) -> Optional[TradeOffer]:
         """Create a new trade offer"""
 
@@ -226,7 +232,7 @@ class TradingSystem:
             offered_gold=offered_gold,
             requested_gold=requested_gold,
             created_tick=0,  # Will be set by caller
-            expires_tick=duration
+            expires_tick=duration,
         )
 
         self.pending_offers[self.next_offer_id] = offer
@@ -295,7 +301,7 @@ class TradingSystem:
         base_multiplier = 1.0
 
         # Character class preferences
-        if hasattr(entity, 'character_class'):
+        if hasattr(entity, "character_class"):
             class_name = entity.character_class.name
 
             if class_name == "Warrior" and "Sword" in item_name:
@@ -308,7 +314,7 @@ class TradingSystem:
                 base_multiplier = 1.3
 
         # Personality modifiers
-        if hasattr(entity, 'personality'):
+        if hasattr(entity, "personality"):
             if entity.personality.greed > 0.7:
                 if item_name == "Gold Ore" or "gold" in item_name.lower():
                     base_multiplier *= 1.3
@@ -322,14 +328,16 @@ class TradingSystem:
 
         return base_multiplier
 
-    def _should_accept_trade(self, entity: Entity, offer: TradeOffer, utility: float) -> bool:
+    def _should_accept_trade(
+        self, entity: Entity, offer: TradeOffer, utility: float
+    ) -> bool:
         """Determine if an entity should accept a trade offer"""
 
         # Base acceptance threshold
         threshold = 1.0  # Only accept if we get equal or better value
 
         # Personality modifiers
-        if hasattr(entity, 'personality'):
+        if hasattr(entity, "personality"):
             # Greedy entities want better deals
             if entity.personality.greed > 0.6:
                 threshold = 1.2
@@ -343,9 +351,14 @@ class TradingSystem:
                 threshold *= 1.3
 
         # Relationship modifier (if implemented)
-        if hasattr(entity, 'relationships') and offer.initiator_id in entity.relationships:
+        if (
+            hasattr(entity, "relationships")
+            and offer.initiator_id in entity.relationships
+        ):
             relationship = entity.relationships[offer.initiator_id]
-            threshold *= (1.0 - relationship * 0.2)  # Better relationships = lower threshold
+            threshold *= (
+                1.0 - relationship * 0.2
+            )  # Better relationships = lower threshold
 
         return utility >= threshold
 
@@ -380,7 +393,9 @@ class TradingSystem:
 
         return success
 
-    def _execute_trade(self, initiator: Entity, accepter: Entity, offer: TradeOffer) -> bool:
+    def _execute_trade(
+        self, initiator: Entity, accepter: Entity, offer: TradeOffer
+    ) -> bool:
         """Execute the actual trade transaction"""
 
         # Validate both parties still have required items
@@ -426,9 +441,9 @@ class TradingSystem:
                 self.market.record_trade(item_name, quantity, price)
 
             # Update relationships
-            if hasattr(initiator, 'add_relationship'):
+            if hasattr(initiator, "add_relationship"):
                 initiator.add_relationship(accepter.id, 0.1)
-            if hasattr(accepter, 'add_relationship'):
+            if hasattr(accepter, "add_relationship"):
                 accepter.add_relationship(initiator.id, 0.1)
 
             return True
@@ -458,16 +473,16 @@ class TradingSystem:
             return False
 
         # Check distance (simplified - in full game would check actual positions)
-        if hasattr(entity1, 'distance_to'):
+        if hasattr(entity1, "distance_to"):
             distance = entity1.distance_to(entity2)
             if distance > 2:  # Must be adjacent or very close
                 return False
 
         # Check hostility
-        if hasattr(entity1, 'is_hostile_to') and entity1.is_hostile_to(entity2):
+        if hasattr(entity1, "is_hostile_to") and entity1.is_hostile_to(entity2):
             return False
 
-        if hasattr(entity2, 'is_hostile_to') and entity2.is_hostile_to(entity1):
+        if hasattr(entity2, "is_hostile_to") and entity2.is_hostile_to(entity1):
             return False
 
         return True
@@ -483,7 +498,7 @@ class TradingSystem:
             "requested_items": offer.requested_items.copy(),
             "offered_gold": offer.offered_gold,
             "requested_gold": offer.requested_gold,
-            "completed_tick": offer.expires_tick  # Simplified
+            "completed_tick": offer.expires_tick,  # Simplified
         }
 
         self.trade_history.append(trade_record)
@@ -496,7 +511,8 @@ class TradingSystem:
         """Remove expired trade offers"""
 
         expired_offers = [
-            offer_id for offer_id, offer in self.pending_offers.items()
+            offer_id
+            for offer_id, offer in self.pending_offers.items()
             if offer.is_expired(current_tick) and offer.status == TradeStatus.PENDING
         ]
 
@@ -508,7 +524,8 @@ class TradingSystem:
         """Get all pending trade offers for an entity"""
 
         return [
-            offer for offer in self.pending_offers.values()
+            offer
+            for offer in self.pending_offers.values()
             if offer.target_id == entity_id and offer.status == TradeStatus.PENDING
         ]
 
@@ -526,5 +543,5 @@ class TradingSystem:
             "pending_offers": len(self.pending_offers),
             "completed_trades": len([t for t in self.trade_history if t]),
             "market_summary": self.market.get_market_summary(),
-            "next_offer_id": self.next_offer_id
+            "next_offer_id": self.next_offer_id,
         }

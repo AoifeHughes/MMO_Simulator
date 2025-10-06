@@ -1,11 +1,13 @@
 from __future__ import annotations
-from typing import List, Tuple, Optional
+
+import random
+from typing import List, Optional
+
 import numpy as np
 from opensimplex import OpenSimplex
-import random
 
 from .terrain import TerrainType
-from .tile import Tile, ResourceDeposit
+from .tile import ResourceDeposit, Tile
 
 
 class WorldGenerator:
@@ -27,9 +29,7 @@ class WorldGenerator:
                 frequency = scale
 
                 for _ in range(octaves):
-                    value += self.noise.noise2(
-                        x * frequency, y * frequency
-                    ) * amplitude
+                    value += self.noise.noise2(x * frequency, y * frequency) * amplitude
                     amplitude *= 0.5
                     frequency *= 2
 
@@ -83,27 +83,43 @@ class WorldGenerator:
             return TerrainType.GRASS
 
     def _add_resources_to_tile(self, tile: Tile) -> None:
+        """Add resources to tile with staggered respawn times"""
         if tile.terrain_type == TerrainType.WATER:
             if random.random() < 0.3:
-                tile.add_resource(ResourceDeposit("fish", 20))
+                resource = ResourceDeposit("fish", 20)
+                # Stagger initial spawn: some resources "already respawning"
+                resource.last_harvested = -random.randint(0, 80)
+                tile.add_resource(resource)
 
         elif tile.terrain_type == TerrainType.FOREST:
             if random.random() < 0.5:  # Balanced probability for realistic distribution
-                tile.add_resource(ResourceDeposit("wood", 30))
+                resource = ResourceDeposit("wood", 30)
+                resource.last_harvested = -random.randint(0, 80)
+                tile.add_resource(resource)
             if random.random() < 0.3:
-                tile.add_resource(ResourceDeposit("berries", 10))
+                resource = ResourceDeposit("berries", 10)
+                resource.last_harvested = -random.randint(0, 80)
+                tile.add_resource(resource)
 
         elif tile.terrain_type == TerrainType.MOUNTAIN:
             if random.random() < 0.4:  # Balanced probability for realistic distribution
-                tile.add_resource(ResourceDeposit("stone", 50))
+                resource = ResourceDeposit("stone", 50)
+                resource.last_harvested = -random.randint(0, 80)
+                tile.add_resource(resource)
             if random.random() < 0.2:
-                tile.add_resource(ResourceDeposit("iron_ore", 15))
+                resource = ResourceDeposit("iron_ore", 15)
+                resource.last_harvested = -random.randint(0, 80)
+                tile.add_resource(resource)
             if random.random() < 0.05:
-                tile.add_resource(ResourceDeposit("gold_ore", 5))
+                resource = ResourceDeposit("gold_ore", 5)
+                resource.last_harvested = -random.randint(0, 80)
+                tile.add_resource(resource)
 
         elif tile.terrain_type == TerrainType.GRASS:
             if random.random() < 0.2:  # Balanced probability for realistic distribution
-                tile.add_resource(ResourceDeposit("herbs", 15))
+                resource = ResourceDeposit("herbs", 15)
+                resource.last_harvested = -random.randint(0, 80)
+                tile.add_resource(resource)
 
     def generate_world(
         self, width: int, height: int, add_spawn_zones: bool = True
@@ -140,6 +156,8 @@ class WorldGenerator:
         remaining_spots = [s for s in safe_spots if s not in agent_spawns]
         if remaining_spots:
             num_npc_spawns = min(10, len(remaining_spots) // 5)
-            npc_spawns = random.sample(remaining_spots, min(num_npc_spawns, len(remaining_spots)))
+            npc_spawns = random.sample(
+                remaining_spots, min(num_npc_spawns, len(remaining_spots))
+            )
             for x, y in npc_spawns:
                 tiles[y][x].add_spawn_zone("npc_spawn")

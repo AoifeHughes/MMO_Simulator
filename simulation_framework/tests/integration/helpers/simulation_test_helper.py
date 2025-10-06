@@ -1,16 +1,15 @@
 """Helper utilities for creating controlled, deterministic simulation tests"""
 
-import tempfile
 import os
-from typing import Tuple, Optional
-from src.core.simulation import Simulation
+import tempfile
+
 from src.core.config import SimulationConfig
 from src.core.world import World
-from src.world.tile import Tile, ResourceDeposit
-from src.world.terrain import TerrainType, TerrainProperties
 from src.entities.agent import Agent
-from src.items.weapon import Weapon
 from src.items.tool import Tool
+from src.items.weapon import Weapon
+from src.world.terrain import TerrainProperties, TerrainType
+from src.world.tile import ResourceDeposit
 
 
 def create_test_config(
@@ -18,7 +17,7 @@ def create_test_config(
     max_ticks: int = 1000,
     save_interval: int = 10,
     analytics_interval: int = 10,
-    seed: int = 12345
+    seed: int = 12345,
 ) -> SimulationConfig:
     """
     Create a deterministic test configuration.
@@ -34,7 +33,7 @@ def create_test_config(
         SimulationConfig configured for testing
     """
     # Create temporary database for this test
-    fd, db_path = tempfile.mkstemp(suffix='.db')
+    fd, db_path = tempfile.mkstemp(suffix=".db")
     os.close(fd)
 
     return SimulationConfig(
@@ -47,15 +46,12 @@ def create_test_config(
         analytics_interval=analytics_interval,
         tick_rate=0,  # Maximum speed for tests
         fog_of_war_enabled=False,  # Disable for simpler testing
-        enable_pathfinding_cache=True
+        enable_pathfinding_cache=True,
     )
 
 
 def create_controlled_world(
-    width: int,
-    height: int,
-    terrain: str = "plains",
-    seed: int = 12345
+    width: int, height: int, terrain: str = "plains", seed: int = 12345
 ) -> World:
     """
     Create a controlled world with uniform terrain for predictable testing.
@@ -78,7 +74,7 @@ def create_controlled_world(
         "forest": TerrainType.FOREST,
         "mountain": TerrainType.MOUNTAIN,
         "water": TerrainType.WATER,
-        "desert": TerrainType.DESERT
+        "desert": TerrainType.DESERT,
     }
 
     terrain_type = terrain_map.get(terrain, TerrainType.GRASS)
@@ -134,11 +130,7 @@ def force_agent_equipment(agent: Agent, equipment_type: str) -> None:
 
 
 def place_resource_node(
-    world: World,
-    x: int,
-    y: int,
-    resource_type: str,
-    amount: int = 100
+    world: World, x: int, y: int, resource_type: str, amount: int = 100
 ) -> None:
     """
     Place a guaranteed resource node at specific coordinates.
@@ -151,7 +143,9 @@ def place_resource_node(
         amount: Amount of resource
     """
     if not world.is_valid_position(x, y):
-        raise ValueError(f"Invalid position ({x}, {y}) for world {world.width}x{world.height}")
+        raise ValueError(
+            f"Invalid position ({x}, {y}) for world {world.width}x{world.height}"
+        )
 
     tile = world.get_tile(x, y)
     if not tile:
@@ -169,11 +163,7 @@ def place_resource_node(
 
 
 def create_wall_obstacle(
-    world: World,
-    start_x: int,
-    start_y: int,
-    end_x: int,
-    end_y: int
+    world: World, start_x: int, start_y: int, end_x: int, end_y: int
 ) -> None:
     """
     Create a wall of impassable terrain between two points.

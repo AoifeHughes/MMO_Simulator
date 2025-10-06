@@ -1,21 +1,23 @@
 from __future__ import annotations
-from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
-import random
+
 import logging
-from queue import PriorityQueue
+import random
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
+
+from ..ai.character_class import CharacterClass, get_random_character_class
+from ..ai.decision_maker import DecisionMaker
+from ..ai.goal import Goal
+from ..ai.personality import Personality
+from ..ai.spatial_memory import SpatialMemory
+from .base import Entity
+from .stats import Stats
 
 logger = logging.getLogger(__name__)
 
-from .base import Entity
-from .stats import Stats
-from ..ai.personality import Personality
-from ..ai.character_class import CharacterClass, get_random_character_class
-from ..ai.goal import Goal
-from ..ai.decision_maker import DecisionMaker
 
 if TYPE_CHECKING:
-    from ..core.world import World
     from ..actions.base import Action
+    from ..core.world import World
 
 
 class Agent(Entity):
@@ -25,7 +27,7 @@ class Agent(Entity):
         name: str = "Agent",
         personality: Optional[Personality] = None,
         character_class: Optional[CharacterClass] = None,
-        stats: Optional[Stats] = None
+        stats: Optional[Stats] = None,
     ):
         super().__init__(position, name, stats or Stats())
 
@@ -40,7 +42,9 @@ class Agent(Entity):
         self.decision_maker = DecisionMaker()
         self.current_goals: List[Goal] = []
         self.current_action: Optional[Action] = None
-        self.current_action_goal: Optional[Goal] = None  # Track which goal generated current action
+        self.current_action_goal: Optional[Goal] = (
+            None  # Track which goal generated current action
+        )
         self.action_queue: List[Action] = []
 
         # Experience and relationships
@@ -48,6 +52,7 @@ class Agent(Entity):
         self.relationships: Dict[int, float] = {}  # entity_id -> relationship (-1 to 1)
 
         # Memory and awareness
+        self.spatial_memory = SpatialMemory(memory_duration=100)
         self.known_entities: Dict[int, Dict] = {}  # Recent entity sightings
         self.memory_duration = 50  # How long to remember entity positions
 
@@ -92,13 +97,16 @@ class Agent(Entity):
         """Update agent's knowledge of the world"""
         self._scan_for_entities(world)
         self._update_relationships(world)
+        self._update_spatial_memory(world)
 
     def decide(self, world: World) -> None:
         """Make decisions about what to do next"""
         # Clean up completed/invalid goals
         self.current_goals = [
-            goal for goal in self.current_goals
-            if not goal.is_complete(self, world) and not goal.should_abandon(self, world)
+            goal
+            for goal in self.current_goals
+            if not goal.is_complete(self, world)
+            and not goal.should_abandon(self, world)
         ]
 
         # Select new goal if needed
@@ -113,34 +121,46 @@ class Agent(Entity):
     def act(self, world: World) -> None:
         """Execute actions based on current goals"""
         # Check if current action should be interrupted by higher priority goal
-        if (self.current_action and self.current_action.is_active and
-            not self.current_action.is_complete(world.current_tick) and
-            self.current_goals and self.current_action_goal):
+        if (
+            self.current_action
+            and self.current_action.is_active
+            and not self.current_action.is_complete(world.current_tick)
+            and self.current_goals
+            and self.current_action_goal
+        ):
 
             highest_priority_goal = self.current_goals[0]
 
             # If highest priority goal is different and has higher priority, interrupt
-            if (highest_priority_goal != self.current_action_goal and
-                highest_priority_goal.priority > self.current_action_goal.priority and
-                self.current_action.can_interrupt()):
+            if (
+                highest_priority_goal != self.current_action_goal
+                and highest_priority_goal.priority > self.current_action_goal.priority
+                and self.current_action.can_interrupt()
+            ):
 
                 # Interrupt current action
-                interrupt_result = self.current_action.interrupt()
-                logger.info(f"Agent {self.name} interrupted {type(self.current_action).__name__} for {highest_priority_goal}")
+                self.current_action.interrupt()
+                logger.info(
+                    f"Agent {self.name} interrupted {type(self.current_action).__name__} for {highest_priority_goal}"
+                )
 
                 # Notify the old goal that its action was interrupted
-                if hasattr(self.current_action_goal, 'on_action_completed'):
-                    self.current_action_goal.on_action_completed(self.current_action, False, self, world)
+                if hasattr(self.current_action_goal, "on_action_completed"):
+                    self.current_action_goal.on_action_completed(
+                        self.current_action, False, self, world
+                    )
 
                 # Clear interrupted action
                 self.current_action = None
                 self.current_action_goal = None
 
         # Check if current action is still running (and wasn't interrupted)
-        if (self.current_action and
-            hasattr(self.current_action, 'is_active') and
-            self.current_action.is_active and
-            not self.current_action.is_complete(world.current_tick)):
+        if (
+            self.current_action
+            and hasattr(self.current_action, "is_active")
+            and self.current_action.is_active
+            and not self.current_action.is_complete(world.current_tick)
+        ):
             return  # Still executing current action
 
         # Get next action from highest priority goal
@@ -159,13 +179,15 @@ class Agent(Entity):
 
             if new_action:
                 # Start the action
-                if hasattr(new_action, 'start'):
+                if hasattr(new_action, "start"):
                     new_action.start(world.current_tick)
 
                 # Execute immediately for single-tick actions
                 if new_action.get_duration() <= 1:
                     result = new_action.execute(self, world)
-                    active_goal.on_action_completed(new_action, result.success, self, world)
+                    active_goal.on_action_completed(
+                        new_action, result.success, self, world
+                    )
 
                     # Gain experience for successful actions
                     if result.success:
@@ -184,6 +206,7 @@ class Agent(Entity):
             # If idle too long, add a wander goal
             if self.idle_ticks > self.max_idle_ticks:
                 from ..ai.goal import ExploreGoal
+
                 self.current_goals.append(ExploreGoal(priority=2))
                 self.idle_ticks = 0
 
@@ -207,7 +230,7 @@ class Agent(Entity):
                     "last_seen_tick": world.current_tick,
                     "type": type(entity).__name__,
                     "hostile": getattr(entity, "npc_type", "neutral") == "aggressive",
-                    "health_percentage": entity.stats.get_health_percentage()
+                    "health_percentage": entity.stats.get_health_percentage(),
                 }
 
     def _update_memory(self, world: World) -> None:
@@ -231,6 +254,40 @@ class Agent(Entity):
                 if entity_id in self.relationships:
                     current_rel = self.relationships[entity_id]
                     self.relationships[entity_id] = current_rel * 0.99
+
+    def _update_spatial_memory(self, world: World) -> None:
+        """Update agent's spatial memory with visible tiles and resources"""
+        vision_range = self.vision_range
+        agent_x, agent_y = self.position
+
+        for dy in range(-vision_range, vision_range + 1):
+            for dx in range(-vision_range, vision_range + 1):
+                x, y = agent_x + dx, agent_y + dy
+
+                if 0 <= x < world.width and 0 <= y < world.height:
+                    tile = world.get_tile(x, y)
+                    if tile:
+                        # Remember the tile
+                        self.spatial_memory.remember_tile(
+                            position=(x, y),
+                            terrain_type=tile.terrain_type.value,
+                            has_resources=len(tile.resources) > 0,
+                            is_passable=tile.can_pass(),
+                            current_tick=world.current_tick,
+                        )
+
+                        # Remember resources on this tile
+                        for resource in tile.resources:
+                            self.spatial_memory.remember_resource(
+                                resource_type=resource.resource_type,
+                                position=(x, y),
+                                quantity=resource.quantity,
+                                current_tick=world.current_tick,
+                            )
+
+        # Clean up old memories periodically
+        if world.current_tick % 50 == 0:
+            self.spatial_memory.forget_old_memories(world.current_tick)
 
     def _gain_experience(self, action: Action, amount: int) -> None:
         """Gain experience for performing actions"""
@@ -259,7 +316,7 @@ class Agent(Entity):
             "WoodcutAction": "woodcutting",
             "ForageAction": "foraging",
             "CraftAction": "crafting",
-            "PathfindAction": "exploration"
+            "PathfindAction": "exploration",
         }
 
         return skill_mapping.get(action_type)
@@ -276,7 +333,7 @@ class Agent(Entity):
 
     def is_hostile_to(self, entity: Entity) -> bool:
         """Check if this agent is hostile to another entity"""
-        if hasattr(entity, 'npc_type') and entity.npc_type == "aggressive":
+        if hasattr(entity, "npc_type") and entity.npc_type == "aggressive":
             return True  # Always hostile to aggressive NPCs
 
         if entity.id in self.relationships:
@@ -290,7 +347,9 @@ class Agent(Entity):
 
     def get_dominant_skills(self, threshold: int = 5) -> List[Tuple[str, int]]:
         """Get skills above the threshold"""
-        return [(skill, level) for skill, level in self.skills.items() if level >= threshold]
+        return [
+            (skill, level) for skill, level in self.skills.items() if level >= threshold
+        ]
 
     def get_agent_summary(self) -> Dict:
         """Get a summary of the agent's state for debugging/analysis"""
@@ -308,14 +367,14 @@ class Agent(Entity):
             "known_entities": len(self.known_entities),
             "health": f"{self.stats.health}/{self.stats.max_health}",
             "stamina": f"{self.stats.stamina}/{self.stats.max_stamina}",
-            "inventory_items": len(self.inventory.get_all_items())
+            "inventory_items": len(self.inventory.get_all_items()),
         }
 
     def on_death(self, killer: Optional[Entity] = None) -> None:
         """Handle agent death"""
         if killer and killer.id != self.id:
             # Negative relationship with killer
-            if hasattr(killer, 'add_relationship'):
+            if hasattr(killer, "add_relationship"):
                 killer.add_relationship(self.id, -0.5)
 
         # Clear current state
@@ -327,16 +386,40 @@ class Agent(Entity):
         status = "alive" if self.stats.is_alive() else "dead"
         goals = len(self.current_goals)
         action = "acting" if self.current_action else "idle"
-        return (f"Agent(id={self.id}, name='{self.name}', class={self.character_class.name}, "
-                f"{status}, {action}, {goals} goals)")
+        return (
+            f"Agent(id={self.id}, name='{self.name}', class={self.character_class.name}, "
+            f"{status}, {action}, {goals} goals)"
+        )
 
 
 def create_random_agent(position: Tuple[int, int], name: Optional[str] = None) -> Agent:
     """Create an agent with randomized personality and class"""
     if not name:
         # Generate a random name
-        first_names = ["Alex", "Sam", "Jordan", "Casey", "Riley", "Avery", "Quinn", "Sage", "Blake", "Robin"]
-        last_names = ["Smith", "Jones", "Brown", "Davis", "Wilson", "Clark", "Lewis", "Walker", "Hall", "Young"]
+        first_names = [
+            "Alex",
+            "Sam",
+            "Jordan",
+            "Casey",
+            "Riley",
+            "Avery",
+            "Quinn",
+            "Sage",
+            "Blake",
+            "Robin",
+        ]
+        last_names = [
+            "Smith",
+            "Jones",
+            "Brown",
+            "Davis",
+            "Wilson",
+            "Clark",
+            "Lewis",
+            "Walker",
+            "Hall",
+            "Young",
+        ]
         name = f"{random.choice(first_names)} {random.choice(last_names)}"
 
     personality = Personality.randomize()
@@ -359,9 +442,7 @@ def create_random_agent(position: Tuple[int, int], name: Optional[str] = None) -
 
 
 def create_agent_with_archetype(
-    position: Tuple[int, int],
-    archetype: str,
-    name: Optional[str] = None
+    position: Tuple[int, int], archetype: str, name: Optional[str] = None
 ) -> Agent:
     """Create an agent based on a personality archetype"""
     personality = Personality.create_archetype(archetype)
@@ -373,10 +454,11 @@ def create_agent_with_archetype(
         "trader": "trader",
         "crafter": "blacksmith",
         "hermit": "alchemist",
-        "bandit": "hunter"
+        "bandit": "hunter",
     }
 
     from ..ai.character_class import get_character_class
+
     character_class = get_character_class(class_mapping.get(archetype, "warrior"))
 
     if not name:

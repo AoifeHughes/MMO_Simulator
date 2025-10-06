@@ -3,16 +3,17 @@ Starting equipment helper functions for agents.
 Provides appropriate tools and items based on agent goals and character class.
 """
 
-from typing import List, Optional, TYPE_CHECKING
-from .tool import Tool
+from typing import TYPE_CHECKING, List
+
 from .item import Item
+from .tool import Tool
 
 if TYPE_CHECKING:
-    from ..entities.agent import Agent
     from ..ai.goal import Goal
+    from ..entities.agent import Agent
 
 
-def give_starting_equipment(agent: 'Agent') -> None:
+def give_starting_equipment(agent: "Agent") -> None:
     """
     Give an agent appropriate starting equipment based on their goals and class.
 
@@ -20,15 +21,19 @@ def give_starting_equipment(agent: 'Agent') -> None:
         agent: The agent to equip
     """
     # Get equipment based on character class
-    class_equipment = get_class_equipment(agent.character_class.name if hasattr(agent, 'character_class') else "Explorer")
+    class_equipment = get_class_equipment(
+        agent.character_class.name if hasattr(agent, "character_class") else "Explorer"
+    )
 
     # Get equipment based on goals
-    goal_equipment = get_goal_equipment(agent.current_goals if hasattr(agent, 'current_goals') else [])
+    goal_equipment = get_goal_equipment(
+        agent.current_goals if hasattr(agent, "current_goals") else []
+    )
 
     # Add all equipment to inventory
     all_equipment = class_equipment + goal_equipment
     for item in all_equipment:
-        if hasattr(agent, 'inventory'):
+        if hasattr(agent, "inventory"):
             agent.inventory.add_item(item, 1)
             # Auto-equip tools
             if isinstance(item, Tool):
@@ -57,7 +62,7 @@ def get_class_equipment(class_name: str) -> List[Item]:
             properties={"damage": 10, "weapon_type": "sword"},
             description="A basic iron sword",
             value=50,
-            weight=3.0
+            weight=3.0,
         )
         equipment.append(weapon)
 
@@ -70,26 +75,28 @@ def get_class_equipment(class_name: str) -> List[Item]:
             properties={"damage": 3, "tool_type": "knife"},
             description="A versatile survival knife",
             value=20,
-            weight=0.5
+            weight=0.5,
         )
         equipment.append(knife)
 
     # All classes get basic supplies
-    equipment.append(Item(
-        id=102,
-        name="Bread",
-        item_type="consumable",
-        properties={"healing": 10},
-        description="Basic food ration",
-        value=5,
-        weight=0.2,
-        max_stack_size=10
-    ))
+    equipment.append(
+        Item(
+            id=102,
+            name="Bread",
+            item_type="consumable",
+            properties={"healing": 10},
+            description="Basic food ration",
+            value=5,
+            weight=0.2,
+            max_stack_size=10,
+        )
+    )
 
     return equipment
 
 
-def get_goal_equipment(goals: List['Goal']) -> List[Item]:
+def get_goal_equipment(goals: List["Goal"]) -> List[Item]:
     """
     Get equipment based on agent's current goals.
 
@@ -107,7 +114,7 @@ def get_goal_equipment(goals: List['Goal']) -> List[Item]:
 
         # Check for resource gathering goals
         if "GatherResourceGoal" in goal_type:
-            resource_type = getattr(goal, 'resource_type', None)
+            resource_type = getattr(goal, "resource_type", None)
 
             if resource_type == "wood" and "axe" not in tools_added:
                 equipment.append(Tool.create_axe())
@@ -117,7 +124,10 @@ def get_goal_equipment(goals: List['Goal']) -> List[Item]:
                 equipment.append(Tool.create_pickaxe())
                 tools_added.add("pickaxe")
 
-            elif resource_type in ["fish", "fishing"] and "fishing_rod" not in tools_added:
+            elif (
+                resource_type in ["fish", "fishing"]
+                and "fishing_rod" not in tools_added
+            ):
                 equipment.append(Tool.create_fishing_rod())
                 tools_added.add("fishing_rod")
 
@@ -131,7 +141,7 @@ def get_goal_equipment(goals: List['Goal']) -> List[Item]:
                     properties={"damage": 7, "weapon_type": "spear", "range": 2},
                     description="A simple wooden spear",
                     value=15,
-                    weight=2.0
+                    weight=2.0,
                 )
                 equipment.append(weapon)
                 tools_added.add("weapon")
@@ -146,14 +156,10 @@ def create_basic_tool_set() -> List[Tool]:
     Returns:
         List containing one of each basic tool type
     """
-    return [
-        Tool.create_axe(),
-        Tool.create_pickaxe(),
-        Tool.create_fishing_rod()
-    ]
+    return [Tool.create_axe(), Tool.create_pickaxe(), Tool.create_fishing_rod()]
 
 
-def equip_agent_for_task(agent: 'Agent', task: str) -> bool:
+def equip_agent_for_task(agent: "Agent", task: str) -> bool:
     """
     Equip an agent with the appropriate tool for a specific task.
 
@@ -164,13 +170,13 @@ def equip_agent_for_task(agent: 'Agent', task: str) -> bool:
     Returns:
         True if the agent was successfully equipped, False otherwise
     """
-    if not hasattr(agent, 'inventory'):
+    if not hasattr(agent, "inventory"):
         return False
 
     tool_map = {
         "woodcutting": Tool.create_axe(),
         "mining": Tool.create_pickaxe(),
-        "fishing": Tool.create_fishing_rod()
+        "fishing": Tool.create_fishing_rod(),
     }
 
     if task in tool_map:

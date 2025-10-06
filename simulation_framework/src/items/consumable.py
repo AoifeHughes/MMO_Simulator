@@ -1,9 +1,11 @@
 from __future__ import annotations
-from typing import Dict, Any, TYPE_CHECKING
+
+from typing import TYPE_CHECKING, Any, Dict
+
 from .item import Item
 
 if TYPE_CHECKING:
-    from ..entities.base import Entity, StatusEffect
+    from ..entities.base import Entity
 
 
 class Consumable(Item):
@@ -33,12 +35,13 @@ class Consumable(Item):
         if "status_effect" in effect:
             status = effect["status_effect"]
             from ..entities.base import StatusEffect
+
             entity.apply_status_effect(
                 StatusEffect(
                     name=status.get("name", "effect"),
                     duration=status.get("duration", 10),
                     effect_type=status.get("type", "neutral"),
-                    power=status.get("power", 0)
+                    power=status.get("power", 0),
                 )
             )
 
@@ -62,16 +65,11 @@ class Consumable(Item):
             id=20,
             name="Health Potion",
             item_type="consumable",
-            properties={
-                "effect": {
-                    "heal": 50
-                },
-                "cooldown": 5
-            },
+            properties={"effect": {"heal": 50}, "cooldown": 5},
             description="Restores 50 health points",
             value=25,
             weight=0.5,
-            max_stack_size=20
+            max_stack_size=20,
         )
 
     @classmethod
@@ -80,16 +78,11 @@ class Consumable(Item):
             id=21,
             name="Stamina Potion",
             item_type="consumable",
-            properties={
-                "effect": {
-                    "restore_stamina": 50
-                },
-                "cooldown": 3
-            },
+            properties={"effect": {"restore_stamina": 50}, "cooldown": 3},
             description="Restores 50 stamina points",
             value=20,
             weight=0.5,
-            max_stack_size=20
+            max_stack_size=20,
         )
 
     @classmethod
@@ -98,16 +91,11 @@ class Consumable(Item):
             id=22,
             name="Magic Potion",
             item_type="consumable",
-            properties={
-                "effect": {
-                    "restore_magic": 30
-                },
-                "cooldown": 3
-            },
+            properties={"effect": {"restore_magic": 30}, "cooldown": 3},
             description="Restores 30 magic points",
             value=30,
             weight=0.5,
-            max_stack_size=20
+            max_stack_size=20,
         )
 
     @classmethod
@@ -122,15 +110,15 @@ class Consumable(Item):
                         "name": "poisoned",
                         "type": "poison",
                         "duration": 10,
-                        "power": 5
+                        "power": 5,
                     }
                 },
-                "cooldown": 0
+                "cooldown": 0,
             },
             description="Inflicts poison damage over time",
             value=15,
             weight=0.3,
-            max_stack_size=10
+            max_stack_size=10,
         )
 
     @classmethod
@@ -141,22 +129,20 @@ class Consumable(Item):
             item_type="consumable",
             properties={
                 "effect": {
-                    "buff": {
-                        "attack": 10
-                    },
+                    "buff": {"attack": 10},
                     "status_effect": {
                         "name": "strengthened",
                         "type": "buff",
                         "duration": 50,
-                        "power": 0
-                    }
+                        "power": 0,
+                    },
                 },
-                "cooldown": 10
+                "cooldown": 10,
             },
             description="Increases attack power temporarily",
             value=50,
             weight=0.5,
-            max_stack_size=10
+            max_stack_size=10,
         )
 
     @classmethod
@@ -165,15 +151,9 @@ class Consumable(Item):
             id=30,
             name=name,
             item_type="consumable",
-            properties={
-                "effect": {
-                    "heal": 10,
-                    "restore_stamina": 20
-                },
-                "cooldown": 0
-            },
+            properties={"effect": {"heal": 10, "restore_stamina": 20}, "cooldown": 0},
             description="Basic food that restores health and stamina",
             value=5,
             weight=0.2,
-            max_stack_size=50
+            max_stack_size=50,
         )

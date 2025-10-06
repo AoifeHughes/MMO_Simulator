@@ -28,7 +28,6 @@ class DatabaseSchema:
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         """,
-
         """
         CREATE TABLE IF NOT EXISTS agent_snapshots (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,7 +52,6 @@ class DatabaseSchema:
             FOREIGN KEY (simulation_id) REFERENCES simulation_runs(id)
         )
         """,
-
         """
         CREATE TABLE IF NOT EXISTS world_snapshots (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,7 +67,6 @@ class DatabaseSchema:
             FOREIGN KEY (simulation_id) REFERENCES simulation_runs(id)
         )
         """,
-
         """
         CREATE TABLE IF NOT EXISTS action_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -85,7 +82,6 @@ class DatabaseSchema:
             FOREIGN KEY (simulation_id) REFERENCES simulation_runs(id)
         )
         """,
-
         """
         CREATE TABLE IF NOT EXISTS trade_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -102,7 +98,6 @@ class DatabaseSchema:
             FOREIGN KEY (simulation_id) REFERENCES simulation_runs(id)
         )
         """,
-
         """
         CREATE TABLE IF NOT EXISTS combat_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -119,7 +114,6 @@ class DatabaseSchema:
             FOREIGN KEY (simulation_id) REFERENCES simulation_runs(id)
         )
         """,
-
         """
         CREATE TABLE IF NOT EXISTS analytics (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -133,14 +127,12 @@ class DatabaseSchema:
             FOREIGN KEY (simulation_id) REFERENCES simulation_runs(id)
         )
         """,
-
         """
         CREATE TABLE IF NOT EXISTS schema_version (
             version INTEGER PRIMARY KEY,
             applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
         """,
-
         # Create indexes separately
         "CREATE INDEX IF NOT EXISTS idx_agent_snapshots_sim_tick ON agent_snapshots (simulation_id, tick)",
         "CREATE INDEX IF NOT EXISTS idx_agent_snapshots_agent_id ON agent_snapshots (agent_id)",
@@ -156,7 +148,7 @@ class DatabaseSchema:
         "CREATE INDEX IF NOT EXISTS idx_combat_logs_target ON combat_logs (target_id)",
         "CREATE INDEX IF NOT EXISTS idx_analytics_sim_metric ON analytics (simulation_id, metric_name)",
         "CREATE INDEX IF NOT EXISTS idx_analytics_category ON analytics (category)",
-        "CREATE INDEX IF NOT EXISTS idx_analytics_tick ON analytics (tick)"
+        "CREATE INDEX IF NOT EXISTS idx_analytics_tick ON analytics (tick)",
     ]
 
     # Trigger definitions for automatic timestamp updates
@@ -189,7 +181,6 @@ class DatabaseSchema:
         JOIN simulation_runs s ON a.simulation_id = s.id
         GROUP BY a.simulation_id, a.agent_id, a.name, a.character_class
         """,
-
         """
         CREATE VIEW IF NOT EXISTS action_summary AS
         SELECT
@@ -202,7 +193,6 @@ class DatabaseSchema:
         FROM action_logs
         GROUP BY simulation_id, action_type
         """,
-
         """
         CREATE VIEW IF NOT EXISTS trade_summary AS
         SELECT
@@ -214,7 +204,6 @@ class DatabaseSchema:
         FROM trade_logs
         GROUP BY simulation_id
         """,
-
         """
         CREATE VIEW IF NOT EXISTS combat_summary AS
         SELECT
@@ -227,7 +216,7 @@ class DatabaseSchema:
             AVG(CASE WHEN was_critical THEN 1.0 ELSE 0.0 END) as critical_rate
         FROM combat_logs
         GROUP BY simulation_id
-        """
+        """,
     ]
 
     @classmethod
@@ -258,10 +247,9 @@ class DatabaseSchema:
             (1, 'Test Simulation', 'Sample simulation for testing', 42, 50, 50,
              datetime('now'), 10, '{"max_ticks": 1000, "save_interval": 100}')
             """,
-
             """
             INSERT OR IGNORE INTO schema_version (version) VALUES (1)
-            """
+            """,
         ]
 
     @classmethod
@@ -277,7 +265,6 @@ class DatabaseSchema:
                 WHERE end_time IS NULL  -- Keep data from active simulations
             )
             """,
-
             """
             DELETE FROM world_snapshots
             WHERE created_at < datetime('now', '-30 days')
@@ -286,7 +273,6 @@ class DatabaseSchema:
                 WHERE end_time IS NULL
             )
             """,
-
             # Keep action logs for longer for analysis
             """
             DELETE FROM action_logs
@@ -296,7 +282,6 @@ class DatabaseSchema:
                 WHERE end_time IS NULL
             )
             """,
-
             # Keep trade and combat logs for analysis
             """
             DELETE FROM trade_logs
@@ -306,7 +291,6 @@ class DatabaseSchema:
                 WHERE end_time IS NULL
             )
             """,
-
             """
             DELETE FROM combat_logs
             WHERE created_at < datetime('now', '-90 days')
@@ -315,7 +299,6 @@ class DatabaseSchema:
                 WHERE end_time IS NULL
             )
             """,
-
             # Vacuum to reclaim space
-            "VACUUM"
+            "VACUUM",
         ]

@@ -2,20 +2,19 @@
 Edge case and error handling micro-simulation tests.
 """
 
-import pytest
-from src.core.simulation import Simulation
-from src.ai.goal import AttackEnemyGoal, GatherResourceGoal, ExploreGoal
 from src.actions.movement import PathfindAction
+from src.ai.goal import AttackEnemyGoal, ExploreGoal, GatherResourceGoal
+from src.core.simulation import Simulation
 
 from ..helpers import (
+    assert_combat_occurred,
+    cleanup_test_database,
     create_controlled_world,
     create_test_config,
-    force_agent_equipment,
-    create_test_warrior,
     create_test_gatherer,
+    create_test_warrior,
+    force_agent_equipment,
     place_resource_node,
-    assert_combat_occurred,
-    cleanup_test_database
 )
 
 
@@ -36,7 +35,9 @@ class TestEdgeCasesAndErrors:
 
         place_resource_node(sim.world, 2, 2, "wood", amount=100)
 
-        gatherer.current_goals = [GatherResourceGoal("wood", target_quantity=5, priority=10)]
+        gatherer.current_goals = [
+            GatherResourceGoal("wood", target_quantity=5, priority=10)
+        ]
 
         sim.add_agent(gatherer)
 
@@ -73,13 +74,14 @@ class TestEdgeCasesAndErrors:
 
         # Verify no combat occurred (target doesn't exist)
         try:
-            assert_combat_occurred(sim.db, sim.simulation_id, warrior.id, 99999, min_attacks=1)
+            assert_combat_occurred(
+                sim.db, sim.simulation_id, warrior.id, 99999, min_attacks=1
+            )
             assert False, "Expected no combat with invalid target"
         except AssertionError as e:
             # Expected - no combat should occur
             if "Expected no combat" in str(e):
                 raise
-            pass
 
         cleanup_test_database(config.database_path)
 
@@ -106,7 +108,11 @@ class TestEdgeCasesAndErrors:
         # Agent should stay within bounds (0,0) to (4,4)
         snapshots = sim.db.get_agent_snapshots(sim.simulation_id, agent.id)
         for snapshot in snapshots:
-            assert 0 <= snapshot.position_x < 5, f"Agent x={snapshot.position_x} out of bounds"
-            assert 0 <= snapshot.position_y < 5, f"Agent y={snapshot.position_y} out of bounds"
+            assert (
+                0 <= snapshot.position_x < 5
+            ), f"Agent x={snapshot.position_x} out of bounds"
+            assert (
+                0 <= snapshot.position_y < 5
+            ), f"Agent y={snapshot.position_y} out of bounds"
 
         cleanup_test_database(config.database_path)

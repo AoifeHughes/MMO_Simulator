@@ -2,20 +2,19 @@
 Multi-system integration micro-simulation tests.
 """
 
-import pytest
-from src.core.simulation import Simulation
 from src.ai.goal import AttackEnemyGoal, RestGoal
+from src.core.simulation import Simulation
 
 from ..helpers import (
-    create_controlled_world,
-    create_test_config,
-    force_agent_equipment,
-    create_test_warrior,
-    create_weak_goblin,
     StaticNPC,
     assert_combat_occurred,
     assert_entity_died,
-    cleanup_test_database
+    cleanup_test_database,
+    create_controlled_world,
+    create_test_config,
+    create_test_warrior,
+    create_weak_goblin,
+    force_agent_equipment,
 )
 
 
@@ -47,7 +46,9 @@ class TestMultiSystemIntegration:
         sim.run(num_ticks=100)
 
         # Verify combat occurred
-        assert_combat_occurred(sim.db, sim.simulation_id, warrior.id, goblin.id, min_attacks=1)
+        assert_combat_occurred(
+            sim.db, sim.simulation_id, warrior.id, goblin.id, min_attacks=1
+        )
 
         # Verify death
         assert_entity_died(sim.db, sim.simulation_id, goblin.id)
@@ -77,7 +78,9 @@ class TestMultiSystemIntegration:
         sim.run(num_ticks=120)
 
         # Verify combat occurred (which proves movement happened - warrior had to reach enemy)
-        assert_combat_occurred(sim.db, sim.simulation_id, warrior.id, enemy.id, min_attacks=1)
+        assert_combat_occurred(
+            sim.db, sim.simulation_id, warrior.id, enemy.id, min_attacks=1
+        )
 
         # Combat occurring proves movement succeeded (warrior moved from (2,2) to enemy at (8,8))
 

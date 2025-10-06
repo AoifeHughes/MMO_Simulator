@@ -1,14 +1,16 @@
 from __future__ import annotations
-from dataclasses import dataclass, asdict
-from typing import Dict, List, Optional, Any, Union
+
 import json
 import sqlite3
+from dataclasses import asdict, dataclass
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
 class SimulationRun:
     """Model for simulation run metadata"""
+
     id: Optional[int] = None
     name: str = ""
     description: str = ""
@@ -29,6 +31,7 @@ class SimulationRun:
 @dataclass
 class AgentSnapshot:
     """Model for agent state snapshots"""
+
     id: Optional[int] = None
     simulation_id: int = 0
     agent_id: int = 0
@@ -62,6 +65,7 @@ class AgentSnapshot:
 @dataclass
 class WorldSnapshot:
     """Model for world state snapshots"""
+
     id: Optional[int] = None
     simulation_id: int = 0
     tick: int = 0
@@ -82,6 +86,7 @@ class WorldSnapshot:
 @dataclass
 class ActionLog:
     """Model for logging agent actions"""
+
     id: Optional[int] = None
     simulation_id: int = 0
     tick: int = 0
@@ -100,6 +105,7 @@ class ActionLog:
 @dataclass
 class TradeLog:
     """Model for logging trade transactions"""
+
     id: Optional[int] = None
     simulation_id: int = 0
     tick: int = 0
@@ -121,6 +127,7 @@ class TradeLog:
 @dataclass
 class CombatLog:
     """Model for logging combat encounters"""
+
     id: Optional[int] = None
     simulation_id: int = 0
     tick: int = 0
@@ -136,6 +143,7 @@ class CombatLog:
 @dataclass
 class Analytics:
     """Model for simulation analytics and metrics"""
+
     id: Optional[int] = None
     simulation_id: int = 0
     metric_name: str = ""
@@ -195,44 +203,60 @@ class DatabaseHelper:
         data = dict(row)
 
         # Remove database-only fields that aren't in the dataclass
-        database_only_fields = {'created_at', 'updated_at'}
+        database_only_fields = {"created_at", "updated_at"}
         for field in database_only_fields:
             data.pop(field, None)
 
         # Handle JSON fields based on model type
         if model_class == AgentSnapshot:
-            data['personality'] = DatabaseHelper.json_to_dict(data.get('personality', '{}'))
-            data['skills'] = DatabaseHelper.json_to_dict(data.get('skills', '{}'))
-            data['current_goals'] = DatabaseHelper.json_to_list(data.get('current_goals', '[]'))
-            data['relationships'] = DatabaseHelper.json_to_dict(data.get('relationships', '{}'))
+            data["personality"] = DatabaseHelper.json_to_dict(
+                data.get("personality", "{}")
+            )
+            data["skills"] = DatabaseHelper.json_to_dict(data.get("skills", "{}"))
+            data["current_goals"] = DatabaseHelper.json_to_list(
+                data.get("current_goals", "[]")
+            )
+            data["relationships"] = DatabaseHelper.json_to_dict(
+                data.get("relationships", "{}")
+            )
 
         elif model_class == WorldSnapshot:
-            data['world_events'] = DatabaseHelper.json_to_list(data.get('world_events', '[]'))
-            data['market_prices'] = DatabaseHelper.json_to_dict(data.get('market_prices', '{}'))
+            data["world_events"] = DatabaseHelper.json_to_list(
+                data.get("world_events", "[]")
+            )
+            data["market_prices"] = DatabaseHelper.json_to_dict(
+                data.get("market_prices", "{}")
+            )
 
         elif model_class == ActionLog:
-            data['action_data'] = DatabaseHelper.json_to_dict(data.get('action_data', '{}'))
+            data["action_data"] = DatabaseHelper.json_to_dict(
+                data.get("action_data", "{}")
+            )
 
         elif model_class == TradeLog:
-            data['offered_items'] = DatabaseHelper.json_to_dict(data.get('offered_items', '{}'))
-            data['requested_items'] = DatabaseHelper.json_to_dict(data.get('requested_items', '{}'))
+            data["offered_items"] = DatabaseHelper.json_to_dict(
+                data.get("offered_items", "{}")
+            )
+            data["requested_items"] = DatabaseHelper.json_to_dict(
+                data.get("requested_items", "{}")
+            )
 
         elif model_class == SimulationRun:
-            data['config'] = DatabaseHelper.json_to_dict(data.get('config', '{}'))
+            data["config"] = DatabaseHelper.json_to_dict(data.get("config", "{}"))
             # Handle datetime conversion
-            if data.get('start_time'):
+            if data.get("start_time"):
                 try:
-                    data['start_time'] = datetime.fromisoformat(data['start_time'])
+                    data["start_time"] = datetime.fromisoformat(data["start_time"])
                 except (ValueError, TypeError):
-                    data['start_time'] = None
-            if data.get('end_time'):
+                    data["start_time"] = None
+            if data.get("end_time"):
                 try:
-                    data['end_time'] = datetime.fromisoformat(data['end_time'])
+                    data["end_time"] = datetime.fromisoformat(data["end_time"])
                 except (ValueError, TypeError):
-                    data['end_time'] = None
+                    data["end_time"] = None
 
         elif model_class == Analytics:
-            data['metadata'] = DatabaseHelper.json_to_dict(data.get('metadata', '{}'))
+            data["metadata"] = DatabaseHelper.json_to_dict(data.get("metadata", "{}"))
 
         return model_class(**data)
 
@@ -242,36 +266,46 @@ class DatabaseHelper:
         data = asdict(obj)
 
         # Remove None id for inserts
-        if for_insert and data.get('id') is None:
-            data.pop('id', None)
+        if for_insert and data.get("id") is None:
+            data.pop("id", None)
 
         # Convert complex types to JSON strings
         if isinstance(obj, AgentSnapshot):
-            data['personality'] = DatabaseHelper.dict_to_json(data.get('personality'))
-            data['skills'] = DatabaseHelper.dict_to_json(data.get('skills'))
-            data['current_goals'] = DatabaseHelper.list_to_json(data.get('current_goals'))
-            data['relationships'] = DatabaseHelper.dict_to_json(data.get('relationships'))
+            data["personality"] = DatabaseHelper.dict_to_json(data.get("personality"))
+            data["skills"] = DatabaseHelper.dict_to_json(data.get("skills"))
+            data["current_goals"] = DatabaseHelper.list_to_json(
+                data.get("current_goals")
+            )
+            data["relationships"] = DatabaseHelper.dict_to_json(
+                data.get("relationships")
+            )
 
         elif isinstance(obj, WorldSnapshot):
-            data['world_events'] = DatabaseHelper.list_to_json(data.get('world_events'))
-            data['market_prices'] = DatabaseHelper.dict_to_json(data.get('market_prices'))
+            data["world_events"] = DatabaseHelper.list_to_json(data.get("world_events"))
+            data["market_prices"] = DatabaseHelper.dict_to_json(
+                data.get("market_prices")
+            )
 
         elif isinstance(obj, ActionLog):
-            data['action_data'] = DatabaseHelper.dict_to_json(data.get('action_data'))
+            data["action_data"] = DatabaseHelper.dict_to_json(data.get("action_data"))
 
         elif isinstance(obj, TradeLog):
-            data['offered_items'] = DatabaseHelper.dict_to_json(data.get('offered_items'))
-            data['requested_items'] = DatabaseHelper.dict_to_json(data.get('requested_items'))
+            data["offered_items"] = DatabaseHelper.dict_to_json(
+                data.get("offered_items")
+            )
+            data["requested_items"] = DatabaseHelper.dict_to_json(
+                data.get("requested_items")
+            )
 
         elif isinstance(obj, SimulationRun):
-            data['config'] = DatabaseHelper.dict_to_json(data.get('config'))
+            data["config"] = DatabaseHelper.dict_to_json(data.get("config"))
             # Handle datetime conversion
-            if data.get('start_time'):
-                data['start_time'] = data['start_time'].isoformat()
-            if data.get('end_time'):
-                data['end_time'] = data['end_time'].isoformat()
+            if data.get("start_time"):
+                data["start_time"] = data["start_time"].isoformat()
+            if data.get("end_time"):
+                data["end_time"] = data["end_time"].isoformat()
 
         elif isinstance(obj, Analytics):
-            data['metadata'] = DatabaseHelper.dict_to_json(data.get('metadata'))
+            data["metadata"] = DatabaseHelper.dict_to_json(data.get("metadata"))
 
         return data

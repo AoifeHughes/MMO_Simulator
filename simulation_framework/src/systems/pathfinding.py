@@ -1,16 +1,20 @@
 from __future__ import annotations
-from typing import List, Tuple, Optional, Set, Dict, TYPE_CHECKING
-from pathfinding.core.grid import Grid
-from pathfinding.core.diagonal_movement import DiagonalMovement
-from pathfinding.finder.a_star import AStarFinder
+
 import math
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple
+
+from pathfinding.core.diagonal_movement import DiagonalMovement
+from pathfinding.core.grid import Grid
+from pathfinding.finder.a_star import AStarFinder
 
 if TYPE_CHECKING:
     from ..core.world import World
 
 
 class PathfindingMap:
-    def __init__(self, world: World, known_tiles: Optional[Set[Tuple[int, int]]] = None):
+    def __init__(
+        self, world: World, known_tiles: Optional[Set[Tuple[int, int]]] = None
+    ):
         self.world = world
         self.known_tiles = known_tiles
         self._grid = None
@@ -44,7 +48,9 @@ class PathfindingMap:
 
 class Pathfinder:
     def __init__(self, diagonal_movement: bool = True):
-        self.diagonal_movement = DiagonalMovement.always if diagonal_movement else DiagonalMovement.never
+        self.diagonal_movement = (
+            DiagonalMovement.always if diagonal_movement else DiagonalMovement.never
+        )
         self.finder = AStarFinder(diagonal_movement=self.diagonal_movement)
         self._path_cache: Dict[Tuple, List[Tuple[int, int]]] = {}
         self._cache_max_size = 100
@@ -54,7 +60,7 @@ class Pathfinder:
         start: Tuple[int, int],
         goal: Tuple[int, int],
         world: World,
-        known_tiles: Optional[Set[Tuple[int, int]]] = None
+        known_tiles: Optional[Set[Tuple[int, int]]] = None,
     ) -> List[Tuple[int, int]]:
         cache_key = (start, goal, id(world), id(known_tiles))
 
@@ -86,11 +92,11 @@ class Pathfinder:
         start: Tuple[int, int],
         targets: List[Tuple[int, int]],
         world: World,
-        known_tiles: Optional[Set[Tuple[int, int]]] = None
+        known_tiles: Optional[Set[Tuple[int, int]]] = None,
     ) -> Tuple[Optional[Tuple[int, int]], List[Tuple[int, int]]]:
         best_target = None
         best_path = []
-        shortest_distance = float('inf')
+        shortest_distance = float("inf")
 
         for target in targets:
             path = self.find_path(start, target, world, known_tiles)
@@ -106,7 +112,7 @@ class Pathfinder:
         start: Tuple[int, int],
         goal: Tuple[int, int],
         world: World,
-        known_tiles: Optional[Set[Tuple[int, int]]] = None
+        known_tiles: Optional[Set[Tuple[int, int]]] = None,
     ) -> bool:
         path = self.find_path(start, goal, world, known_tiles)
         return len(path) > 1
@@ -116,7 +122,7 @@ class Pathfinder:
         start: Tuple[int, int],
         goal: Tuple[int, int],
         world: World,
-        known_tiles: Optional[Set[Tuple[int, int]]] = None
+        known_tiles: Optional[Set[Tuple[int, int]]] = None,
     ) -> Optional[Tuple[int, int]]:
         path = self.find_path(start, goal, world, known_tiles)
         if len(path) > 1:
@@ -127,7 +133,7 @@ class Pathfinder:
         if self.diagonal_movement == DiagonalMovement.never:
             return abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
         else:
-            return math.sqrt((pos1[0] - pos2[0])**2 + (pos1[1] - pos2[1])**2)
+            return math.sqrt((pos1[0] - pos2[0]) ** 2 + (pos1[1] - pos2[1]) ** 2)
 
     def clear_cache(self) -> None:
         self._path_cache.clear()

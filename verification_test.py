@@ -3,20 +3,32 @@
 Quick 2-minute verification test to check if our fixes work.
 """
 
-import sys
 import os
+import sys
 import time
 
 # Add the simulation framework to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from simulation_framework.src.core.simulation import Simulation
-from simulation_framework.src.core.config import SimulationConfig
-from simulation_framework.src.entities.agent import Agent, create_agent_with_archetype
-from simulation_framework.src.entities.npc import NPC, create_basic_goblin, create_forest_wolf
-from simulation_framework.src.ai.personality import Personality
-from simulation_framework.src.ai.character_class import get_character_class
-from simulation_framework.src.ai.goal import ExploreGoal, GatherResourceGoal, AttackEnemyGoal
+from simulation_framework.src.ai.character_class import (  # noqa: E402
+    get_character_class,
+)
+from simulation_framework.src.ai.goal import (  # noqa: E402
+    ExploreGoal,
+    GatherResourceGoal,
+)
+from simulation_framework.src.ai.personality import Personality  # noqa: E402
+from simulation_framework.src.core.config import SimulationConfig  # noqa: E402
+from simulation_framework.src.core.simulation import Simulation  # noqa: E402
+from simulation_framework.src.entities.agent import (  # noqa: E402
+    Agent,
+    create_agent_with_archetype,
+)
+from simulation_framework.src.entities.npc import (  # noqa: E402
+    NPC,
+    create_basic_goblin,
+    create_forest_wolf,
+)
 
 
 def main():
@@ -35,13 +47,13 @@ def main():
         database_path=db_path,
         save_interval=10,
         analytics_interval=25,
-        tick_rate=0
+        tick_rate=0,
     )
 
     simulation = Simulation(config)
     simulation.initialize_simulation(
         name="Verification Test",
-        description="2-minute test to verify combat and resource gathering fixes"
+        description="2-minute test to verify combat and resource gathering fixes",
     )
 
     print(f"Simulation ID: {simulation.simulation_id}")
@@ -56,21 +68,27 @@ def main():
             agent = create_agent_with_archetype(
                 position=(x, y),
                 name=f"TestAgent_{i+1:02d}",
-                archetype=["aggressive", "curious"][i % 2]
+                archetype=["aggressive", "curious"][i % 2],
             )
-        except:
+        except Exception:
             agent = Agent(
                 position=(x, y),
                 name=f"TestAgent_{i+1:02d}",
                 personality=Personality.randomize(),
-                character_class=get_character_class("Warrior" if i % 2 == 0 else "Explorer")
+                character_class=get_character_class(
+                    "Warrior" if i % 2 == 0 else "Explorer"
+                ),
             )
 
         # Mix of goals to test different systems
         if i % 3 == 0:
-            agent.current_goals = [GatherResourceGoal(resource_type="wood", target_quantity=3, priority=7)]
+            agent.current_goals = [
+                GatherResourceGoal(resource_type="wood", target_quantity=3, priority=7)
+            ]
         elif i % 3 == 1:
-            agent.current_goals = [GatherResourceGoal(resource_type="stone", target_quantity=2, priority=7)]
+            agent.current_goals = [
+                GatherResourceGoal(resource_type="stone", target_quantity=2, priority=7)
+            ]
         else:
             agent.current_goals = [ExploreGoal(priority=5)]
 
@@ -92,13 +110,14 @@ def main():
             else:
                 npc = create_forest_wolf((x, y))
                 npc.name = f"TestWolf_{i+1:02d}"
-        except:
+        except Exception:
             npc = NPC(position=(x, y), name=f"TestNPC_{i+1:02d}", npc_type="goblin")
 
         # Make all NPCs aggressive for testing
         npc.npc_type = "aggressive"
         npc.aggro_range = 4
-        print(f"Created aggressive {npc.name} with aggro range {npc.aggro_range}")
+        aggro = npc.aggro_range
+        print(f"Created aggressive {npc.name} with aggro range {aggro}")
 
         npcs.append(npc)
         simulation.add_npc(npc)
@@ -124,6 +143,7 @@ def main():
     except Exception as e:
         print(f"Error during simulation: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         if simulation.running:
@@ -132,13 +152,20 @@ def main():
     elapsed_time = time.time() - start_time
     final_stats = simulation.get_statistics()
 
-    print(f"\n=== VERIFICATION RESULTS ===")
+    print("\n=== VERIFICATION RESULTS ===")
     print(f"Runtime: {elapsed_time:.1f} seconds")
     print(f"Total ticks: {final_stats['current_tick']}")
-    print(f"Active agents: {final_stats['active_agents']}/{final_stats['total_agents']}")
-    print(f"Active NPCs: {final_stats['active_npcs']}/{final_stats['total_npcs']}")
+    active_agents = final_stats["active_agents"]
+    total_agents = final_stats["total_agents"]
+    print(f"Active agents: {active_agents}/{total_agents}")
+    active_npcs = final_stats["active_npcs"]
+    total_npcs = final_stats["total_npcs"]
+    print(f"Active NPCs: {active_npcs}/{total_npcs}")
 
-    print("\nVerification complete! Run analyze_simulation_results.py to check if fixes worked.")
+    print(
+        "\nVerification complete! "
+        "Run analyze_simulation_results.py to check if fixes worked."
+    )
 
 
 if __name__ == "__main__":
