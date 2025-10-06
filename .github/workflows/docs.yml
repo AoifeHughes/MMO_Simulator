@@ -1,0 +1,138 @@
+name: Build and Deploy Documentation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'simulation_framework/**/*.py'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    paths:
+      - 'docs/**'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout MMO Simulator
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for version info
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Cache pip packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('docs/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r docs/requirements.txt
+          pip install -r requirements.txt  # For autodoc
+
+      - name: Build documentation
+        run: |
+          cd docs
+          make html
+
+      - name: Check for build errors
+        run: |
+          if [ -f docs/build/html/index.html ]; then
+            echo "✓ Documentation built successfully"
+          else
+            echo "✗ Documentation build failed"
+            exit 1
+          fi
+
+      - name: Upload documentation artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: documentation
+          path: docs/build/html/
+          retention-days: 7
+
+  deploy-to-github-pages:
+    needs: build-docs
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Download documentation
+        uses: actions/download-artifact@v3
+        with:
+          name: documentation
+          path: ./docs-html
+
+      - name: Deploy to GitHub Pages (gh-pages branch)
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs-html
+          publish_branch: gh-pages
+          cname: false  # Set your custom domain here if you have one
+
+  deploy-to-blog:
+    needs: build-docs
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Download documentation
+        uses: actions/download-artifact@v3
+        with:
+          name: documentation
+          path: ./docs-html
+
+      - name: Checkout blog repository
+        uses: actions/checkout@v4
+        with:
+          repository: AoifeHughes/AoifeHughes.github.io
+          token: ${{ secrets.BLOG_DEPLOY_TOKEN }}
+          path: blog
+
+      - name: Copy documentation to blog
+        run: |
+          # Create mmo-simulator directory in blog static folder
+          mkdir -p blog/static/mmo-simulator
+
+          # Remove old docs if they exist
+          rm -rf blog/static/mmo-simulator/*
+
+          # Copy new documentation
+          cp -r docs-html/* blog/static/mmo-simulator/
+
+          # Verify files were copied
+          ls -la blog/static/mmo-simulator/
+
+      - name: Commit and push to blog
+        run: |
+          cd blog
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add static/mmo-simulator/
+
+          # Only commit if there are changes
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update MMO Simulator documentation (automated)"
+            git push
+            echo "✓ Documentation deployed to blog"
+          fi
+
+      - name: Summary
+        run: |
+          echo "## Documentation Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Documentation built successfully" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Deployed to gh-pages branch" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Deployed to blog: https://aoifehughes.github.io/mmo-simulator/" >> $GITHUB_STEP_SUMMARY

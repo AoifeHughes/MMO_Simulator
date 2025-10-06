@@ -73,3 +73,7 @@ output/logs/
 # Runtime files
 *.pid
 *.lock
+
+# Documentation build
+docs/build/
+docs/source/_autosummary/

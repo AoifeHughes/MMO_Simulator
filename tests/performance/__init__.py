@@ -1,1 +1,0 @@
-"""Performance and load testing for MMO Simulator"""
