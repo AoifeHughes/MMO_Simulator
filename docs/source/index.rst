@@ -108,6 +108,7 @@ Documentation Structure
    :maxdepth: 2
    :caption: Tutorials
 
+   tutorials/getting-started
    tutorials/custom-agents
    tutorials/custom-actions
    tutorials/analyzing-results
