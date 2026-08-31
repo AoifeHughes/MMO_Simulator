@@ -369,16 +369,14 @@ def inspect_database(db_path):
 
         # Action summary
         print("\nAction Types Distribution:")
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT action_type, COUNT(*) as count,
                    SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful
             FROM action_logs
             GROUP BY action_type
             ORDER BY count DESC
             LIMIT 10
-        """
-        )
+        """)
         for action_type, count, successful in cursor.fetchall():
             success_rate = (successful / count * 100) if count > 0 else 0
             print(f"  {action_type}: {count} ({success_rate:.1f}% success)")
@@ -388,14 +386,12 @@ def inspect_database(db_path):
         combat_count = cursor.fetchone()[0]
         if combat_count > 0:
             print(f"\nCombat Events: {combat_count}")
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT SUM(damage_dealt), AVG(damage_dealt),
                        SUM(CASE WHEN was_critical = 1 THEN 1 ELSE 0 END),
                        SUM(CASE WHEN target_died = 1 THEN 1 ELSE 0 END)
                 FROM combat_logs
-            """
-            )
+            """)
             total_dmg, avg_dmg, crits, kills = cursor.fetchone()
             print(f"  Total Damage: {total_dmg:,.0f}")
             print(f"  Average Damage: {avg_dmg:.1f}")
@@ -409,14 +405,12 @@ def inspect_database(db_path):
 
         # Recent events
         print("\nRecent Events (Last 10):")
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT tick, agent_id, action_type, success, result_message
             FROM action_logs
             ORDER BY tick DESC, id DESC
             LIMIT 10
-        """
-        )
+        """)
         for tick, agent_id, action_type, success, message in cursor.fetchall():
             status = "✓" if success else "✗"
             print(f"  Tick {tick}: Agent {agent_id} - {action_type} {status}")
