@@ -207,14 +207,12 @@ def main():
             print(f"Agent snapshots: {snapshot_count}")
 
             # Show some recent actions
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT tick, agent_id, action_type, success, result_message
                 FROM action_logs
                 ORDER BY tick DESC
                 LIMIT 5
-            """
-            )
+            """)
             recent_actions = cursor.fetchall()
 
             if recent_actions:
