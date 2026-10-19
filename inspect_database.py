@@ -47,13 +47,11 @@ def inspect_database(db_path):
         # Simulation runs
         print("🎯 SIMULATION RUNS")
         print("-" * 50)
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT id, name, description, world_width, world_height,
                    current_tick, total_agents, start_time, end_time
             FROM simulation_runs ORDER BY id DESC
-        """
-        )
+        """)
         runs = cursor.fetchall()
 
         if runs:
@@ -91,15 +89,13 @@ def inspect_database(db_path):
 
         if total_actions > 0:
             # Action types breakdown
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT action_type, COUNT(*) as count,
                        SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful
                 FROM action_logs
                 GROUP BY action_type
                 ORDER BY count DESC
-            """
-            )
+            """)
             action_types = cursor.fetchall()
 
             print("\\nAction breakdown:")
@@ -111,14 +107,12 @@ def inspect_database(db_path):
 
             # Recent actions
             print("\\nRecent actions:")
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT tick, agent_id, action_type, success, result_message
                 FROM action_logs
                 ORDER BY tick DESC
                 LIMIT 10
-            """
-            )
+            """)
             recent_actions = cursor.fetchall()
 
             for tick, agent_id, action_type, success, message in recent_actions:
@@ -139,15 +133,13 @@ def inspect_database(db_path):
 
         if total_snapshots > 0:
             # Latest snapshot for each agent
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT agent_id, name, MAX(tick) as last_tick,
                        health, max_health, position_x, position_y
                 FROM agent_snapshots
                 GROUP BY agent_id
                 ORDER BY agent_id
-            """
-            )
+            """)
             latest_agents = cursor.fetchall()
 
             print("\\nFinal agent states:")
@@ -169,14 +161,12 @@ def inspect_database(db_path):
         print(f"World snapshots: {world_snapshots}")
 
         if world_snapshots > 0:
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT tick, active_agents, active_npcs
                 FROM world_snapshots
                 ORDER BY tick DESC
                 LIMIT 1
-            """
-            )
+            """)
             latest_world = cursor.fetchone()
             if latest_world:
                 tick, active_agents, active_npcs = latest_world
@@ -194,14 +184,12 @@ def inspect_database(db_path):
         print(f"Combat events: {combat_count}")
 
         if combat_count > 0:
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT tick, attacker_id, defender_id, damage_dealt, combat_result
                 FROM combat_logs
                 ORDER BY tick DESC
                 LIMIT 5
-            """
-            )
+            """)
             recent_combat = cursor.fetchall()
 
             print("\\nRecent combat:")
@@ -219,14 +207,12 @@ def inspect_database(db_path):
         print(f"Trade events: {trade_count}")
 
         if trade_count > 0:
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT tick, buyer_id, seller_id, item_name, quantity, price
                 FROM trade_logs
                 ORDER BY tick DESC
                 LIMIT 5
-            """
-            )
+            """)
             recent_trades = cursor.fetchall()
 
             print("\\nRecent trades:")
