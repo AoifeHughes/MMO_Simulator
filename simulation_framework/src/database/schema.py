@@ -152,15 +152,13 @@ class DatabaseSchema:
     ]
 
     # Trigger definitions for automatic timestamp updates
-    CREATE_TRIGGERS = [
-        """
+    CREATE_TRIGGERS = ["""
         CREATE TRIGGER IF NOT EXISTS update_simulation_runs_timestamp
         AFTER UPDATE ON simulation_runs
         BEGIN
             UPDATE simulation_runs SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id;
         END
-        """
-    ]
+        """]
 
     # View definitions for common queries
     CREATE_VIEWS = [

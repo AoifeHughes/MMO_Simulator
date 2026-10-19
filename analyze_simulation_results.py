@@ -45,13 +45,11 @@ class SimulationAnalyzer:
         cursor = self.conn.cursor()
 
         # Get the latest simulation run
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT * FROM simulation_runs
             ORDER BY id DESC
             LIMIT 1
-        """
-        )
+        """)
 
         sim_run = cursor.fetchone()
         if not sim_run:
